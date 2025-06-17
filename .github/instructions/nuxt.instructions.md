@@ -1,0 +1,108 @@
+---
+applyTo: 'src/FE/nuxt/**'
+---
+# Nuxt 3 Frontend Development Rules
+
+## Context
+
+- Apply to all files within src/FE/nuxt directory
+- Based on project dependencies: Nuxt 3, Vue 3, TypeScript, Tailwind CSS, Pinia
+- Admin dashboard template VRISTO with specific UI components and patterns
+- Includes: @headlessui/vue, @vueuse/core, @pinia/nuxt, vue3-apexcharts, sweetalert2
+
+## Critical Rules
+
+- Write TypeScript code with Composition API and `<script setup>` syntax exclusively
+- Use PascalCase for components (AuthWizard.vue), camelCase for composables (useAuthState.ts)
+- Structure: exported component, composables, helpers, static content, types
+- Prefer types over interfaces, avoid enums, use const objects instead
+- Use Pinia for state management following useAppStore pattern (theme, menu, layout, rtl, animation, navbar, locale)
+- Leverage VueUse (@vueuse/core) for composables and utility functions
+- Use Tailwind CSS with mobile-first responsive design (sm:, md:, lg:, xl: breakpoints)
+- Follow VRISTO theme structure: panel classes, grid layouts, dark mode support
+- Implement multi-language support using @nuxtjs/i18n with strategy: 'no_prefix'
+- Use useFetch/useAsyncData for data fetching with proper error handling
+- Apply SEO best practices with useHead and useSeoMeta
+- Use client-only wrapper for SSR-sensitive components (charts, complex UI)
+- Follow established patterns: breadcrumbs, dropdown menus, theme switching
+- Use descriptive variable names with auxiliary verbs (isLoading, hasError, showModal)
+- Implement lazy loading for routes and components for performance
+
+## Examples
+
+<example>
+  // ✅ Good: VRISTO dashboard page with proper structure
+  <template>
+    <div>
+      <ul class="flex space-x-2 rtl:space-x-reverse">
+        <li><a href="#" class="text-primary hover:underline">Dashboard</a></li>
+        <li class="before:content-['/'] ltr:before:mr-2 rtl:before:ml-2">
+          <span>Finance</span>
+        </li>
+      </ul>
+      
+      <div class="pt-5">
+        <div class="panel h-full">
+          <div class="mb-5 flex items-center justify-between dark:text-white-light">
+            <h5 class="text-lg font-semibold">Revenue Chart</h5>
+            <div class="dropdown">
+              <client-only>
+                <Popper :placement="store.rtlClass === 'rtl' ? 'bottom-start' : 'bottom-end'">
+                  <button type="button"><icon-horizontal-dots /></button>
+                  <template #content="{ close }">
+                    <ul @click="close()">
+                      <li><a href="#">Weekly</a></li>
+                    </ul>
+                  </template>
+                </Popper>
+              </client-only>
+            </div>
+          </div>
+          
+          <client-only>
+            <apexchart height="300" :options="chartOptions" :series="chartSeries" />
+          </client-only>
+        </div>
+      </div>
+    </div>
+  </template>
+
+  <script setup lang="ts">
+  import { useAppStore } from '@/stores/index'
+  
+  type ChartData = {
+    categories: string[]
+    values: number[]
+  }
+  
+  const store = useAppStore()
+  const { data: chartData } = await useFetch<ChartData>('/api/charts/revenue')
+  
+  useHead({
+    title: 'Financial Dashboard'
+  })
+  </script>
+</example>
+
+<example type="invalid">
+  // ❌ Bad: Options API, missing TypeScript, wrong styling
+  <template>
+    <div style="padding: 20px;">
+      <h1>Dashboard</h1>
+      <div v-if="loading">Loading...</div>
+    </div>
+  </template>
+  
+  <script>
+  export default {
+    data() {
+      return { loading: true }
+    },
+    async mounted() {
+      const response = await fetch('/api/data')
+      this.data = await response.json()
+      this.loading = false
+    }
+  }
+  </script>
+</example>

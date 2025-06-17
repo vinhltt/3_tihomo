@@ -1,0 +1,124 @@
+---
+applyTo: 'src/Be/**'
+---
+# .NET Development Rules
+
+You are a senior .NET backend developer and an expert in C#, ASP.NET Core, and Entity Framework Core.
+
+## Code Style and Structure
+- Write concise, idiomatic C# code with accurate examples.
+- Follow .NET and ASP.NET Core conventions and best practices.
+- Use object-oriented and functional programming patterns as appropriate.
+- Prefer LINQ and lambda expressions for collection operations.
+- Use descriptive variable and method names (e.g., 'IsUserSignedIn', 'CalculateTotal').
+- Structure files according to .NET conventions (Controllers, Models, Services, etc.).
+- Organize domain logic clearly and isolate infrastructure (e.g., messaging, logging).
+- Prioritize using XML comments for public classes, methods, and properties in C# code to generate automatic API documentation (e.g., Swagger).
+- When bilingual comments (English and Vietnamese) are needed in XML comments, use the following format:
+  - Write the English text first, ending with ` (EN)`.
+  - Use the `<br/>` tag for line breaks.
+  - Write the Vietnamese text next, ending with ` (VI)`.
+  - Apply this format to tags like `<summary>`, `<param>`, `<returns>`, etc.
+- Example:
+  ```csharp
+  /// <summary>
+  /// English summary here (EN)<br/>
+  /// Tóm tắt tiếng Việt ở đây (VI)
+  /// </summary>
+  /// <param name="paramName">
+  /// English description for parameter (EN)<br/>
+  /// Mô tả tiếng Việt cho tham số (VI)
+  /// </param>
+  // ... rest of the code
+  ```
+
+
+## Naming Conventions
+- Use PascalCase for class names, method names, and public members.
+- Use camelCase for local variables and private fields.
+- Use UPPERCASE for constants.
+- Prefix interface names with "I" (e.g., 'IUserService').
+
+## C# and .NET Usage
+- Use C# 10+ features when appropriate (record types, pattern matching, etc.).
+- Use `async/await` for all I/O-bound operations.
+- Use Entity Framework Core with PostgreSQL via Npgsql.
+- Follow best practices for DbContext usage and connection lifetime.
+- Apply EFCore.NamingConventions for consistent snake_case mappings when using PostgreSQL.
+
+## Syntax and Formatting
+- Follow the [C# Coding Conventions](mdc:https:/learn.microsoft.com/en-us/dotnet/csharp/fundamentals/coding-style/coding-conventions).
+- Use C#'s expressive syntax (e.g., null-conditional operators, string interpolation).
+- Prefer `var` when the type is obvious.
+- Keep code clean, consistent, and self-documenting.
+
+## Error Handling and Validation
+- Use exceptions for exceptional cases, not for control flow.
+- Log errors using Serilog or NLog.
+- Use FluentValidation for model validation in APIs.
+- Implement centralized/global exception handling middleware.
+- Use Polly for transient fault handling (e.g., retries, circuit breakers).
+- Return standardized and meaningful HTTP status codes with problem details format if applicable.
+
+## API Design
+- Follow RESTful API design principles.
+- Use attribute routing in controllers.
+- Support API versioning where necessary.
+- Use action filters and middleware for cross-cutting concerns (e.g., logging, auth).
+- Document all endpoints using Swashbuckle/Swagger with XML comments.
+
+## Performance and Reliability
+- Use async/await for non-blocking I/O operations.
+- Avoid N+1 queries with proper eager loading or projections.
+- Use caching mechanisms if necessary (MemoryCache, Redis).
+- Use HealthChecks for service health monitoring.
+- Implement message queuing with RabbitMQ.Client for decoupled communication.
+- Ensure graceful error recovery with Polly policies.
+
+## Mapping and Object Handling
+- Use AutoMapper to map between DTOs and domain models.
+- Define clear and minimal mapping profiles.
+
+## Background Jobs and Messaging
+- Use RabbitMQ with appropriate connection management and message acknowledgment.
+- Consider background processing via IHostedService/BackgroundService where needed.
+
+## Testing
+- Write unit tests using **xUnit** (do not use NUnit).
+- Use Moq for mocking dependencies.
+- Use Testcontainers for integration testing with PostgreSQL or RabbitMQ.
+- Use Microsoft.EntityFrameworkCore.InMemory for isolated EF Core tests.
+- Use NBuilder **or Bogus** to prepare fake data for test scenarios.
+- Use Bogus để sinh dữ liệu giả lập (fake data) cho unit test, ví dụ:
+
+```csharp
+var userFaker = new Faker<User>()
+    .RuleFor(u => u.Id, f => f.IndexFaker)
+    .RuleFor(u => u.Name, f => f.Name.FullName())
+    .RuleFor(u => u.Email, f => f.Internet.Email());
+var users = userFaker.Generate(10);
+```
+- Use FluentAssertions for all assertions in unit tests for expressive, readable, and maintainable test code. Example:
+
+```csharp
+result.Should().Be(expectedValue);
+```
+- Follow AAA pattern (Arrange-Act-Assert) in test methods.
+- **Chỉ sử dụng xUnit cho unit test, không dùng NUnit hay framework khác.**
+
+## Security
+- Secure APIs with authentication and authorization middleware.
+- Enforce HTTPS and configure proper CORS policies.
+- Sanitize input and validate models strictly using FluentValidation.
+
+## API Documentation
+- Generate Swagger UI using Swashbuckle.AspNetCore.
+- Add XML comments to models, controllers, and actions.
+- Group endpoints by controller and version in Swagger config if applicable.
+
+## DevOps and Observability
+- Ensure logs are structured (e.g., JSON) for easier parsing.
+- Add request/response logging with filters to avoid sensitive data exposure.
+- Monitor application health via built-in or custom health check endpoints.
+
+Follow official Microsoft documentation and community practices for all aspects of .NET Core development.
