@@ -1,0 +1,227 @@
+@{
+    ViewData["Title"] = "Account Information";
+}
+
+<div class="container">
+    <div class="row">
+        <div class="col-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a asp-action="Index">Home</a></li>
+                    <li class="breadcrumb-item"><a asp-action="Dashboard">Dashboard</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Account Information</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1 class="h2 mb-1">Account Information</h1>
+                    <p class="text-muted mb-0">Your profile and authentication details</p>
+                </div>
+                <div>
+                    <a asp-action="Dashboard" class="btn btn-outline-primary">
+                        <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white border-bottom-0 py-3">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-user me-2 text-primary"></i>Profile Information
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-sm-3">
+                            <h6 class="mb-0 text-muted">User ID</h6>
+                        </div>
+                        <div class="col-sm-9">
+                            <code>@User.FindFirst("sub")?.Value</code>
+                        </div>
+                    </div>
+                    <hr class="my-3">
+                    <div class="row">
+                        <div class="col-sm-3">
+                            <h6 class="mb-0 text-muted">Full Name</h6>
+                        </div>
+                        <div class="col-sm-9">
+                            @User.Identity.Name
+                        </div>
+                    </div>
+                    <hr class="my-3">
+                    <div class="row">
+                        <div class="col-sm-3">
+                            <h6 class="mb-0 text-muted">Email Address</h6>
+                        </div>
+                        <div class="col-sm-9">
+                            @User.FindFirst("email")?.Value
+                            <span class="badge bg-success ms-2">
+                                <i class="fas fa-check me-1"></i>Verified
+                            </span>
+                        </div>
+                    </div>
+                    <hr class="my-3">
+                    <div class="row">
+                        <div class="col-sm-3">
+                            <h6 class="mb-0 text-muted">Username</h6>
+                        </div>
+                        <div class="col-sm-9">
+                            @User.FindFirst("username")?.Value
+                        </div>
+                    </div>
+                    <hr class="my-3">
+                    <div class="row">
+                        <div class="col-sm-3">
+                            <h6 class="mb-0 text-muted">Roles</h6>
+                        </div>
+                        <div class="col-sm-9">
+                            @foreach (var role in User.FindAll("role"))
+                            {
+                                <span class="badge bg-primary me-1">@role.Value</span>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white border-bottom-0 py-3">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-key me-2 text-success"></i>Authentication Details
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-sm-3">
+                            <h6 class="mb-0 text-muted">Authentication Method</h6>
+                        </div>
+                        <div class="col-sm-9">
+                            Cookie Authentication
+                            <span class="badge bg-success ms-2">
+                                <i class="fas fa-shield-alt me-1"></i>Secure
+                            </span>
+                        </div>
+                    </div>
+                    <hr class="my-3">
+                    <div class="row">
+                        <div class="col-sm-3">
+                            <h6 class="mb-0 text-muted">Session Status</h6>
+                        </div>
+                        <div class="col-sm-9">
+                            <span class="badge bg-success">
+                                <i class="fas fa-check-circle me-1"></i>Active
+                            </span>
+                        </div>
+                    </div>
+                    <hr class="my-3">
+                    <div class="row">
+                        <div class="col-sm-3">
+                            <h6 class="mb-0 text-muted">Authentication Scheme</h6>
+                        </div>
+                        <div class="col-sm-9">
+                            <code>@User.Identity.AuthenticationType</code>
+                        </div>
+                    </div>
+                    <hr class="my-3">
+                    <div class="row">
+                        <div class="col-sm-3">
+                            <h6 class="mb-0 text-muted">Login Time</h6>
+                        </div>
+                        <div class="col-sm-9">
+                            @DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white border-bottom-0 py-3">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-cog me-2 text-info"></i>Account Actions
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-outline-primary" disabled>
+                            <i class="fas fa-edit me-2"></i>Edit Profile
+                        </button>
+                        <button class="btn btn-outline-warning" disabled>
+                            <i class="fas fa-key me-2"></i>Change Password
+                        </button>
+                        <button class="btn btn-outline-info" disabled>
+                            <i class="fas fa-mobile-alt me-2"></i>Setup 2FA
+                        </button>
+                        <hr>
+                        <button class="btn btn-outline-danger" disabled>
+                            <i class="fas fa-user-times me-2"></i>Delete Account
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-bottom-0 py-3">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-info-circle me-2 text-primary"></i>Help & Support
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-3">Need assistance with your account?</p>
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-outline-primary" disabled>
+                            <i class="fas fa-question-circle me-2"></i>Help Center
+                        </button>
+                        <button class="btn btn-outline-primary" disabled>
+                            <i class="fas fa-envelope me-2"></i>Contact Support
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-bottom-0 py-3">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-code me-2 text-secondary"></i>Claims Information
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-3">Technical details about your authentication claims:</p>
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Claim Type</th>
+                                    <th>Value</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var claim in User.Claims)
+                                {
+                                    <tr>
+                                        <td><code>@claim.Type</code></td>
+                                        <td>@claim.Value</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

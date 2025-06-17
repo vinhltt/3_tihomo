@@ -1,0 +1,170 @@
+@{
+    ViewData["Title"] = "Access Denied";
+}
+
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="text-center mb-5">
+                <i class="fas fa-ban display-1 text-warning mb-4"></i>
+                <h1 class="display-4 fw-bold text-warning mb-3">Access Denied</h1>
+                <p class="lead text-muted mb-4">You don't have permission to access this resource.</p>
+            </div>
+
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-body p-4 text-center">
+                    <h5 class="card-title mb-3">What happened?</h5>
+                    <p class="text-muted mb-4">
+                        You attempted to access a resource that requires additional permissions or authentication.
+                        This could happen for several reasons:
+                    </p>
+                    
+                    <div class="row text-start">
+                        <div class="col-md-6 mb-3">
+                            <div class="d-flex align-items-start">
+                                <i class="fas fa-user-times text-warning me-3 mt-1"></i>
+                                <div>
+                                    <h6 class="mb-1">Insufficient Permissions</h6>
+                                    <small class="text-muted">Your account doesn't have the required role or permissions.</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="d-flex align-items-start">
+                                <i class="fas fa-clock text-warning me-3 mt-1"></i>
+                                <div>
+                                    <h6 class="mb-1">Session Expired</h6>
+                                    <small class="text-muted">Your authentication session may have expired.</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="d-flex align-items-start">
+                                <i class="fas fa-shield-alt text-warning me-3 mt-1"></i>
+                                <div>
+                                    <h6 class="mb-1">Protected Resource</h6>
+                                    <small class="text-muted">The resource requires special authorization.</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="d-flex align-items-start">
+                                <i class="fas fa-link text-warning me-3 mt-1"></i>
+                                <div>
+                                    <h6 class="mb-1">Invalid Link</h6>
+                                    <small class="text-muted">The link you followed may be incorrect or expired.</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-body p-4">
+                    <h5 class="card-title mb-3">
+                        <i class="fas fa-lightbulb text-primary me-2"></i>What can you do?
+                    </h5>
+                    
+                    <div class="d-flex gap-3 flex-wrap">
+                        @if (User.Identity!.IsAuthenticated)
+                        {
+                            <a asp-controller="Home" asp-action="Dashboard" class="btn btn-primary">
+                                <i class="fas fa-tachometer-alt me-2"></i>Go to Dashboard
+                            </a>
+                            <a asp-controller="Home" asp-action="Index" class="btn btn-outline-primary">
+                                <i class="fas fa-home me-2"></i>Go Home
+                            </a>
+                            <button onclick="history.back()" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>Go Back
+                            </button>
+                        }
+                        else
+                        {
+                            <a asp-action="Login" class="btn btn-primary">
+                                <i class="fas fa-sign-in-alt me-2"></i>Sign In
+                            </a>
+                            <a asp-action="Register" class="btn btn-outline-primary">
+                                <i class="fas fa-user-plus me-2"></i>Create Account
+                            </a>
+                            <a asp-controller="Home" asp-action="Index" class="btn btn-outline-secondary">
+                                <i class="fas fa-home me-2"></i>Go Home
+                            </a>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            @if (User.Identity.IsAuthenticated)
+            {
+                <div class="card border-0 bg-light">
+                    <div class="card-body p-4">
+                        <h5 class="card-title mb-3">Your Account Information</h5>
+                        <div class="row">
+                            <div class="col-sm-4">
+                                <strong>Username:</strong>
+                            </div>
+                            <div class="col-sm-8">
+                                @User.Identity.Name
+                            </div>
+                        </div>
+                        <hr class="my-2">
+                        <div class="row">
+                            <div class="col-sm-4">
+                                <strong>Email:</strong>
+                            </div>
+                            <div class="col-sm-8">
+                                @User.FindFirst("email")?.Value
+                            </div>
+                        </div>
+                        <hr class="my-2">
+                        <div class="row">
+                            <div class="col-sm-4">
+                                <strong>Roles:</strong>
+                            </div>
+                            <div class="col-sm-8">
+                                @foreach (var role in User.FindAll("role"))
+                                {
+                                    <span class="badge bg-secondary me-1">@role.Value</span>
+                                }
+                            </div>
+                        </div>
+                        <hr class="my-3">
+                        <p class="text-muted mb-3">
+                            If you believe you should have access to this resource, please contact your administrator 
+                            or request additional permissions.
+                        </p>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-outline-primary btn-sm" disabled>
+                                <i class="fas fa-envelope me-2"></i>Contact Admin
+                            </button>
+                            <button class="btn btn-outline-info btn-sm" disabled>
+                                <i class="fas fa-question-circle me-2"></i>Request Access
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="card border-0 bg-light">
+                    <div class="card-body p-4 text-center">
+                        <h5 class="card-title mb-3">Not signed in?</h5>
+                        <p class="text-muted mb-3">
+                            You may need to sign in to access this resource. If you don't have an account yet, 
+                            you can create one for free.
+                        </p>
+                        <div class="d-flex gap-3 justify-content-center">
+                            <a asp-action="Login" class="btn btn-success">
+                                <i class="fas fa-sign-in-alt me-2"></i>Sign In Now
+                            </a>
+                            <a asp-action="Register" class="btn btn-outline-success">
+                                <i class="fas fa-user-plus me-2"></i>Create Account
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>

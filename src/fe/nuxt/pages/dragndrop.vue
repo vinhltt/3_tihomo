@@ -1,0 +1,416 @@
+<template>
+    <div>
+        <ul class="mb-6 flex space-x-2 rtl:space-x-reverse">
+            <li>
+                <a href="javascript:;" class="text-primary hover:underline">Dashboard</a>
+            </li>
+            <li class="before:content-['/'] ltr:before:mr-2 rtl:before:ml-2">
+                <span>Drag & Drop</span>
+            </li>
+        </ul>
+
+        <div class="dragndrop space-y-8">
+            <div class="panel flex items-center overflow-x-auto whitespace-nowrap p-3 text-primary">
+                <div class="rounded-full bg-primary p-1.5 text-white ring-2 ring-primary/30 ltr:mr-3 rtl:ml-3">
+                    <icon-bell />
+                </div>
+                <span class="ltr:mr-3 rtl:ml-3">Documentation: </span
+                ><a href="https://www.npmjs.com/package/vue-draggable-next" target="_blank" class="block hover:underline"
+                    >https://www.npmjs.com/package/vue-draggable-next</a
+                >
+            </div>
+
+            <!-- Sortable -->
+            <div class="panel">
+                <div class="mb-5 text-lg font-semibold">Sortable</div>
+                <div class="grid grid-cols-1 gap-x-12 sm:grid-cols-2">
+                    <div>
+                        <ul>
+                            <draggable group="shared" ghost-class="gu-transit" :animation="200">
+                                <template v-for="(item, i) in items" :key="i">
+                                    <li class="mb-2.5 cursor-grab">
+                                        <div
+                                            class="items-md-center flex flex-col rounded-md border border-white-light bg-white px-6 py-3.5 text-center dark:border-dark dark:bg-[#1b2e4b] md:flex-row ltr:md:text-left rtl:md:text-right"
+                                        >
+                                            <div class="ltr:sm:mr-4 rtl:sm:ml-4">
+                                                <img alt="avatar" :src="`/assets/images/profile-${item.id}.jpeg`" class="mx-auto h-11 w-11 rounded-full" />
+                                            </div>
+                                            <div class="flex flex-1 flex-col items-center justify-between md:flex-row">
+                                                <div class="my-3 font-semibold md:my-0">
+                                                    <div class="text-base text-dark dark:text-[#bfc9d4]">{{ item.text }}</div>
+                                                    <div class="text-xs text-white-dark">{{ item.name }}</div>
+                                                </div>
+                                                <div>
+                                                    <button type="button" class="btn btn-secondary btn-sm px-5 py-2">View</button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </li>
+                                </template>
+                            </draggable>
+                        </ul>
+                    </div>
+
+                    <div>
+                        <ul>
+                            <draggable group="shared" ghost-class="gu-transit" :animation="200">
+                                <template v-for="(item, i) in items" :key="i">
+                                    <li class="mb-2.5 cursor-grab">
+                                        <div
+                                            class="items-md-center flex flex-col rounded-md border border-white-light bg-white px-6 py-3.5 text-center dark:border-dark dark:bg-[#1b2e4b] md:flex-row ltr:md:text-left rtl:md:text-right"
+                                        >
+                                            <div class="ltr:sm:mr-4 rtl:sm:ml-4">
+                                                <img alt="avatar" :src="`/assets/images/profile-${item.id + 5}.jpeg`" class="mx-auto h-11 w-11 rounded-full" />
+                                            </div>
+                                            <div class="flex flex-1 flex-col items-center justify-between md:flex-row">
+                                                <div class="my-3 font-semibold md:my-0">
+                                                    <div class="text-base text-dark dark:text-[#bfc9d4]">{{ item.text }}</div>
+                                                    <div class="text-xs text-white-dark">{{ item.name }}</div>
+                                                </div>
+                                                <div>
+                                                    <button type="button" class="btn btn-secondary btn-sm px-5 py-2">View</button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </li>
+                                </template>
+                            </draggable>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Icon Change -->
+            <div class="panel">
+                <div class="mb-5 text-lg font-semibold dark:text-white">Icon Change</div>
+                <div class="icon-change grid grid-cols-1 gap-x-12 sm:grid-cols-2">
+                    <div>
+                        <ul class="left">
+                            <draggable group="icon" ghost-class="gu-transit" :animation="200">
+                                <template v-for="(item, i) in items" :key="i">
+                                    <li class="mb-2.5 cursor-grab">
+                                        <div
+                                            class="items-md-center flex flex-col rounded-md border border-white-light bg-white px-6 py-3.5 ltr:text-left rtl:text-right dark:border-dark dark:bg-[#1b2e4b] md:flex-row"
+                                        >
+                                            <div class="ltr:sm:mr-4 rtl:sm:ml-4">
+                                                <img alt="avatar" :src="`/assets/images/profile-${item.id}.jpeg`" class="h-11 w-11 rounded-full" />
+                                            </div>
+                                            <div class="flex flex-1 items-center justify-between">
+                                                <div class="my-3 font-semibold md:my-0">
+                                                    <div class="text-base text-dark dark:text-[#bfc9d4]">{{ item.text }}</div>
+                                                    <div class="text-xs text-white-dark">{{ item.name }}</div>
+                                                </div>
+                                                <div class="text-white-dark">
+                                                    <icon-star class="w-6 h-6 feather-star" />
+                                                    <icon-heart class="feather-heart" />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </li>
+                                </template>
+                            </draggable>
+                        </ul>
+                    </div>
+
+                    <div>
+                        <ul class="right">
+                            <draggable group="icon" ghost-class="gu-transit" :animation="200">
+                                <template v-for="(item, i) in items" :key="i">
+                                    <li class="mb-2.5 cursor-grab">
+                                        <div
+                                            class="items-md-center flex flex-col rounded-md border border-white-light bg-white px-6 py-3.5 ltr:text-left rtl:text-right dark:border-dark dark:bg-[#1b2e4b] md:flex-row"
+                                        >
+                                            <div class="ltr:sm:mr-4 rtl:sm:ml-4">
+                                                <img alt="avatar" :src="`/assets/images/profile-${item.id + 5}.jpeg`" class="h-11 w-11 rounded-full" />
+                                            </div>
+                                            <div class="flex flex-1 items-center justify-between">
+                                                <div class="my-3 font-semibold md:my-0">
+                                                    <div class="text-base text-dark dark:text-[#bfc9d4]">{{ item.text }}</div>
+                                                    <div class="text-xs text-white-dark">{{ item.name }}</div>
+                                                </div>
+                                                <div class="text-white-dark">
+                                                    <icon-star class="w-6 h-6 feather-star" />
+                                                    <icon-heart class="feather-heart" />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </li>
+                                </template>
+                            </draggable>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Handler -->
+            <div class="panel">
+                <div class="mb-5 text-lg font-semibold dark:text-white">Handler</div>
+                <div class="grid grid-cols-1 gap-x-12 sm:grid-cols-2">
+                    <div>
+                        <ul>
+                            <draggable group="handler" ghost-class="gu-transit" handle=".handle" :animation="200">
+                                <template v-for="(item, i) in items" :key="i">
+                                    <li class="mb-2.5 cursor-grab">
+                                        <div
+                                            class="items-md-center flex flex-col rounded-md border border-white-light bg-white px-6 py-3.5 text-center dark:border-dark dark:bg-[#1b2e4b] md:flex-row ltr:md:text-left rtl:md:text-right"
+                                        >
+                                            <div class="ltr:sm:mr-4 rtl:sm:ml-4">
+                                                <img alt="avatar" :src="`/assets/images/profile-${item.id}.jpeg`" class="mx-auto h-11 w-11 rounded-full" />
+                                            </div>
+                                            <div class="block flex-1 items-center justify-between sm:flex">
+                                                <div class="my-3 font-semibold md:my-0">
+                                                    <div class="text-base text-dark dark:text-[#bfc9d4]">{{ item.text }}</div>
+                                                    <div class="text-xs text-white-dark">{{ item.name }}</div>
+                                                </div>
+                                                <div class="text-white-dark">
+                                                    <span class="handle cursor-move rounded bg-[#ebedf2] px-2 ltr:mr-1 rtl:ml-1 dark:bg-black">+</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </li>
+                                </template>
+                            </draggable>
+                        </ul>
+                    </div>
+
+                    <div>
+                        <ul>
+                            <draggable group="handler" ghost-class="gu-transit" handle=".handle" :animation="200">
+                                <template v-for="(item, i) in items" :key="i">
+                                    <li class="mb-2.5 cursor-grab">
+                                        <div
+                                            class="items-md-center flex flex-col rounded-md border border-white-light bg-white px-6 py-3.5 text-center dark:border-dark dark:bg-[#1b2e4b] md:flex-row ltr:md:text-left rtl:md:text-right"
+                                        >
+                                            <div class="ltr:sm:mr-4 rtl:sm:ml-4">
+                                                <img alt="avatar" :src="`/assets/images/profile-${item.id + 5}.jpeg`" class="mx-auto h-11 w-11 rounded-full" />
+                                            </div>
+                                            <div class="block flex-1 items-center justify-between sm:flex">
+                                                <div class="my-3 font-semibold md:my-0">
+                                                    <div class="text-base text-dark dark:text-[#bfc9d4]">{{ item.text }}</div>
+                                                    <div class="text-xs text-white-dark">{{ item.name }}</div>
+                                                </div>
+                                                <div class="text-white-dark">
+                                                    <span class="handle cursor-move rounded bg-[#ebedf2] px-2 ltr:mr-1 rtl:ml-1 dark:bg-black">+</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </li>
+                                </template>
+                            </draggable>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- News feed -->
+            <div class="panel">
+                <div class="mb-5 text-lg font-semibold dark:text-white">News Feed</div>
+                <div>
+                    <draggable group="newsfeed" :animation="200" class="grid grid-cols-1 gap-x-12 sm:grid-cols-2">
+                        <template v-for="(item, i) in items" :key="i">
+                            <div class="mb-2.5" v-show="item.id <= 4">
+                                <div class="rounded-md border border-white-light bg-white px-6 py-3.5 dark:border-dark dark:bg-[#1b2e4b]">
+                                    <div class="py-sm-2.5 items-md-center block text-center sm:flex ltr:md:text-left rtl:md:text-right">
+                                        <div class="ltr:sm:mr-4 rtl:sm:ml-4">
+                                            <img alt="avatar" :src="`/assets/images/profile-${item.id + 1}.jpeg`" class="mx-auto h-11 w-11 rounded-lg" />
+                                        </div>
+                                        <div class="flex flex-1 flex-col items-center justify-between md:flex-row">
+                                            <div class="my-3 font-semibold md:my-0">
+                                                <div class="text-base text-dark dark:text-[#bfc9d4]">{{ item.name }}</div>
+                                                <div class="text-xs text-white-dark">11 hours ago</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="mb-4 border-b border-b-[#f1f2f3] py-5 dark:border-b-dark">
+                                        Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna
+                                        aliqua. Ut enim ad minim veniam, quis nostrud exercitation.
+                                    </div>
+                                    <div class="flex-wrap items-center md:flex">
+                                        <div class="text-center ltr:md:text-left rtl:md:text-right xl:flex-1">
+                                            <div class="flex justify-center -space-x-2 text-white rtl:space-x-reverse md:justify-start">
+                                                <img
+                                                    class="h-10 w-10 rounded-full object-cover ring-2 ring-white dark:ring-white-dark"
+                                                    src="/assets/images/profile-6.jpeg"
+                                                    alt=""
+                                                />
+                                                <img
+                                                    class="h-10 w-10 rounded-full object-cover ring-2 ring-white dark:ring-white-dark"
+                                                    src="/assets/images/profile-7.jpeg"
+                                                    alt=""
+                                                />
+                                                <img
+                                                    class="h-10 w-10 rounded-full object-cover ring-2 ring-white dark:ring-white-dark"
+                                                    src="/assets/images/profile-8.jpeg"
+                                                    alt=""
+                                                />
+                                                <img
+                                                    class="h-10 w-10 rounded-full object-cover ring-2 ring-white dark:ring-white-dark"
+                                                    src="/assets/images/profile-10.jpeg"
+                                                    alt=""
+                                                />
+                                            </div>
+                                        </div>
+                                        <div class="text-center ltr:md:text-right rtl:md:text-left">
+                                            <span class="block pt-2 text-xs text-white-dark lg:pt-0"
+                                                ><a href="javascript:;" class="text-sm font-semibold text-danger dark:text-primary">Vincent, Mary</a> and 19
+                                                other like this</span
+                                            >
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                    </draggable>
+                </div>
+            </div>
+
+            <!-- Delete User -->
+            <div class="panel">
+                <div class="mb-5 text-lg font-semibold dark:text-white">Delete User</div>
+                <div class="grid grid-cols-1 gap-x-12 lg:grid-cols-2">
+                    <div>
+                        <ul>
+                            <draggable group="delete" ghost-class="gu-transit" removeOnSpill="true" :animation="200" class="min-h-[200px]">
+                                <template v-for="(item, i) in items" :key="i">
+                                    <li class="mb-2.5 cursor-grab">
+                                        <div
+                                            class="items-md-center flex flex-col rounded-md border border-white-light bg-white px-6 py-3.5 text-center dark:border-dark dark:bg-[#1b2e4b] md:flex-row ltr:md:text-left rtl:md:text-right"
+                                        >
+                                            <div class="ltr:sm:mr-4 rtl:sm:ml-4">
+                                                <img alt="avatar" :src="`/assets/images/profile-${item.id}.jpeg`" class="mx-auto h-11 w-11 rounded-full" />
+                                            </div>
+                                            <div class="flex flex-1 flex-col items-center justify-between md:flex-row">
+                                                <div class="my-3 font-semibold md:my-0">
+                                                    <div class="text-base text-dark dark:text-[#bfc9d4]">{{ item.text }}</div>
+                                                    <div class="text-xs text-white-dark">{{ item.name }}</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </li>
+                                </template>
+                            </draggable>
+                        </ul>
+                    </div>
+
+                    <div>
+                        <ul>
+                            <draggable group="delete" ghost-class="gu-transit" removeOnSpill="true" :animation="200" class="min-h-[200px]">
+                                <template v-for="(item, i) in items" :key="i">
+                                    <li class="mb-2.5 cursor-grab">
+                                        <div
+                                            class="items-md-center flex flex-col rounded-md border border-white-light bg-white px-6 py-3.5 text-center dark:border-dark dark:bg-[#1b2e4b] md:flex-row ltr:md:text-left rtl:md:text-right"
+                                        >
+                                            <div class="ltr:sm:mr-4 rtl:sm:ml-4">
+                                                <img alt="avatar" :src="`/assets/images/profile-${item.id + 5}.jpeg`" class="mx-auto h-11 w-11 rounded-full" />
+                                            </div>
+                                            <div class="flex flex-1 flex-col items-center justify-between md:flex-row">
+                                                <div class="my-3 font-semibold md:my-0">
+                                                    <div class="text-base text-dark dark:text-[#bfc9d4]">{{ item.text }}</div>
+                                                    <div class="text-xs text-white-dark">{{ item.name }}</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </li>
+                                </template>
+                            </draggable>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Grid drag -->
+            <div class="panel">
+                <div class="mb-5 text-lg font-semibold dark:text-white">Grid drag</div>
+                <div>
+                    <draggable group="grid" :animation="200" class="grid grid-cols-2 place-items-center gap-8 sm:grid-cols-4 md:grid-cols-6 xl:grid-cols-8">
+                        <template v-for="i in 12" :key="i">
+                            <div
+                                class="flex h-24 w-24 cursor-grab items-center justify-center rounded-md border border-white-light font-semibold shadow dark:border-dark"
+                            >
+                                {{ 'Item ' + i }}
+                            </div>
+                        </template>
+                    </draggable>
+                </div>
+            </div>
+
+            <!-- Swap -->
+            <div class="panel">
+                <div class="mb-5 text-lg font-semibold dark:text-white">Swap</div>
+                <div>
+                    <div>
+                        <ul>
+                            <draggable swap="true" :animation="200" swapThreshold="1" class="grid grid-cols-1 gap-x-12 lg:grid-cols-2">
+                                <template v-for="(item, i) in items" :key="i">
+                                    <li class="mb-2.5 cursor-grab">
+                                        <div
+                                            class="items-md-center flex flex-col rounded-md border border-white-light bg-white px-6 py-3.5 text-center dark:border-dark dark:bg-[#1b2e4b] md:flex-row ltr:md:text-left rtl:md:text-right"
+                                        >
+                                            <div class="ltr:sm:mr-4 rtl:sm:ml-4">
+                                                <img alt="avatar" :src="`/assets/images/profile-${item.id}.jpeg`" class="mx-auto h-11 w-11 rounded-full" />
+                                            </div>
+                                            <div class="flex flex-1 flex-col items-center justify-between md:flex-row">
+                                                <div class="my-3 font-semibold md:my-0">
+                                                    <div class="text-base text-dark dark:text-[#bfc9d4]">{{ item.text }}</div>
+                                                    <div class="text-xs text-white-dark">{{ item.name }}</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </li>
+                                    <li class="mb-2.5 cursor-grab">
+                                        <div
+                                            class="items-md-center flex flex-col rounded-md border border-white-light bg-white px-6 py-3.5 text-center dark:border-dark dark:bg-[#1b2e4b] md:flex-row ltr:md:text-left rtl:md:text-right"
+                                        >
+                                            <div class="ltr:sm:mr-4 rtl:sm:ml-4">
+                                                <img alt="avatar" :src="`/assets/images/profile-${item.id + 5}.jpeg`" class="mx-auto h-11 w-11 rounded-full" />
+                                            </div>
+                                            <div class="flex flex-1 flex-col items-center justify-between md:flex-row">
+                                                <div class="my-3 font-semibold md:my-0">
+                                                    <div class="text-base text-dark dark:text-[#bfc9d4]">{{ item.text }}</div>
+                                                    <div class="text-xs text-white-dark">{{ item.name }}</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </li>
+                                </template>
+                            </draggable>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</template>
+<script lang="ts" setup>
+    import { ref } from 'vue';
+    import { VueDraggableNext as draggable } from 'vue-draggable-next';
+    useHead({ title: 'Drag & Drop' });
+
+    const items = ref([
+        {
+            id: 1,
+            text: 'Need to be approved',
+            name: 'Kelly Young',
+        },
+        {
+            id: 2,
+            text: 'Meeting with client',
+            name: 'Andy King',
+        },
+        {
+            id: 3,
+            text: 'Project Detail',
+            name: 'Judy Holmes',
+        },
+        {
+            id: 4,
+            text: 'Edited Post Apporval',
+            name: 'Vincent Carpenter',
+        },
+        {
+            id: 5,
+            text: 'Project Lead Pickup',
+            name: 'Mary McDonald',
+        },
+    ]);
+</script>
