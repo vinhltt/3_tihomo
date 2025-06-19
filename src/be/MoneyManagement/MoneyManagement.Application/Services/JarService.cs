@@ -8,12 +8,9 @@ using Microsoft.Extensions.Logging;
 
 namespace MoneyManagement.Application.Services;
 
-public class JarService : IJarService
+public class JarService(IUnitOfWork unitOfWork, IMapper mapper, ILogger<JarService> logger)
+    : IJarService
 {
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IMapper _mapper;
-    private readonly ILogger<JarService> _logger;
-    
     // Default 6 Jars allocation percentages
     private readonly Dictionary<JarType, decimal> _defaultAllocationPercentages = new()
     {
@@ -25,23 +22,16 @@ public class JarService : IJarService
         { JarType.Give, 5m }                   // 5%
     };
 
-    public JarService(IUnitOfWork unitOfWork, IMapper mapper, ILogger<JarService> logger)
-    {
-        _unitOfWork = unitOfWork;
-        _mapper = mapper;
-        _logger = logger;
-    }
-
     public async Task<IEnumerable<JarViewModel>> GetUserJarsAsync(Guid userId)
     {
         try
         {
             // User filtering is automatically applied in BaseRepository
-            var jars = await _unitOfWork.Repository<Jar, Guid>().GetAllAsync();
-            return _mapper.Map<IEnumerable<JarViewModel>>(jars);
+            var jars = await unitOfWork.Repository<Jar, Guid>().GetAllAsync();
+            return mapper.Map<IEnumerable<JarViewModel>>(jars);
         }        catch (Exception ex)
         {
-            _logger.LogError(ex, "Error retrieving jars for user {UserId}", userId);
+            logger.LogError(ex, "Error retrieving jars for user {UserId}", userId);
             throw new InvalidOperationException($"Failed to retrieve jars for user {userId}", ex);
         }
     }
@@ -50,14 +40,14 @@ public class JarService : IJarService
     {
         try
         {
-            var jar = await _unitOfWork.Repository<Jar, Guid>().GetByIdAsync(jarId);
+            var jar = await unitOfWork.Repository<Jar, Guid>().GetByIdAsync(jarId);
             if (jar == null)
                 return null;
 
-            return _mapper.Map<JarViewModel>(jar);
+            return mapper.Map<JarViewModel>(jar);
         }        catch (Exception ex)
         {
-            _logger.LogError(ex, "Error retrieving jar {JarId} for user {UserId}", jarId, userId);
+            logger.LogError(ex, "Error retrieving jar {JarId} for user {UserId}", jarId, userId);
             throw new InvalidOperationException($"Failed to retrieve jar {jarId} for user {userId}", ex);
         }
     }
@@ -67,7 +57,7 @@ public class JarService : IJarService
         try
         {
             // Check if jar with same type already exists for user
-            var existingJars = await _unitOfWork.Repository<Jar, Guid>().GetAllAsync();
+            var existingJars = await unitOfWork.Repository<Jar, Guid>().GetAllAsync();
             var existingJarsList = existingJars.ToList();
             
             if (existingJarsList.Any(j => j.JarType == request.JarType))
@@ -84,22 +74,22 @@ public class JarService : IJarService
                 IsActive = true
             };
 
-            await _unitOfWork.Repository<Jar, Guid>().CreateAsync(jar);
+            await unitOfWork.Repository<Jar, Guid>().CreateAsync(jar);
 
-            _logger.LogInformation("Created jar {JarId} of type {JarType} for user {UserId}", 
+            logger.LogInformation("Created jar {JarId} of type {JarType} for user {UserId}", 
                 jar.Id, jar.JarType, userId);
 
-            return _mapper.Map<JarViewModel>(jar);
+            return mapper.Map<JarViewModel>(jar);
         }        catch (Exception ex)
         {
-            _logger.LogError(ex, "Error creating jar for user {UserId}", userId);
+            logger.LogError(ex, "Error creating jar for user {UserId}", userId);
             throw new InvalidOperationException($"Failed to create jar for user {userId}", ex);
         }
     }    public async Task<JarViewModel> UpdateJarAsync(UpdateJarRequest request, Guid userId)
     {
         try
         {
-            var jar = await _unitOfWork.Repository<Jar, Guid>().GetByIdAsync(request.Id);            if (jar == null)
+            var jar = await unitOfWork.Repository<Jar, Guid>().GetByIdAsync(request.Id);            if (jar == null)
             {
                 throw new InvalidOperationException("Jar not found or access denied.");
             }
@@ -108,14 +98,14 @@ public class JarService : IJarService
             jar.TargetAmount = request.TargetAmount;
             jar.AllocationPercentage = request.AllocationPercentage;
 
-            await _unitOfWork.Repository<Jar, Guid>().UpdateAsync(jar);
+            await unitOfWork.Repository<Jar, Guid>().UpdateAsync(jar);
 
-            _logger.LogInformation("Updated jar {JarId} for user {UserId}", request.Id, userId);
+            logger.LogInformation("Updated jar {JarId} for user {UserId}", request.Id, userId);
 
-            return _mapper.Map<JarViewModel>(jar);
+            return mapper.Map<JarViewModel>(jar);
         }        catch (Exception ex)
         {
-            _logger.LogError(ex, "Error updating jar {JarId} for user {UserId}", request.Id, userId);
+            logger.LogError(ex, "Error updating jar {JarId} for user {UserId}", request.Id, userId);
             throw new InvalidOperationException($"Failed to update jar {request.Id} for user {userId}", ex);
         }
     }
@@ -124,7 +114,7 @@ public class JarService : IJarService
     {
         try
         {
-            var jar = await _unitOfWork.Repository<Jar, Guid>().GetByIdAsync(jarId);            if (jar == null)
+            var jar = await unitOfWork.Repository<Jar, Guid>().GetByIdAsync(jarId);            if (jar == null)
             {
                 return false;
             }
@@ -134,14 +124,14 @@ public class JarService : IJarService
                 throw new InvalidOperationException("Cannot delete jar with balance. Please transfer funds first.");
             }
 
-            await _unitOfWork.Repository<Jar, Guid>().DeleteSoftAsync(jarId);
+            await unitOfWork.Repository<Jar, Guid>().DeleteSoftAsync(jarId);
 
-            _logger.LogInformation("Deleted jar {JarId} for user {UserId}", jarId, userId);
+            logger.LogInformation("Deleted jar {JarId} for user {UserId}", jarId, userId);
 
             return true;
         }        catch (Exception ex)
         {
-            _logger.LogError(ex, "Error deleting jar {JarId} for user {UserId}", jarId, userId);
+            logger.LogError(ex, "Error deleting jar {JarId} for user {UserId}", jarId, userId);
             throw new InvalidOperationException($"Failed to delete jar {jarId} for user {userId}", ex);
         }
     }
@@ -150,7 +140,7 @@ public class JarService : IJarService
     {
         try
         {
-            var userJars = await _unitOfWork.Repository<Jar, Guid>().GetAllAsync();
+            var userJars = await unitOfWork.Repository<Jar, Guid>().GetAllAsync();
             var activeJars = userJars.Where(j => j.IsActive).ToList();            if (!activeJars.Any())
             {
                 throw new InvalidOperationException("No active jars found for allocation.");
@@ -180,7 +170,7 @@ public class JarService : IJarService
 
                 result.JarAllocations.Add(new JarAllocationDetail
                 {
-                    Jar = _mapper.Map<JarViewModel>(jar),
+                    Jar = mapper.Map<JarViewModel>(jar),
                     AllocationPercentage = allocationPercentage,
                     AllocatedAmount = allocationAmount,
                     BalanceBefore = previousBalance,
@@ -188,17 +178,17 @@ public class JarService : IJarService
                 });
             }
 
-            await _unitOfWork.Repository<Jar, Guid>().UpdateAsync(jarsToUpdate);            result.TotalAllocated = totalAllocated;
+            await unitOfWork.Repository<Jar, Guid>().UpdateAsync(jarsToUpdate);            result.TotalAllocated = totalAllocated;
             result.IsSuccess = true;
             result.Message = $"Successfully allocated {totalAllocated:C} across {activeJars.Count} jars.";
 
-            _logger.LogInformation("Allocated income {Amount} for user {UserId} across {JarCount} jars", 
+            logger.LogInformation("Allocated income {Amount} for user {UserId} across {JarCount} jars", 
                 request.IncomeAmount, userId, activeJars.Count);
 
             return result;
         }        catch (Exception ex)
         {
-            _logger.LogError(ex, "Error allocating income for user {UserId}", userId);
+            logger.LogError(ex, "Error allocating income for user {UserId}", userId);
             throw new InvalidOperationException($"Failed to allocate income for user {userId}", ex);
         }
     }
@@ -207,8 +197,8 @@ public class JarService : IJarService
     {
         try
         {
-            var fromJar = await _unitOfWork.Repository<Jar, Guid>().GetByIdAsync(request.FromJarId);
-            var toJar = await _unitOfWork.Repository<Jar, Guid>().GetByIdAsync(request.ToJarId);
+            var fromJar = await unitOfWork.Repository<Jar, Guid>().GetByIdAsync(request.FromJarId);
+            var toJar = await unitOfWork.Repository<Jar, Guid>().GetByIdAsync(request.ToJarId);
 
             if (fromJar == null)
                 throw new InvalidOperationException("Source jar not found or access denied.");
@@ -223,8 +213,8 @@ public class JarService : IJarService
                 Message = $"Transfer of {request.Amount:C} completed successfully.",
                 TransferAmount = request.Amount,
                 TransferTime = DateTime.UtcNow,
-                FromJar = _mapper.Map<JarViewModel>(fromJar),
-                ToJar = _mapper.Map<JarViewModel>(toJar)
+                FromJar = mapper.Map<JarViewModel>(fromJar),
+                ToJar = mapper.Map<JarViewModel>(toJar)
             };
 
             // Perform transfer
@@ -235,25 +225,25 @@ public class JarService : IJarService
             toJar.UpdateAt = DateTime.UtcNow;
 
             // Update the result with new jar states
-            result.FromJar = _mapper.Map<JarViewModel>(fromJar);
-            result.ToJar = _mapper.Map<JarViewModel>(toJar);
+            result.FromJar = mapper.Map<JarViewModel>(fromJar);
+            result.ToJar = mapper.Map<JarViewModel>(toJar);
 
-            await _unitOfWork.Repository<Jar, Guid>().UpdateAsync([fromJar, toJar]);
+            await unitOfWork.Repository<Jar, Guid>().UpdateAsync([fromJar, toJar]);
 
-            _logger.LogInformation("Transferred {Amount} from jar {FromJarId} to jar {ToJarId} for user {UserId}", 
+            logger.LogInformation("Transferred {Amount} from jar {FromJarId} to jar {ToJarId} for user {UserId}", 
                 request.Amount, request.FromJarId, request.ToJarId, userId);
 
             return result;
         }        catch (Exception ex)
         {
-            _logger.LogError(ex, "Error transferring between jars for user {UserId}", userId);
+            logger.LogError(ex, "Error transferring between jars for user {UserId}", userId);
             throw new InvalidOperationException($"Failed to transfer between jars for user {userId}", ex);
         }
     }    public async Task<JarViewModel> WithdrawFromJarAsync(JarWithdrawRequest request, Guid userId)
     {
         try
         {
-            var jar = await _unitOfWork.Repository<Jar, Guid>().GetByIdAsync(request.JarId);
+            var jar = await unitOfWork.Repository<Jar, Guid>().GetByIdAsync(request.JarId);
             if (jar == null)
                 throw new InvalidOperationException("Jar not found or access denied.");            if (jar.Balance < request.Amount)
                 throw new InvalidOperationException("Insufficient balance in jar.");
@@ -261,15 +251,15 @@ public class JarService : IJarService
             jar.Balance -= request.Amount;
             jar.UpdateAt = DateTime.UtcNow;
 
-            await _unitOfWork.Repository<Jar, Guid>().UpdateAsync(jar);
+            await unitOfWork.Repository<Jar, Guid>().UpdateAsync(jar);
 
-            _logger.LogInformation("Withdrew {Amount} from jar {JarId} for user {UserId}", 
+            logger.LogInformation("Withdrew {Amount} from jar {JarId} for user {UserId}", 
                 request.Amount, request.JarId, userId);
 
-            return _mapper.Map<JarViewModel>(jar);
+            return mapper.Map<JarViewModel>(jar);
         }        catch (Exception ex)
         {
-            _logger.LogError(ex, "Error withdrawing from jar {JarId} for user {UserId}", request.JarId, userId);
+            logger.LogError(ex, "Error withdrawing from jar {JarId} for user {UserId}", request.JarId, userId);
             throw new InvalidOperationException($"Failed to withdraw from jar {request.JarId} for user {userId}", ex);
         }
     }
@@ -278,7 +268,7 @@ public class JarService : IJarService
     {
         try
         {
-            var jars = await _unitOfWork.Repository<Jar, Guid>().GetAllAsync();
+            var jars = await unitOfWork.Repository<Jar, Guid>().GetAllAsync();
             var jarsList = jars.ToList();            var summary = new JarBalanceSummary
             {
                 UserId = userId,
@@ -311,18 +301,18 @@ public class JarService : IJarService
             return summary;
         }        catch (Exception ex)
         {
-            _logger.LogError(ex, "Error generating jar balance summary for user {UserId}", userId);
+            logger.LogError(ex, "Error generating jar balance summary for user {UserId}", userId);
             throw new InvalidOperationException($"Failed to generate jar balance summary for user {userId}", ex);
         }
     }    public async Task<IEnumerable<JarViewModel>> InitializeDefaultJarsAsync(Guid userId)
     {
         try
         {
-            var existingJars = await _unitOfWork.Repository<Jar, Guid>().GetAllAsync();
+            var existingJars = await unitOfWork.Repository<Jar, Guid>().GetAllAsync();
             if (existingJars.Any())
             {
-                _logger.LogWarning("User {UserId} already has jars, returning existing jars", userId);
-                return _mapper.Map<IEnumerable<JarViewModel>>(existingJars);
+                logger.LogWarning("User {UserId} already has jars, returning existing jars", userId);
+                return mapper.Map<IEnumerable<JarViewModel>>(existingJars);
             }
 
             var defaultJars = new List<Jar>();
@@ -343,34 +333,34 @@ public class JarService : IJarService
                 defaultJars.Add(jar);
             }
 
-            await _unitOfWork.Repository<Jar, Guid>().CreateAsync(defaultJars);
+            await unitOfWork.Repository<Jar, Guid>().CreateAsync(defaultJars);
 
-            _logger.LogInformation("Initialized {Count} default jars for user {UserId}", defaultJars.Count, userId);
+            logger.LogInformation("Initialized {Count} default jars for user {UserId}", defaultJars.Count, userId);
 
-            return _mapper.Map<IEnumerable<JarViewModel>>(defaultJars);
+            return mapper.Map<IEnumerable<JarViewModel>>(defaultJars);
         }        catch (Exception ex)
         {
-            _logger.LogError(ex, "Error initializing default jars for user {UserId}", userId);
+            logger.LogError(ex, "Error initializing default jars for user {UserId}", userId);
             throw new InvalidOperationException($"Failed to initialize default jars for user {userId}", ex);
         }
     }    public async Task<JarViewModel> ToggleJarStatusAsync(Guid jarId, bool isActive, Guid userId)
     {
         try
         {
-            var jar = await _unitOfWork.Repository<Jar, Guid>().GetByIdAsync(jarId);
+            var jar = await unitOfWork.Repository<Jar, Guid>().GetByIdAsync(jarId);
             if (jar == null)
                 throw new InvalidOperationException("Jar not found or access denied.");            jar.IsActive = isActive;
             jar.UpdateAt = DateTime.UtcNow;
 
-            await _unitOfWork.Repository<Jar, Guid>().UpdateAsync(jar);
+            await unitOfWork.Repository<Jar, Guid>().UpdateAsync(jar);
 
-            _logger.LogInformation("Set jar {JarId} status to {Status} for user {UserId}", 
+            logger.LogInformation("Set jar {JarId} status to {Status} for user {UserId}", 
                 jarId, isActive ? "Active" : "Inactive", userId);
 
-            return _mapper.Map<JarViewModel>(jar);
+            return mapper.Map<JarViewModel>(jar);
         }        catch (Exception ex)
         {
-            _logger.LogError(ex, "Error setting jar status for jar {JarId} and user {UserId}", jarId, userId);
+            logger.LogError(ex, "Error setting jar status for jar {JarId} and user {UserId}", jarId, userId);
             throw new InvalidOperationException($"Failed to set jar {jarId} status for user {userId}", ex);
         }
     }
@@ -379,12 +369,12 @@ public class JarService : IJarService
     {
         try
         {
-            var allJars = await _unitOfWork.Repository<Jar, Guid>().GetAllAsync();
+            var allJars = await unitOfWork.Repository<Jar, Guid>().GetAllAsync();
             var filteredJars = allJars.Where(j => j.JarType == jarType);
-            return _mapper.Map<IEnumerable<JarViewModel>>(filteredJars);
+            return mapper.Map<IEnumerable<JarViewModel>>(filteredJars);
         }        catch (Exception ex)
         {
-            _logger.LogError(ex, "Error retrieving jars of type {JarType} for user {UserId}", jarType, userId);
+            logger.LogError(ex, "Error retrieving jars of type {JarType} for user {UserId}", jarType, userId);
             throw new InvalidOperationException($"Failed to retrieve jars of type {jarType} for user {userId}", ex);
         }
     }    private static string GetJarStatus(Jar jar)
@@ -444,12 +434,12 @@ public class JarService : IJarService
     {
         try
         {
-            var jars = await _unitOfWork.Repository<Jar, Guid>().GetAllAsync();
-            return _mapper.Map<IEnumerable<JarResponseDto>>(jars);
+            var jars = await unitOfWork.Repository<Jar, Guid>().GetAllAsync();
+            return mapper.Map<IEnumerable<JarResponseDto>>(jars);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error retrieving all jars");
+            logger.LogError(ex, "Error retrieving all jars");
             throw new InvalidOperationException("Failed to retrieve jars", ex);
         }
     }
@@ -458,12 +448,12 @@ public class JarService : IJarService
     {
         try
         {
-            var jar = await _unitOfWork.Repository<Jar, Guid>().GetByIdAsync(jarId);
-            return jar == null ? null : _mapper.Map<JarResponseDto>(jar);
+            var jar = await unitOfWork.Repository<Jar, Guid>().GetByIdAsync(jarId);
+            return jar == null ? null : mapper.Map<JarResponseDto>(jar);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error retrieving jar {JarId}", jarId);
+            logger.LogError(ex, "Error retrieving jar {JarId}", jarId);
             throw new InvalidOperationException($"Failed to retrieve jar {jarId}", ex);
         }
     }
@@ -472,13 +462,13 @@ public class JarService : IJarService
     {
         try
         {
-            var jars = await _unitOfWork.Repository<Jar, Guid>().GetAllAsync();
+            var jars = await unitOfWork.Repository<Jar, Guid>().GetAllAsync();
             var jar = jars.FirstOrDefault(j => j.JarType == jarType);
-            return jar == null ? null : _mapper.Map<JarResponseDto>(jar);
+            return jar == null ? null : mapper.Map<JarResponseDto>(jar);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error retrieving jar by type {JarType}", jarType);
+            logger.LogError(ex, "Error retrieving jar by type {JarType}", jarType);
             throw new InvalidOperationException($"Failed to retrieve jar of type {jarType}", ex);
         }
     }
@@ -488,7 +478,7 @@ public class JarService : IJarService
         try
         {
             // Check if jar with same type already exists
-            var existingJars = await _unitOfWork.Repository<Jar, Guid>().GetAllAsync();
+            var existingJars = await unitOfWork.Repository<Jar, Guid>().GetAllAsync();
             var existingJarsList = existingJars.ToList();
             
             if (existingJarsList.Any(j => j.JarType == request.JarType))
@@ -510,15 +500,15 @@ public class JarService : IJarService
                 UpdateAt = DateTime.UtcNow
             };
 
-            await _unitOfWork.Repository<Jar, Guid>().CreateAsync(jar);
+            await unitOfWork.Repository<Jar, Guid>().CreateAsync(jar);
 
-            _logger.LogInformation("Created jar {JarId} of type {JarType}", jar.Id, jar.JarType);
+            logger.LogInformation("Created jar {JarId} of type {JarType}", jar.Id, jar.JarType);
 
-            return _mapper.Map<JarResponseDto>(jar);
+            return mapper.Map<JarResponseDto>(jar);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error creating jar");
+            logger.LogError(ex, "Error creating jar");
             throw new InvalidOperationException("Failed to create jar", ex);
         }
     }
@@ -527,7 +517,7 @@ public class JarService : IJarService
     {
         try
         {
-            var jar = await _unitOfWork.Repository<Jar, Guid>().GetByIdAsync(jarId);
+            var jar = await unitOfWork.Repository<Jar, Guid>().GetByIdAsync(jarId);
             if (jar == null)
             {
                 throw new InvalidOperationException("Jar not found.");
@@ -538,15 +528,15 @@ public class JarService : IJarService
             jar.AllocationPercentage = request.AllocationPercentage;
             jar.UpdateAt = DateTime.UtcNow;
 
-            await _unitOfWork.Repository<Jar, Guid>().UpdateAsync(jar);
+            await unitOfWork.Repository<Jar, Guid>().UpdateAsync(jar);
 
-            _logger.LogInformation("Updated jar {JarId}", jarId);
+            logger.LogInformation("Updated jar {JarId}", jarId);
 
-            return _mapper.Map<JarResponseDto>(jar);
+            return mapper.Map<JarResponseDto>(jar);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error updating jar {JarId}", jarId);
+            logger.LogError(ex, "Error updating jar {JarId}", jarId);
             throw new InvalidOperationException($"Failed to update jar {jarId}", ex);
         }
     }
@@ -555,7 +545,7 @@ public class JarService : IJarService
     {
         try
         {
-            var jar = await _unitOfWork.Repository<Jar, Guid>().GetByIdAsync(jarId);
+            var jar = await unitOfWork.Repository<Jar, Guid>().GetByIdAsync(jarId);
             if (jar == null)
             {
                 return false;
@@ -566,15 +556,15 @@ public class JarService : IJarService
                 throw new InvalidOperationException("Cannot delete jar with balance. Please transfer funds first.");
             }
 
-            await _unitOfWork.Repository<Jar, Guid>().DeleteSoftAsync(jarId);
+            await unitOfWork.Repository<Jar, Guid>().DeleteSoftAsync(jarId);
 
-            _logger.LogInformation("Deleted jar {JarId}", jarId);
+            logger.LogInformation("Deleted jar {JarId}", jarId);
 
             return true;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error deleting jar {JarId}", jarId);
+            logger.LogError(ex, "Error deleting jar {JarId}", jarId);
             throw new InvalidOperationException($"Failed to delete jar {jarId}", ex);
         }
     }
@@ -583,11 +573,11 @@ public class JarService : IJarService
     {
         try
         {
-            var existingJars = await _unitOfWork.Repository<Jar, Guid>().GetAllAsync();
+            var existingJars = await unitOfWork.Repository<Jar, Guid>().GetAllAsync();
             if (existingJars.Any())
             {
-                _logger.LogWarning("Jars already exist, returning existing jars");
-                return _mapper.Map<IEnumerable<JarResponseDto>>(existingJars);
+                logger.LogWarning("Jars already exist, returning existing jars");
+                return mapper.Map<IEnumerable<JarResponseDto>>(existingJars);
             }
 
             var defaultJars = new List<Jar>();
@@ -609,15 +599,15 @@ public class JarService : IJarService
                 defaultJars.Add(jar);
             }
 
-            await _unitOfWork.Repository<Jar, Guid>().CreateAsync(defaultJars);
+            await unitOfWork.Repository<Jar, Guid>().CreateAsync(defaultJars);
 
-            _logger.LogInformation("Initialized {Count} default jars", defaultJars.Count);
+            logger.LogInformation("Initialized {Count} default jars", defaultJars.Count);
 
-            return _mapper.Map<IEnumerable<JarResponseDto>>(defaultJars);
+            return mapper.Map<IEnumerable<JarResponseDto>>(defaultJars);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error initializing default jars");
+            logger.LogError(ex, "Error initializing default jars");
             throw new InvalidOperationException("Failed to initialize default jars", ex);
         }
     }
@@ -626,22 +616,22 @@ public class JarService : IJarService
     {
         try
         {
-            var jar = await _unitOfWork.Repository<Jar, Guid>().GetByIdAsync(jarId);
+            var jar = await unitOfWork.Repository<Jar, Guid>().GetByIdAsync(jarId);
             if (jar == null)
                 throw new InvalidOperationException("Jar not found.");
 
             jar.Balance += request.Amount;
             jar.UpdateAt = DateTime.UtcNow;
 
-            await _unitOfWork.Repository<Jar, Guid>().UpdateAsync(jar);
+            await unitOfWork.Repository<Jar, Guid>().UpdateAsync(jar);
 
-            _logger.LogInformation("Added {Amount} to jar {JarId}", request.Amount, jarId);
+            logger.LogInformation("Added {Amount} to jar {JarId}", request.Amount, jarId);
 
-            return _mapper.Map<JarResponseDto>(jar);
+            return mapper.Map<JarResponseDto>(jar);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error adding money to jar {JarId}", jarId);
+            logger.LogError(ex, "Error adding money to jar {JarId}", jarId);
             throw new InvalidOperationException($"Failed to add money to jar {jarId}", ex);
         }
     }
@@ -650,7 +640,7 @@ public class JarService : IJarService
     {
         try
         {
-            var jar = await _unitOfWork.Repository<Jar, Guid>().GetByIdAsync(jarId);
+            var jar = await unitOfWork.Repository<Jar, Guid>().GetByIdAsync(jarId);
             if (jar == null)
                 throw new InvalidOperationException("Jar not found.");
 
@@ -660,15 +650,15 @@ public class JarService : IJarService
             jar.Balance -= request.Amount;
             jar.UpdateAt = DateTime.UtcNow;
 
-            await _unitOfWork.Repository<Jar, Guid>().UpdateAsync(jar);
+            await unitOfWork.Repository<Jar, Guid>().UpdateAsync(jar);
 
-            _logger.LogInformation("Withdrew {Amount} from jar {JarId}", request.Amount, jarId);
+            logger.LogInformation("Withdrew {Amount} from jar {JarId}", request.Amount, jarId);
 
-            return _mapper.Map<JarResponseDto>(jar);
+            return mapper.Map<JarResponseDto>(jar);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error withdrawing from jar {JarId}", jarId);
+            logger.LogError(ex, "Error withdrawing from jar {JarId}", jarId);
             throw new InvalidOperationException($"Failed to withdraw from jar {jarId}", ex);
         }
     }
@@ -677,8 +667,8 @@ public class JarService : IJarService
     {
         try
         {
-            var fromJar = await _unitOfWork.Repository<Jar, Guid>().GetByIdAsync(request.FromJarId);
-            var toJar = await _unitOfWork.Repository<Jar, Guid>().GetByIdAsync(request.ToJarId);
+            var fromJar = await unitOfWork.Repository<Jar, Guid>().GetByIdAsync(request.FromJarId);
+            var toJar = await unitOfWork.Repository<Jar, Guid>().GetByIdAsync(request.ToJarId);
 
             if (fromJar == null)
                 throw new InvalidOperationException("Source jar not found.");
@@ -696,23 +686,23 @@ public class JarService : IJarService
             fromJar.UpdateAt = DateTime.UtcNow;
             toJar.UpdateAt = DateTime.UtcNow;
 
-            await _unitOfWork.Repository<Jar, Guid>().UpdateAsync([fromJar, toJar]);
+            await unitOfWork.Repository<Jar, Guid>().UpdateAsync([fromJar, toJar]);
 
-            _logger.LogInformation("Transferred {Amount} from jar {FromJarId} to jar {ToJarId}", 
+            logger.LogInformation("Transferred {Amount} from jar {FromJarId} to jar {ToJarId}", 
                 request.Amount, request.FromJarId, request.ToJarId);            return new TransferResultDto
             {
                 IsSuccessful = true,
                 TransactionId = Guid.NewGuid(),
                 AmountTransferred = request.Amount,
                 TransferredAt = DateTime.UtcNow,
-                FromJar = _mapper.Map<JarResponseDto>(fromJar),
-                ToJar = _mapper.Map<JarResponseDto>(toJar),
+                FromJar = mapper.Map<JarResponseDto>(fromJar),
+                ToJar = mapper.Map<JarResponseDto>(toJar),
                 Description = request.Description
             };
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error transferring between jars");
+            logger.LogError(ex, "Error transferring between jars");
             throw new InvalidOperationException("Failed to transfer between jars", ex);
         }
     }
@@ -721,7 +711,7 @@ public class JarService : IJarService
     {
         try
         {
-            var userJars = await _unitOfWork.Repository<Jar, Guid>().GetAllAsync();
+            var userJars = await unitOfWork.Repository<Jar, Guid>().GetAllAsync();
             var activeJars = userJars.Where(j => j.IsActive).ToList();
 
             if (!activeJars.Any())
@@ -752,7 +742,7 @@ public class JarService : IJarService
                 
                 jarDistributions.Add(new JarDistributionItemDto
                 {
-                    Jar = _mapper.Map<JarResponseDto>(jar),
+                    Jar = mapper.Map<JarResponseDto>(jar),
                     AllocatedAmount = allocationAmount,
                     AllocationPercentage = allocationPercentage,
                     PreviousBalance = previousBalance,
@@ -760,9 +750,9 @@ public class JarService : IJarService
                 });
             }
 
-            await _unitOfWork.Repository<Jar, Guid>().UpdateAsync(jarsToUpdate);
+            await unitOfWork.Repository<Jar, Guid>().UpdateAsync(jarsToUpdate);
 
-            _logger.LogInformation("Distributed income {Amount} across {JarCount} jars", 
+            logger.LogInformation("Distributed income {Amount} across {JarCount} jars", 
                 request.IncomeAmount, activeJars.Count);            return new DistributionResultDto
             {
                 IsSuccessful = true,
@@ -775,7 +765,7 @@ public class JarService : IJarService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error distributing income");
+            logger.LogError(ex, "Error distributing income");
             throw new InvalidOperationException("Failed to distribute income", ex);
         }
     }
@@ -784,7 +774,7 @@ public class JarService : IJarService
     {
         try
         {
-            var jars = await _unitOfWork.Repository<Jar, Guid>().GetAllAsync();
+            var jars = await unitOfWork.Repository<Jar, Guid>().GetAllAsync();
             var jarsList = jars.ToList();            return new JarAllocationSummaryDto
             {
                 UserId = Guid.Empty, // This would need to be passed from the calling method
@@ -812,7 +802,7 @@ public class JarService : IJarService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error getting jar allocation summary");
+            logger.LogError(ex, "Error getting jar allocation summary");
             throw new InvalidOperationException("Failed to get jar allocation summary", ex);
         }
     }

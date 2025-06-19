@@ -14,27 +14,18 @@ public interface IUserService
     Task<bool> DeactivateUserAsync(Guid userId);
 }
 
-public class UserService : IUserService
+public class UserService(IdentityDbContext context, ILogger<UserService> logger) : IUserService
 {
-    private readonly IdentityDbContext _context;
-    private readonly ILogger<UserService> _logger;
-
-    public UserService(IdentityDbContext context, ILogger<UserService> logger)
-    {
-        _context = context;
-        _logger = logger;
-    }
-
     public async Task<User?> GetUserByIdAsync(Guid userId)
     {
-        return await _context.Users
+        return await context.Users
             .Include(u => u.UserLogins)
             .FirstOrDefaultAsync(u => u.Id == userId);
     }
 
     public async Task<User?> GetUserByEmailAsync(string email)
     {
-        return await _context.Users
+        return await context.Users
             .Include(u => u.UserLogins)
             .FirstOrDefaultAsync(u => u.Email == email);
     }
@@ -65,7 +56,7 @@ public class UserService : IUserService
                         LastLoginAt = DateTime.UtcNow
                     };
                     
-                    _context.UserLogins.Add(newLogin);
+                    context.UserLogins.Add(newLogin);
                 }
                 else
                 {
@@ -81,7 +72,7 @@ public class UserService : IUserService
                     existingUser.UpdatedAt = DateTime.UtcNow;
                 }
                 
-                await _context.SaveChangesAsync();
+                await context.SaveChangesAsync();
                 return existingUser;
             }
             
@@ -95,8 +86,8 @@ public class UserService : IUserService
                 CreatedAt = DateTime.UtcNow
             };
             
-            _context.Users.Add(newUser);
-            await _context.SaveChangesAsync();
+            context.Users.Add(newUser);
+            await context.SaveChangesAsync();
             
             // Add social login
             var userLogin = new UserLogin
@@ -108,15 +99,15 @@ public class UserService : IUserService
                 LastLoginAt = DateTime.UtcNow
             };
             
-            _context.UserLogins.Add(userLogin);
-            await _context.SaveChangesAsync();
+            context.UserLogins.Add(userLogin);
+            await context.SaveChangesAsync();
             
             // Reload with navigation properties
             return await GetUserByIdAsync(newUser.Id);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to get or create user for {Email}", socialUserInfo.Email);
+            logger.LogError(ex, "Failed to get or create user for {Email}", socialUserInfo.Email);
             return null;
         }
     }
@@ -142,13 +133,13 @@ public class UserService : IUserService
         try
         {
             user.UpdatedAt = DateTime.UtcNow;
-            _context.Users.Update(user);
-            await _context.SaveChangesAsync();
+            context.Users.Update(user);
+            await context.SaveChangesAsync();
             return true;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to update user {UserId}", user.Id);
+            logger.LogError(ex, "Failed to update user {UserId}", user.Id);
             return false;
         }
     }
@@ -163,12 +154,12 @@ public class UserService : IUserService
             user.IsActive = false;
             user.UpdatedAt = DateTime.UtcNow;
             
-            await _context.SaveChangesAsync();
+            await context.SaveChangesAsync();
             return true;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to deactivate user {UserId}", userId);
+            logger.LogError(ex, "Failed to deactivate user {UserId}", userId);
             return false;
         }
     }

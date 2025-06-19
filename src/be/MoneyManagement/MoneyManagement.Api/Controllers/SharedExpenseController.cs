@@ -12,17 +12,14 @@ namespace MoneyManagement.Api.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Produces("application/json")]
-public class SharedExpenseController : ControllerBase
+public class SharedExpenseController(
+    ISharedExpenseService sharedExpenseService,
+    ILogger<SharedExpenseController> logger)
+    : ControllerBase
 {
-    private readonly ISharedExpenseService _sharedExpenseService;
-    private readonly ILogger<SharedExpenseController> _logger;
+    private readonly ISharedExpenseService _sharedExpenseService = sharedExpenseService ?? throw new ArgumentNullException(nameof(sharedExpenseService));
+    private readonly ILogger<SharedExpenseController> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     private const string GenericErrorMessage = "An error occurred while processing your request";
-
-    public SharedExpenseController(ISharedExpenseService sharedExpenseService, ILogger<SharedExpenseController> logger)
-    {
-        _sharedExpenseService = sharedExpenseService ?? throw new ArgumentNullException(nameof(sharedExpenseService));
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-    }
 
     #region SharedExpense Operations
 

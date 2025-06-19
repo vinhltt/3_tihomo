@@ -9,17 +9,9 @@ namespace Ocelot.Gateway.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
-public class HealthController : ControllerBase
+public class HealthController(HealthCheckService healthCheckService, ILogger<HealthController> logger)
+    : ControllerBase
 {
-    private readonly HealthCheckService _healthCheckService;
-    private readonly ILogger<HealthController> _logger;
-
-    public HealthController(HealthCheckService healthCheckService, ILogger<HealthController> logger)
-    {
-        _healthCheckService = healthCheckService;
-        _logger = logger;
-    }
-
     /// <summary>
     /// Get overall health status of the gateway and all downstream services
     /// </summary>
@@ -29,7 +21,7 @@ public class HealthController : ControllerBase
     {
         try
         {
-            var healthReport = await _healthCheckService.CheckHealthAsync();
+            var healthReport = await healthCheckService.CheckHealthAsync();
             
             var response = new
             {
@@ -59,7 +51,7 @@ public class HealthController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error occurred while checking health");
+            logger.LogError(ex, "Error occurred while checking health");
             return StatusCode(500, new { Error = "Health check failed", Message = ex.Message });
         }
     }
@@ -73,7 +65,7 @@ public class HealthController : ControllerBase
     {
         try
         {
-            var healthReport = await _healthCheckService.CheckHealthAsync();
+            var healthReport = await healthCheckService.CheckHealthAsync();
             
             if (healthReport.Status == HealthStatus.Healthy)
             {
@@ -84,7 +76,7 @@ public class HealthController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error occurred while checking readiness");
+            logger.LogError(ex, "Error occurred while checking readiness");
             return ServiceUnavailable(new { Status = "Not Ready", Error = ex.Message, Timestamp = DateTime.UtcNow });
         }
     }
@@ -110,7 +102,7 @@ public class HealthController : ControllerBase
     {
         try
         {
-            var healthReport = await _healthCheckService.CheckHealthAsync();
+            var healthReport = await healthCheckService.CheckHealthAsync();
             
             var serviceEntry = healthReport.Entries.FirstOrDefault(e => 
                 e.Key.Equals(serviceName, StringComparison.OrdinalIgnoreCase));
@@ -143,7 +135,7 @@ public class HealthController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error occurred while checking health for service {ServiceName}", serviceName);
+            logger.LogError(ex, "Error occurred while checking health for service {ServiceName}", serviceName);
             return StatusCode(500, new { Error = "Service health check failed", Message = ex.Message });
         }
     }

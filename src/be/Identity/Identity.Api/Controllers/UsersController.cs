@@ -9,17 +9,8 @@ namespace Identity.Api.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
-public class UsersController : ControllerBase
+public class UsersController(IUserService userService, ILogger<UsersController> logger) : ControllerBase
 {
-    private readonly IUserService _userService;
-    private readonly ILogger<UsersController> _logger;
-
-    public UsersController(IUserService userService, ILogger<UsersController> logger)
-    {
-        _userService = userService;
-        _logger = logger;
-    }
-
     /// <summary>
     /// Get current user profile
     /// </summary>
@@ -35,19 +26,19 @@ public class UsersController : ControllerBase
                 return BadRequest("Invalid user ID");
             }
 
-            var user = await _userService.GetUserByIdAsync(userId);
+            var user = await userService.GetUserByIdAsync(userId);
             
             if (user == null)
             {
                 return NotFound("User not found");
             }
 
-            var userInfo = await _userService.MapToUserInfoAsync(user);
+            var userInfo = await userService.MapToUserInfoAsync(user);
             return Ok(userInfo);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error getting current user");
+            logger.LogError(ex, "Error getting current user");
             return StatusCode(500, "Internal server error");
         }
     }
@@ -61,19 +52,19 @@ public class UsersController : ControllerBase
         try
         {
             // In a real implementation, you would check admin permissions here
-            var user = await _userService.GetUserByIdAsync(userId);
+            var user = await userService.GetUserByIdAsync(userId);
             
             if (user == null)
             {
                 return NotFound("User not found");
             }
 
-            var userInfo = await _userService.MapToUserInfoAsync(user);
+            var userInfo = await userService.MapToUserInfoAsync(user);
             return Ok(userInfo);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error getting user {UserId}", userId);
+            logger.LogError(ex, "Error getting user {UserId}", userId);
             return StatusCode(500, "Internal server error");
         }
     }
@@ -93,7 +84,7 @@ public class UsersController : ControllerBase
                 return BadRequest("Invalid user ID");
             }
 
-            var user = await _userService.GetUserByIdAsync(userId);
+            var user = await userService.GetUserByIdAsync(userId);
             
             if (user == null)
             {
@@ -111,19 +102,19 @@ public class UsersController : ControllerBase
                 user.PictureUrl = request.PictureUrl;
             }
 
-            var success = await _userService.UpdateUserAsync(user);
+            var success = await userService.UpdateUserAsync(user);
             
             if (!success)
             {
                 return StatusCode(500, "Failed to update user");
             }
 
-            var userInfo = await _userService.MapToUserInfoAsync(user);
+            var userInfo = await userService.MapToUserInfoAsync(user);
             return Ok(userInfo);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error updating current user");
+            logger.LogError(ex, "Error updating current user");
             return StatusCode(500, "Internal server error");
         }
     }
@@ -143,7 +134,7 @@ public class UsersController : ControllerBase
                 return BadRequest("Invalid user ID");
             }
 
-            var success = await _userService.DeactivateUserAsync(userId);
+            var success = await userService.DeactivateUserAsync(userId);
             
             if (!success)
             {
@@ -154,7 +145,7 @@ public class UsersController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error deactivating current user");
+            logger.LogError(ex, "Error deactivating current user");
             return StatusCode(500, "Internal server error");
         }
     }

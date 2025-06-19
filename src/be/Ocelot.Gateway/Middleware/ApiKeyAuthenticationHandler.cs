@@ -9,21 +9,15 @@ namespace Ocelot.Gateway.Middleware;
 /// <summary>
 /// API Key authentication handler for external service access
 /// </summary>
-public class ApiKeyAuthenticationHandler : AuthenticationHandler<ApiKeyAuthenticationSchemeOptions>
+public class ApiKeyAuthenticationHandler(
+    IOptionsMonitor<ApiKeyAuthenticationSchemeOptions> options,
+    ILoggerFactory logger,
+    UrlEncoder encoder,
+    IOptions<ApiKeySettings> apiKeySettings)
+    : AuthenticationHandler<ApiKeyAuthenticationSchemeOptions>(options, logger, encoder)
 {
-    private readonly ApiKeySettings _apiKeySettings;
-    private readonly ILogger<ApiKeyAuthenticationHandler> _logger;
-
-    public ApiKeyAuthenticationHandler(
-        IOptionsMonitor<ApiKeyAuthenticationSchemeOptions> options,
-        ILoggerFactory logger,
-        UrlEncoder encoder,
-        IOptions<ApiKeySettings> apiKeySettings)
-        : base(options, logger, encoder)
-    {
-        _apiKeySettings = apiKeySettings.Value;
-        _logger = logger.CreateLogger<ApiKeyAuthenticationHandler>();
-    }
+    private readonly ApiKeySettings _apiKeySettings = apiKeySettings.Value;
+    private readonly ILogger<ApiKeyAuthenticationHandler> _logger = logger.CreateLogger<ApiKeyAuthenticationHandler>();
 
     protected override Task<AuthenticateResult> HandleAuthenticateAsync()
     {

@@ -20,22 +20,12 @@ public class SocialUserInfo
     public string Provider { get; set; } = string.Empty;
 }
 
-public class TokenVerificationService : ITokenVerificationService
+public class TokenVerificationService(
+    HttpClient httpClient,
+    ILogger<TokenVerificationService> logger,
+    IConfiguration configuration)
+    : ITokenVerificationService
 {
-    private readonly HttpClient _httpClient;
-    private readonly ILogger<TokenVerificationService> _logger;
-    private readonly IConfiguration _configuration;
-
-    public TokenVerificationService(
-        HttpClient httpClient, 
-        ILogger<TokenVerificationService> logger,
-        IConfiguration configuration)
-    {
-        _httpClient = httpClient;
-        _logger = logger;
-        _configuration = configuration;
-    }
-
     public async Task<SocialUserInfo?> VerifyTokenAsync(string provider, string token)
     {
         return provider.ToLower() switch
@@ -50,10 +40,10 @@ public class TokenVerificationService : ITokenVerificationService
     {
         try
         {
-            var clientId = _configuration["GoogleAuth:ClientId"];
+            var clientId = configuration["GoogleAuth:ClientId"];
             if (string.IsNullOrEmpty(clientId))
             {
-                _logger.LogError("Google Client ID not configured");
+                logger.LogError("Google Client ID not configured");
                 return null;
             }
 
@@ -73,7 +63,7 @@ public class TokenVerificationService : ITokenVerificationService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to verify Google token");
+            logger.LogError(ex, "Failed to verify Google token");
             return null;
         }
     }
@@ -82,32 +72,32 @@ public class TokenVerificationService : ITokenVerificationService
     {
         try
         {
-            var appId = _configuration["FacebookAuth:AppId"];
-            var appSecret = _configuration["FacebookAuth:AppSecret"];
+            var appId = configuration["FacebookAuth:AppId"];
+            var appSecret = configuration["FacebookAuth:AppSecret"];
             
             if (string.IsNullOrEmpty(appId) || string.IsNullOrEmpty(appSecret))
             {
-                _logger.LogError("Facebook App ID or Secret not configured");
+                logger.LogError("Facebook App ID or Secret not configured");
                 return null;
             }
 
             // Verify token with Facebook Graph API
             var verifyUrl = $"https://graph.facebook.com/debug_token?input_token={token}&access_token={appId}|{appSecret}";
-            var verifyResponse = await _httpClient.GetAsync(verifyUrl);
+            var verifyResponse = await httpClient.GetAsync(verifyUrl);
             
             if (!verifyResponse.IsSuccessStatusCode)
             {
-                _logger.LogError("Facebook token verification failed");
+                logger.LogError("Facebook token verification failed");
                 return null;
             }
 
             // Get user info
             var userUrl = $"https://graph.facebook.com/me?fields=id,name,email,picture&access_token={token}";
-            var userResponse = await _httpClient.GetAsync(userUrl);
+            var userResponse = await httpClient.GetAsync(userUrl);
             
             if (!userResponse.IsSuccessStatusCode)
             {
-                _logger.LogError("Failed to get Facebook user info");
+                logger.LogError("Failed to get Facebook user info");
                 return null;
             }
 
@@ -126,7 +116,7 @@ public class TokenVerificationService : ITokenVerificationService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to verify Facebook token");
+            logger.LogError(ex, "Failed to verify Facebook token");
             return null;
         }
     }

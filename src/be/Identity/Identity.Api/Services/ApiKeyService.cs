@@ -16,17 +16,8 @@ public interface IApiKeyService
     Task<bool> UpdateLastUsedAsync(Guid keyId);
 }
 
-public class ApiKeyService : IApiKeyService
+public class ApiKeyService(IdentityDbContext context, ILogger<ApiKeyService> logger) : IApiKeyService
 {
-    private readonly IdentityDbContext _context;
-    private readonly ILogger<ApiKeyService> _logger;
-
-    public ApiKeyService(IdentityDbContext context, ILogger<ApiKeyService> logger)
-    {
-        _context = context;
-        _logger = logger;
-    }
-
     public async Task<CreateApiKeyResponse?> CreateApiKeyAsync(Guid userId, CreateApiKeyRequest request)
     {
         try
@@ -49,8 +40,8 @@ public class ApiKeyService : IApiKeyService
                 CreatedAt = DateTime.UtcNow
             };
             
-            _context.ApiKeys.Add(newApiKey);
-            await _context.SaveChangesAsync();
+            context.ApiKeys.Add(newApiKey);
+            await context.SaveChangesAsync();
             
             return new CreateApiKeyResponse
             {
@@ -64,14 +55,14 @@ public class ApiKeyService : IApiKeyService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to create API key for user {UserId}", userId);
+            logger.LogError(ex, "Failed to create API key for user {UserId}", userId);
             return null;
         }
     }
 
     public async Task<List<ApiKeyInfo>> GetUserApiKeysAsync(Guid userId)
     {
-        var apiKeys = await _context.ApiKeys
+        var apiKeys = await context.ApiKeys
             .Where(ak => ak.UserId == userId)
             .OrderByDescending(ak => ak.CreatedAt)
             .ToListAsync();
@@ -81,7 +72,7 @@ public class ApiKeyService : IApiKeyService
 
     public async Task<ApiKeyInfo?> GetApiKeyInfoAsync(Guid keyId, Guid userId)
     {
-        var apiKey = await _context.ApiKeys
+        var apiKey = await context.ApiKeys
             .FirstOrDefaultAsync(ak => ak.Id == keyId && ak.UserId == userId);
         
         return apiKey != null ? MapToApiKeyInfo(apiKey) : null;
@@ -91,19 +82,19 @@ public class ApiKeyService : IApiKeyService
     {
         try
         {
-            var apiKey = await _context.ApiKeys
+            var apiKey = await context.ApiKeys
                 .FirstOrDefaultAsync(ak => ak.Id == keyId && ak.UserId == userId);
             
             if (apiKey == null) return false;
             
             apiKey.IsActive = false;
-            await _context.SaveChangesAsync();
+            await context.SaveChangesAsync();
             
             return true;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to revoke API key {KeyId} for user {UserId}", keyId, userId);
+            logger.LogError(ex, "Failed to revoke API key {KeyId} for user {UserId}", keyId, userId);
             return false;
         }
     }
@@ -118,7 +109,7 @@ public class ApiKeyService : IApiKeyService
             var keyPrefix = apiKey[..8];
             var keyHash = HashApiKey(apiKey);
             
-            var dbApiKey = await _context.ApiKeys
+            var dbApiKey = await context.ApiKeys
                 .Include(ak => ak.User)
                 .FirstOrDefaultAsync(ak => ak.KeyPrefix == keyPrefix && 
                                           ak.KeyHash == keyHash && 
@@ -145,7 +136,7 @@ public class ApiKeyService : IApiKeyService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to validate API key");
+            logger.LogError(ex, "Failed to validate API key");
             return null;
         }
     }
@@ -154,17 +145,17 @@ public class ApiKeyService : IApiKeyService
     {
         try
         {
-            var apiKey = await _context.ApiKeys.FindAsync(keyId);
+            var apiKey = await context.ApiKeys.FindAsync(keyId);
             if (apiKey == null) return false;
             
             apiKey.LastUsedAt = DateTime.UtcNow;
-            await _context.SaveChangesAsync();
+            await context.SaveChangesAsync();
             
             return true;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to update last used time for API key {KeyId}", keyId);
+            logger.LogError(ex, "Failed to update last used time for API key {KeyId}", keyId);
             return false;
         }
     }

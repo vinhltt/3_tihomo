@@ -3,17 +3,8 @@ using System.Security.Claims;
 
 namespace Identity.Api.Configuration;
 
-public class ApiKeyAuthenticationMiddleware
+public class ApiKeyAuthenticationMiddleware(RequestDelegate next, ILogger<ApiKeyAuthenticationMiddleware> logger)
 {
-    private readonly RequestDelegate _next;
-    private readonly ILogger<ApiKeyAuthenticationMiddleware> _logger;
-
-    public ApiKeyAuthenticationMiddleware(RequestDelegate next, ILogger<ApiKeyAuthenticationMiddleware> logger)
-    {
-        _next = next;
-        _logger = logger;
-    }
-
     public async Task InvokeAsync(HttpContext context, IApiKeyService apiKeyService)
     {
         // Check if API key is provided in the request
@@ -42,15 +33,15 @@ public class ApiKeyAuthenticationMiddleware
                 
                 context.User = principal;
                 
-                _logger.LogDebug("API key authentication successful for user {UserId}", user.Id);
+                logger.LogDebug("API key authentication successful for user {UserId}", user.Id);
             }
             else
             {
-                _logger.LogWarning("Invalid API key provided");
+                logger.LogWarning("Invalid API key provided");
             }
         }
 
-        await _next(context);
+        await next(context);
     }
 
     private static string? ExtractApiKey(HttpRequest request)

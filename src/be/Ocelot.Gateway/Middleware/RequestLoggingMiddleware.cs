@@ -5,17 +5,8 @@ namespace Ocelot.Gateway.Middleware;
 /// <summary>
 /// Middleware for logging HTTP requests and responses
 /// </summary>
-public class RequestLoggingMiddleware
+public class RequestLoggingMiddleware(RequestDelegate next, ILogger<RequestLoggingMiddleware> logger)
 {
-    private readonly RequestDelegate _next;
-    private readonly ILogger<RequestLoggingMiddleware> _logger;
-
-    public RequestLoggingMiddleware(RequestDelegate next, ILogger<RequestLoggingMiddleware> logger)
-    {
-        _next = next;
-        _logger = logger;
-    }
-
     public async Task InvokeAsync(HttpContext context)
     {
         var stopwatch = Stopwatch.StartNew();
@@ -25,7 +16,7 @@ public class RequestLoggingMiddleware
         context.Items["RequestId"] = requestId;
 
         // Log incoming request
-        _logger.LogInformation(
+        logger.LogInformation(
             "Request {RequestId} started: {Method} {Path} from {RemoteIpAddress}",
             requestId,
             context.Request.Method,
@@ -34,11 +25,11 @@ public class RequestLoggingMiddleware
 
         try
         {
-            await _next(context);
+            await next(context);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, 
+            logger.LogError(ex, 
                 "Request {RequestId} failed: {Method} {Path} - {ErrorMessage}",
                 requestId,
                 context.Request.Method,
@@ -51,7 +42,7 @@ public class RequestLoggingMiddleware
             stopwatch.Stop();
             
             // Log completed request
-            _logger.LogInformation(
+            logger.LogInformation(
                 "Request {RequestId} completed: {Method} {Path} {StatusCode} in {ElapsedMilliseconds}ms",
                 requestId,
                 context.Request.Method,

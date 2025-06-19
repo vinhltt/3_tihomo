@@ -8,17 +8,9 @@ namespace Identity.Api.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
-public class ApiKeysController : ControllerBase
+public class ApiKeysController(IApiKeyService apiKeyService, ILogger<ApiKeysController> logger)
+    : ControllerBase
 {
-    private readonly IApiKeyService _apiKeyService;
-    private readonly ILogger<ApiKeysController> _logger;
-
-    public ApiKeysController(IApiKeyService apiKeyService, ILogger<ApiKeysController> logger)
-    {
-        _apiKeyService = apiKeyService;
-        _logger = logger;
-    }
-
     /// <summary>
     /// Create a new API key for the current user
     /// </summary>
@@ -39,20 +31,20 @@ public class ApiKeysController : ControllerBase
                 return BadRequest("API key name is required");
             }
 
-            var response = await _apiKeyService.CreateApiKeyAsync(userId, request);
+            var response = await apiKeyService.CreateApiKeyAsync(userId, request);
             
             if (response == null)
             {
                 return StatusCode(500, "Failed to create API key");
             }
 
-            _logger.LogInformation("API key {KeyId} created for user {UserId}", response.Id, userId);
+            logger.LogInformation("API key {KeyId} created for user {UserId}", response.Id, userId);
             
             return Ok(response);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error creating API key");
+            logger.LogError(ex, "Error creating API key");
             return StatusCode(500, "Internal server error");
         }
     }
@@ -72,12 +64,12 @@ public class ApiKeysController : ControllerBase
                 return BadRequest("Invalid user ID");
             }
 
-            var apiKeys = await _apiKeyService.GetUserApiKeysAsync(userId);
+            var apiKeys = await apiKeyService.GetUserApiKeysAsync(userId);
             return Ok(apiKeys);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error getting API keys");
+            logger.LogError(ex, "Error getting API keys");
             return StatusCode(500, "Internal server error");
         }
     }
@@ -97,7 +89,7 @@ public class ApiKeysController : ControllerBase
                 return BadRequest("Invalid user ID");
             }
 
-            var apiKey = await _apiKeyService.GetApiKeyInfoAsync(keyId, userId);
+            var apiKey = await apiKeyService.GetApiKeyInfoAsync(keyId, userId);
             
             if (apiKey == null)
             {
@@ -108,7 +100,7 @@ public class ApiKeysController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error getting API key {KeyId}", keyId);
+            logger.LogError(ex, "Error getting API key {KeyId}", keyId);
             return StatusCode(500, "Internal server error");
         }
     }
@@ -128,20 +120,20 @@ public class ApiKeysController : ControllerBase
                 return BadRequest("Invalid user ID");
             }
 
-            var success = await _apiKeyService.RevokeApiKeyAsync(keyId, userId);
+            var success = await apiKeyService.RevokeApiKeyAsync(keyId, userId);
             
             if (!success)
             {
                 return NotFound("API key not found");
             }
 
-            _logger.LogInformation("API key {KeyId} revoked by user {UserId}", keyId, userId);
+            logger.LogInformation("API key {KeyId} revoked by user {UserId}", keyId, userId);
             
             return Ok(new { Message = "API key revoked successfully" });
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error revoking API key {KeyId}", keyId);
+            logger.LogError(ex, "Error revoking API key {KeyId}", keyId);
             return StatusCode(500, "Internal server error");
         }
     }
@@ -160,7 +152,7 @@ public class ApiKeysController : ControllerBase
                 return BadRequest("API key is required");
             }
 
-            var user = await _apiKeyService.ValidateApiKeyAsync(apiKey);
+            var user = await apiKeyService.ValidateApiKeyAsync(apiKey);
             
             if (user == null)
             {
@@ -177,7 +169,7 @@ public class ApiKeysController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error validating API key");
+            logger.LogError(ex, "Error validating API key");
             return StatusCode(500, "Internal server error");
         }
     }

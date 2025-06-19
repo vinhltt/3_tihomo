@@ -11,14 +11,9 @@ namespace MoneyManagement.Application.Services;
 /// Service for managing shared expenses (EN)<br/>
 /// Dịch vụ quản lý chi tiêu chung (VI)
 /// </summary>
-public class SharedExpenseService : ISharedExpenseService
+public class SharedExpenseService(IUnitOfWork unitOfWork) : ISharedExpenseService
 {
-    private readonly IUnitOfWork _unitOfWork;
-
-    public SharedExpenseService(IUnitOfWork unitOfWork)
-    {
-        _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));
-    }
+    private readonly IUnitOfWork _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));
 
     #region SharedExpense Operations
 

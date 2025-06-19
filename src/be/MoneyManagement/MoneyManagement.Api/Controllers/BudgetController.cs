@@ -12,19 +12,11 @@ namespace MoneyManagement.Api.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Produces("application/json")]
-public class BudgetController : ControllerBase
+public class BudgetController(IBudgetService budgetService, ILogger<BudgetController> logger)
+    : ControllerBase
 {
-    private readonly IBudgetService _budgetService;
-    private readonly ILogger<BudgetController> _logger;
-
     private const string BudgetNotFoundMessage = "Budget with ID {0} not found or access denied";
     private const string ErrorOccurredMessage = "An error occurred while {0} the budget";
-
-    public BudgetController(IBudgetService budgetService, ILogger<BudgetController> logger)
-    {
-        _budgetService = budgetService;
-        _logger = logger;
-    }
 
     /// <summary>
     /// Gets the current user ID from authentication context (temporary implementation)
@@ -52,17 +44,17 @@ public class BudgetController : ControllerBase
         {
             var userId = GetCurrentUserId();
             
-            _logger.LogInformation("Creating budget for user {UserId}", userId);
+            logger.LogInformation("Creating budget for user {UserId}", userId);
             
-            var result = await _budgetService.CreateBudgetAsync(request, userId);
+            var result = await budgetService.CreateBudgetAsync(request, userId);
             
-            _logger.LogInformation("Budget created successfully with ID {BudgetId}", result.Id);
+            logger.LogInformation("Budget created successfully with ID {BudgetId}", result.Id);
             
             return CreatedAtAction(nameof(GetBudgetById), new { id = result.Id }, result);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error creating budget");
+            logger.LogError(ex, "Error creating budget");
             return StatusCode(StatusCodes.Status500InternalServerError, string.Format(ErrorOccurredMessage, "creating"));
         }
     }
@@ -89,22 +81,22 @@ public class BudgetController : ControllerBase
 
             var userId = GetCurrentUserId();
             
-            _logger.LogInformation("Updating budget {BudgetId} for user {UserId}", id, userId);
+            logger.LogInformation("Updating budget {BudgetId} for user {UserId}", id, userId);
             
-            var result = await _budgetService.UpdateBudgetAsync(request, userId);
+            var result = await budgetService.UpdateBudgetAsync(request, userId);
             
-            _logger.LogInformation("Budget {BudgetId} updated successfully", id);
+            logger.LogInformation("Budget {BudgetId} updated successfully", id);
             
             return Ok(result);
         }
         catch (InvalidOperationException ex)
         {
-            _logger.LogWarning(ex, BudgetNotFoundMessage, id);
+            logger.LogWarning(ex, BudgetNotFoundMessage, id);
             return NotFound(string.Format(BudgetNotFoundMessage, id));
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error updating budget {BudgetId}", id);
+            logger.LogError(ex, "Error updating budget {BudgetId}", id);
             return StatusCode(StatusCodes.Status500InternalServerError, string.Format(ErrorOccurredMessage, "updating"));
         }
     }
@@ -124,23 +116,23 @@ public class BudgetController : ControllerBase
         {
             var userId = GetCurrentUserId();
             
-            _logger.LogInformation("Deleting budget {BudgetId} for user {UserId}", id, userId);
+            logger.LogInformation("Deleting budget {BudgetId} for user {UserId}", id, userId);
             
-            var result = await _budgetService.DeleteBudgetAsync(id, userId);
+            var result = await budgetService.DeleteBudgetAsync(id, userId);
             
             if (!result)
             {
-                _logger.LogWarning(BudgetNotFoundMessage, id);
+                logger.LogWarning(BudgetNotFoundMessage, id);
                 return NotFound(string.Format(BudgetNotFoundMessage, id));
             }
             
-            _logger.LogInformation("Budget {BudgetId} deleted successfully", id);
+            logger.LogInformation("Budget {BudgetId} deleted successfully", id);
             
             return NoContent();
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error deleting budget {BudgetId}", id);
+            logger.LogError(ex, "Error deleting budget {BudgetId}", id);
             return StatusCode(StatusCodes.Status500InternalServerError, string.Format(ErrorOccurredMessage, "deleting"));
         }
     }
@@ -160,13 +152,13 @@ public class BudgetController : ControllerBase
         {
             var userId = GetCurrentUserId();
             
-            _logger.LogInformation("Getting budget {BudgetId} for user {UserId}", id, userId);
+            logger.LogInformation("Getting budget {BudgetId} for user {UserId}", id, userId);
             
-            var result = await _budgetService.GetBudgetByIdAsync(id, userId);
+            var result = await budgetService.GetBudgetByIdAsync(id, userId);
             
             if (result == null)
             {
-                _logger.LogWarning(BudgetNotFoundMessage, id);
+                logger.LogWarning(BudgetNotFoundMessage, id);
                 return NotFound(string.Format(BudgetNotFoundMessage, id));
             }
             
@@ -174,7 +166,7 @@ public class BudgetController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error getting budget {BudgetId}", id);
+            logger.LogError(ex, "Error getting budget {BudgetId}", id);
             return StatusCode(StatusCodes.Status500InternalServerError, string.Format(ErrorOccurredMessage, "retrieving"));
         }
     }
@@ -192,15 +184,15 @@ public class BudgetController : ControllerBase
         {
             var userId = GetCurrentUserId();
             
-            _logger.LogInformation("Getting all budgets for user {UserId}", userId);
+            logger.LogInformation("Getting all budgets for user {UserId}", userId);
             
-            var result = await _budgetService.GetBudgetsByUserIdAsync(userId);
+            var result = await budgetService.GetBudgetsByUserIdAsync(userId);
             
             return Ok(result);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error getting budgets for user");
+            logger.LogError(ex, "Error getting budgets for user");
             return StatusCode(StatusCodes.Status500InternalServerError, string.Format(ErrorOccurredMessage, "retrieving"));
         }
     }    /// <summary>
@@ -217,15 +209,15 @@ public class BudgetController : ControllerBase
         {
             var userId = GetCurrentUserId();
             
-            _logger.LogInformation("Getting active budgets for user {UserId}", userId);
+            logger.LogInformation("Getting active budgets for user {UserId}", userId);
             
-            var result = await _budgetService.GetActiveBudgetsByUserIdAsync(userId);
+            var result = await budgetService.GetActiveBudgetsByUserIdAsync(userId);
             
             return Ok(result);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error getting active budgets for user");
+            logger.LogError(ex, "Error getting active budgets for user");
             return StatusCode(StatusCodes.Status500InternalServerError, string.Format(ErrorOccurredMessage, "retrieving active"));
         }
     }
@@ -245,15 +237,15 @@ public class BudgetController : ControllerBase
         {
             var userId = GetCurrentUserId();
             
-            _logger.LogInformation("Getting budgets for category {Category} for user {UserId}", category, userId);
+            logger.LogInformation("Getting budgets for category {Category} for user {UserId}", category, userId);
             
-            var result = await _budgetService.GetBudgetsByCategoryAsync(userId, category);
+            var result = await budgetService.GetBudgetsByCategoryAsync(userId, category);
             
             return Ok(result);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error getting budgets for category {Category}", category);
+            logger.LogError(ex, "Error getting budgets for category {Category}", category);
             return StatusCode(StatusCodes.Status500InternalServerError, string.Format(ErrorOccurredMessage, "retrieving by category"));
         }
     }
@@ -274,15 +266,15 @@ public class BudgetController : ControllerBase
         {
             var userId = GetCurrentUserId();
             
-            _logger.LogInformation("Getting budgets for period {Period} for user {UserId}", period, userId);
+            logger.LogInformation("Getting budgets for period {Period} for user {UserId}", period, userId);
             
-            var result = await _budgetService.GetBudgetsByPeriodAsync(userId, period);
+            var result = await budgetService.GetBudgetsByPeriodAsync(userId, period);
             
             return Ok(result);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error getting budgets for period {Period}", period);
+            logger.LogError(ex, "Error getting budgets for period {Period}", period);
             return StatusCode(StatusCodes.Status500InternalServerError, string.Format(ErrorOccurredMessage, "retrieving by period"));
         }
     }
@@ -310,22 +302,22 @@ public class BudgetController : ControllerBase
 
             var userId = GetCurrentUserId();
             
-            _logger.LogInformation("Updating spent amount for budget {BudgetId} by {Amount} for user {UserId}", id, amount, userId);
+            logger.LogInformation("Updating spent amount for budget {BudgetId} by {Amount} for user {UserId}", id, amount, userId);
             
-            var result = await _budgetService.UpdateBudgetSpentAmountAsync(id, amount, userId);
+            var result = await budgetService.UpdateBudgetSpentAmountAsync(id, amount, userId);
             
-            _logger.LogInformation("Budget {BudgetId} spent amount updated successfully", id);
+            logger.LogInformation("Budget {BudgetId} spent amount updated successfully", id);
             
             return Ok(result);
         }
         catch (InvalidOperationException ex)
         {
-            _logger.LogWarning(ex, BudgetNotFoundMessage, id);
+            logger.LogWarning(ex, BudgetNotFoundMessage, id);
             return NotFound(string.Format(BudgetNotFoundMessage, id));
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error updating spent amount for budget {BudgetId}", id);
+            logger.LogError(ex, "Error updating spent amount for budget {BudgetId}", id);
             return StatusCode(StatusCodes.Status500InternalServerError, string.Format(ErrorOccurredMessage, "updating spent amount for"));
         }
     }
@@ -344,15 +336,15 @@ public class BudgetController : ControllerBase
         {
             var userId = GetCurrentUserId();
             
-            _logger.LogInformation("Getting budgets that reached alert threshold for user {UserId}", userId);
+            logger.LogInformation("Getting budgets that reached alert threshold for user {UserId}", userId);
             
-            var result = await _budgetService.GetBudgetsReachedAlertThresholdAsync(userId);
+            var result = await budgetService.GetBudgetsReachedAlertThresholdAsync(userId);
             
             return Ok(result);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error getting budgets that reached alert threshold");
+            logger.LogError(ex, "Error getting budgets that reached alert threshold");
             return StatusCode(StatusCodes.Status500InternalServerError, string.Format(ErrorOccurredMessage, "retrieving alert"));
         }
     }
@@ -371,15 +363,15 @@ public class BudgetController : ControllerBase
         {
             var userId = GetCurrentUserId();
             
-            _logger.LogInformation("Getting over-budget budgets for user {UserId}", userId);
+            logger.LogInformation("Getting over-budget budgets for user {UserId}", userId);
             
-            var result = await _budgetService.GetOverBudgetBudgetsAsync(userId);
+            var result = await budgetService.GetOverBudgetBudgetsAsync(userId);
             
             return Ok(result);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error getting over-budget budgets");
+            logger.LogError(ex, "Error getting over-budget budgets");
             return StatusCode(StatusCodes.Status500InternalServerError, string.Format(ErrorOccurredMessage, "retrieving over-budget"));
         }
     }
@@ -402,22 +394,22 @@ public class BudgetController : ControllerBase
         {
             var userId = GetCurrentUserId();
             
-            _logger.LogInformation("Changing status for budget {BudgetId} to {Status} for user {UserId}", id, status, userId);
+            logger.LogInformation("Changing status for budget {BudgetId} to {Status} for user {UserId}", id, status, userId);
             
-            var result = await _budgetService.ChangeBudgetStatusAsync(id, status, userId);
+            var result = await budgetService.ChangeBudgetStatusAsync(id, status, userId);
             
-            _logger.LogInformation("Budget {BudgetId} status changed to {Status} successfully", id, status);
+            logger.LogInformation("Budget {BudgetId} status changed to {Status} successfully", id, status);
             
             return Ok(result);
         }
         catch (InvalidOperationException ex)
         {
-            _logger.LogWarning(ex, BudgetNotFoundMessage, id);
+            logger.LogWarning(ex, BudgetNotFoundMessage, id);
             return NotFound(string.Format(BudgetNotFoundMessage, id));
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error changing status for budget {BudgetId}", id);
+            logger.LogError(ex, "Error changing status for budget {BudgetId}", id);
             return StatusCode(StatusCodes.Status500InternalServerError, string.Format(ErrorOccurredMessage, "changing status for"));
         }
     }

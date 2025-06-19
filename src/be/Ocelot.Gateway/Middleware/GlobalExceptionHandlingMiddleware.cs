@@ -5,27 +5,16 @@ namespace Ocelot.Gateway.Middleware;
 /// <summary>
 /// Global exception handling middleware
 /// </summary>
-public class GlobalExceptionHandlingMiddleware
+public class GlobalExceptionHandlingMiddleware(
+    RequestDelegate next,
+    ILogger<GlobalExceptionHandlingMiddleware> logger,
+    IWebHostEnvironment environment)
 {
-    private readonly RequestDelegate _next;
-    private readonly ILogger<GlobalExceptionHandlingMiddleware> _logger;
-    private readonly IWebHostEnvironment _environment;
-
-    public GlobalExceptionHandlingMiddleware(
-        RequestDelegate next, 
-        ILogger<GlobalExceptionHandlingMiddleware> logger,
-        IWebHostEnvironment environment)
-    {
-        _next = next;
-        _logger = logger;
-        _environment = environment;
-    }
-
     public async Task InvokeAsync(HttpContext context)
     {
         try
         {
-            await _next(context);
+            await next(context);
         }
         catch (Exception ex)
         {
@@ -37,7 +26,7 @@ public class GlobalExceptionHandlingMiddleware
     {
         var requestId = context.Items["RequestId"]?.ToString() ?? Guid.NewGuid().ToString();
         
-        _logger.LogError(exception, 
+        logger.LogError(exception, 
             "Unhandled exception occurred for request {RequestId}: {ExceptionMessage}", 
             requestId, 
             exception.Message);
@@ -49,8 +38,8 @@ public class GlobalExceptionHandlingMiddleware
         {
             RequestId = requestId,
             Message = "An error occurred while processing your request.",
-            Details = _environment.IsDevelopment() ? exception.Message : null,
-            StackTrace = _environment.IsDevelopment() ? exception.StackTrace : null,
+            Details = environment.IsDevelopment() ? exception.Message : null,
+            StackTrace = environment.IsDevelopment() ? exception.StackTrace : null,
             Timestamp = DateTime.UtcNow
         };
 

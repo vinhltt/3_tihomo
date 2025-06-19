@@ -12,17 +12,11 @@ namespace MoneyManagement.Api.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Produces("application/json")]
-public class JarController : ControllerBase
+public class JarController(IJarService jarService, ILogger<JarController> logger) : ControllerBase
 {
-    private readonly IJarService _jarService;
-    private readonly ILogger<JarController> _logger;
+    private readonly IJarService _jarService = jarService ?? throw new ArgumentNullException(nameof(jarService));
+    private readonly ILogger<JarController> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     private const string GenericErrorMessage = "An error occurred while processing your request";
-
-    public JarController(IJarService jarService, ILogger<JarController> logger)
-    {
-        _jarService = jarService ?? throw new ArgumentNullException(nameof(jarService));
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-    }
 
     /// <summary>
     /// Get all jars for the current user (EN)<br/>

@@ -6,25 +6,13 @@ namespace Identity.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class AuthController : ControllerBase
+public class AuthController(
+    ITokenVerificationService tokenVerificationService,
+    IUserService userService,
+    IJwtService jwtService,
+    ILogger<AuthController> logger)
+    : ControllerBase
 {
-    private readonly ITokenVerificationService _tokenVerificationService;
-    private readonly IUserService _userService;
-    private readonly IJwtService _jwtService;
-    private readonly ILogger<AuthController> _logger;
-
-    public AuthController(
-        ITokenVerificationService tokenVerificationService,
-        IUserService userService,
-        IJwtService jwtService,
-        ILogger<AuthController> logger)
-    {
-        _tokenVerificationService = tokenVerificationService;
-        _userService = userService;
-        _jwtService = jwtService;
-        _logger = logger;
-    }
-
     /// <summary>
     /// Authenticate user with social login token
     /// </summary>
@@ -39,7 +27,7 @@ public class AuthController : ControllerBase
             }
 
             // Verify the token with the social provider
-            var socialUserInfo = await _tokenVerificationService.VerifyTokenAsync(request.Provider, request.Token);
+            var socialUserInfo = await tokenVerificationService.VerifyTokenAsync(request.Provider, request.Token);
             
             if (socialUserInfo == null)
             {
@@ -47,7 +35,7 @@ public class AuthController : ControllerBase
             }
 
             // Get or create user
-            var user = await _userService.GetOrCreateUserAsync(socialUserInfo);
+            var user = await userService.GetOrCreateUserAsync(socialUserInfo);
             
             if (user == null)
             {
@@ -61,12 +49,12 @@ public class AuthController : ControllerBase
             }
 
             // Generate JWT tokens
-            var accessToken = _jwtService.GenerateAccessToken(user);
-            var refreshToken = _jwtService.GenerateRefreshToken();
-            var tokenExpiration = _jwtService.GetTokenExpiration();
+            var accessToken = jwtService.GenerateAccessToken(user);
+            var refreshToken = jwtService.GenerateRefreshToken();
+            var tokenExpiration = jwtService.GetTokenExpiration();
 
             // Map user to response
-            var userInfo = await _userService.MapToUserInfoAsync(user);
+            var userInfo = await userService.MapToUserInfoAsync(user);
 
             var response = new LoginResponse
             {
@@ -76,13 +64,13 @@ public class AuthController : ControllerBase
                 ExpiresAt = tokenExpiration
             };
 
-            _logger.LogInformation("User {UserId} logged in successfully via {Provider}", user.Id, request.Provider);
+            logger.LogInformation("User {UserId} logged in successfully via {Provider}", user.Id, request.Provider);
             
             return Ok(response);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error during social login with provider {Provider}", request.Provider);
+            logger.LogError(ex, "Error during social login with provider {Provider}", request.Provider);
             return StatusCode(500, "Internal server error");
         }
     }
@@ -100,7 +88,7 @@ public class AuthController : ControllerBase
                 return BadRequest("Token is required");
             }
 
-            var principal = _jwtService.ValidateToken(token);
+            var principal = jwtService.ValidateToken(token);
             
             if (principal == null)
             {
@@ -121,7 +109,7 @@ public class AuthController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error validating token");
+            logger.LogError(ex, "Error validating token");
             return StatusCode(500, "Internal server error");
         }
     }
@@ -144,7 +132,7 @@ public class AuthController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error refreshing token");
+            logger.LogError(ex, "Error refreshing token");
             return StatusCode(500, "Internal server error");
         }
     }
@@ -166,7 +154,7 @@ public class AuthController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error during logout");
+            logger.LogError(ex, "Error during logout");
             return StatusCode(500, "Internal server error");
         }
     }
