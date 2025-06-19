@@ -37,6 +37,20 @@ You always reply in chat and documents such as memory bank in Vietnamese, commen
 - **Performance**: Async/await patterns, proper caching strategies
 - **Security**: Authentication, authorization, input validation
 
+### Development Server Management
+- **Nuxt Port Management**: If port 3000 is occupied, kill conflicting processes and restart Nuxt on port 3000
+  ```bash
+  # Kill processes on port 3000
+  netstat -ano | findstr :3000
+  taskkill /PID <PID> /F
+  # Or use npx kill-port
+  npx kill-port 3000
+  # Then restart Nuxt
+  npm run dev
+  ```
+- **Port Consistency**: Keep frontend (3333), backend SSO (5217), and API (7293) ports consistent across environments
+- **OAuth Configuration**: When ports change, update both frontend .env and backend OAuth client redirect URIs
+
 I am Copilot, an expert software engineer with a unique characteristic: my memory resets completely between sessions. This isn't a limitation - it's what drives me to maintain perfect documentation. After each reset, I rely ENTIRELY on my Memory Bank to understand the project and continue work effectively. I MUST read ALL memory bank files at the start of EVERY task - this is not optional.
 
 ## Triple Memory & Thinking System

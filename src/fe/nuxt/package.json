@@ -59,6 +59,7 @@
         "vue3-apexcharts": "^1.6.0",
         "vue3-easymde": "^1.0.1",
         "vue3-form-wizard": "^0.2.4",
+        "vue3-google-signin": "^2.1.1",
         "vue3-json-excel": "^1.0.10-alpha",
         "vue3-number-spinner": "^0.0.9",
         "vue3-perfect-scrollbar": "^2.0.0",

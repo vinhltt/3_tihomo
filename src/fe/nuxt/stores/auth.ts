@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import type { LoginRequest, LoginResponse, User, ApiResponse } from '@/types/auth'
+import { useSso } from '@/composables/useSso'
 
 type AuthState = {
   user: User | null
@@ -8,6 +9,7 @@ type AuthState = {
   isLoading: boolean
   error: string | null
   isAuthenticated: boolean
+  authMode: 'traditional' | 'sso'
 }
 
 type LoginCredentials = {
@@ -27,14 +29,78 @@ export const useAuthStore = defineStore('auth', {
     isLoading: false,
     error: null,
     isAuthenticated: false,
+    authMode: 'sso' // Default to SSO mode
   }),
 
   actions: {
     /**
-     * Login user with email and password (EN)
-     * Đăng nhập người dùng bằng email và mật khẩu (VI)
+     * Set authentication mode
+     * Đặt chế độ xác thực
+     */
+    setAuthMode(mode: 'traditional' | 'sso'): void {
+      this.authMode = mode
+    },
+
+    /**
+     * Initialize authentication - check SSO first, fallback to traditional
+     * Khởi tạo xác thực - kiểm tra SSO trước, fallback về traditional
+     */
+    async initAuth(): Promise<void> {
+      this.isLoading = true
+      this.error = null
+
+      try {
+        // Try SSO authentication first
+        const sso = useSso()
+        sso.initializeSso()
+          if (sso.isAuthenticated.value && sso.user.value) {
+          // Use SSO authentication
+          this.authMode = 'sso'
+          this.user = {
+            id: sso.user.value.sub,
+            email: sso.user.value.email,
+            firstName: sso.user.value.name.split(' ')[0] || '',
+            lastName: sso.user.value.name.split(' ').slice(1).join(' ') || '',
+            isActive: true,
+            roles: sso.user.value.roles.map(role => ({ id: role, name: role })),
+            emailConfirmed: sso.user.value.email_verified || false,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          }
+          this.token = sso.state.accessToken
+          this.refreshToken = sso.state.refreshToken
+          this.isAuthenticated = true
+          return
+        }
+
+        // Fallback to traditional token-based authentication
+        const tokenCookie = useCookie('auth-token')
+        const refreshCookie = useCookie('refresh-token')
+
+        if (tokenCookie.value) {
+          this.authMode = 'traditional'
+          this.token = tokenCookie.value
+          this.refreshToken = refreshCookie.value || null
+          this.isAuthenticated = true
+          
+          // In traditional mode, we assume token is valid
+          // Real implementation would validate with server
+        }
+      } catch (error: any) {
+        console.error('Auth initialization error:', error)
+        this.error = 'Failed to initialize authentication'
+      } finally {
+        this.isLoading = false
+      }
+    },
+
+    /**
+     * Login user with email and password (traditional mode only)
+     * Đăng nhập người dùng bằng email và mật khẩu (chỉ chế độ traditional)
      */
     async login(credentials: LoginCredentials): Promise<boolean> {
+      // Force traditional mode for email/password login
+      this.authMode = 'traditional'
       this.isLoading = true
       this.error = null
 
@@ -84,108 +150,79 @@ export const useAuthStore = defineStore('auth', {
     },
 
     /**
-     * Login with Google OAuth (EN)
-     * Đăng nhập bằng Google OAuth (VI)
+     * SSO Login - redirect to SSO server
+     * Đăng nhập SSO - chuyển hướng đến SSO server
      */
-    async loginWithGoogle(googleToken: string): Promise<boolean> {
+    async loginWithSso(returnUrl?: string): Promise<void> {
+      this.authMode = 'sso'
       this.isLoading = true
       this.error = null
 
       try {
-        const { data } = await $fetch<ApiResponse<LoginResponse>>('/api/auth/google-login', {
-          method: 'POST',
-          body: { token: googleToken },
-        })
-
-        if (data) {
-          this.token = data.token
-          this.refreshToken = data.refreshToken
-          this.user = data.user
-          this.isAuthenticated = true
-
-          // Store tokens in cookies
-          const tokenCookie = useCookie('auth-token')
-          const refreshCookie = useCookie('refresh-token')
-          tokenCookie.value = data.token
-          refreshCookie.value = data.refreshToken
-
-          return true
-        }
-
-        return false
+        const sso = useSso()
+        await sso.login(returnUrl)
       } catch (error: any) {
-        this.error = error.data?.message || 'Google login failed'
-        return false
-      } finally {
+        this.error = error.message || 'SSO login failed'
         this.isLoading = false
       }
     },
 
     /**
-     * Logout user and clear session (EN)
-     * Đăng xuất người dùng và xóa phiên (VI)
+     * Logout user
+     * Đăng xuất người dùng
      */
     async logout(): Promise<void> {
+      this.isLoading = true
+
       try {
-        if (this.refreshToken) {
-          await $fetch('/api/auth/logout', {
-            method: 'POST',
-            body: { refreshToken: this.refreshToken },
-          })
+        if (this.authMode === 'sso') {
+          // SSO logout
+          const sso = useSso()
+          await sso.logout()
+        } else {
+          // Traditional logout
+          try {
+            await $fetch('/api/auth/logout', {
+              method: 'POST',
+              headers: {
+                Authorization: `Bearer ${this.token}`
+              }
+            })
+          } catch (error) {
+            // Continue with local logout even if server logout fails
+            console.warn('Server logout failed:', error)
+          }
         }
-      } catch (error) {
-        // Handle logout error silently
-        console.warn('Logout API call failed:', error)
+      } catch (error: any) {
+        console.error('Logout error:', error)
       } finally {
-        // Clear state regardless of API call result
-        this.user = null
-        this.token = null
-        this.refreshToken = null
-        this.isAuthenticated = false
-        this.error = null
-
-        // Clear cookies
-        const tokenCookie = useCookie('auth-token')
-        const refreshCookie = useCookie('refresh-token')
-        tokenCookie.value = null
-        refreshCookie.value = null
-
-        // Redirect to login
-        await navigateTo('/auth/cover-login')
+        // Clear local state regardless of server response
+        this.clearAuthState()
+        this.isLoading = false
       }
     },
 
     /**
-     * Initialize auth state from stored tokens (EN)
-     * Khởi tạo trạng thái xác thực từ token đã lưu (VI)
+     * Clear authentication state
+     * Xóa trạng thái xác thực
      */
-    async initAuth(): Promise<void> {
+    clearAuthState(): void {
+      this.user = null
+      this.token = null
+      this.refreshToken = null
+      this.isAuthenticated = false
+      this.error = null
+
+      // Clear cookies
       const tokenCookie = useCookie('auth-token')
       const refreshCookie = useCookie('refresh-token')
+      const ssoTokenCookie = useCookie('sso_access_token')
+      const ssoRefreshCookie = useCookie('sso_refresh_token')
 
-      if (tokenCookie.value && refreshCookie.value) {
-        this.token = tokenCookie.value
-        this.refreshToken = refreshCookie.value
-
-        try {
-          // Verify token and get user info
-          const { data } = await $fetch<ApiResponse<User>>('/api/auth/me', {
-            headers: {
-              Authorization: `Bearer ${this.token}`,
-            },
-          })
-
-          if (data) {
-            this.user = data
-            this.isAuthenticated = true
-          } else {
-            await this.refreshAuthToken()
-          }
-        } catch (error) {
-          // Try to refresh token
-          await this.refreshAuthToken()
-        }
-      }
+      tokenCookie.value = null
+      refreshCookie.value = null
+      ssoTokenCookie.value = null
+      ssoRefreshCookie.value = null
     },
 
     /**

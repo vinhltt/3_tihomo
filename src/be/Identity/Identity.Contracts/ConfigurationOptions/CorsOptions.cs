@@ -41,4 +41,10 @@ public class CorsOptions
     /// Lấy hoặc đặt thời gian tối đa cho yêu cầu preflight tính bằng phút cho chính sách CORS. (VI)
     /// </summary>
     public string PreflightMaxAgeInMinutes { get; set; } = "";
+    
+    /// <summary>
+    /// Gets or sets whether to allow credentials for the CORS policy. (EN)<br/>
+    /// Lấy hoặc đặt có cho phép thông tin xác thực cho chính sách CORS hay không. (VI)
+    /// </summary>
+    public bool AllowCredentials { get; set; } = false;
 }

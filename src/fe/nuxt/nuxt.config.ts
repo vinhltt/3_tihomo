@@ -69,13 +69,17 @@ export default defineNuxtConfig({
         options: { linkExactActiveClass: 'active' },
     },
 
-    compatibilityDate: '2024-09-21',  
-    runtimeConfig: {
+    compatibilityDate: '2024-09-21',    runtimeConfig: {
         // Private keys (only available on server-side)
         
         // Public keys (exposed to client-side)
         public: {
-            apiBase: process.env.NUXT_PUBLIC_API_BASE || 'https://localhost:7293'
+            apiBase: process.env.NUXT_PUBLIC_API_BASE || 'https://localhost:7293',
+            ssoBase: process.env.NUXT_PUBLIC_SSO_BASE || 'http://localhost:5217',
+            ssoClientId: process.env.NUXT_PUBLIC_SSO_CLIENT_ID || 'nuxt-spa-client',
+            ssoRedirectUri: process.env.NUXT_PUBLIC_SSO_REDIRECT_URI || 'http://localhost:3000/auth/sso/callback',
+            ssoLogoutRedirectUri: process.env.NUXT_PUBLIC_SSO_LOGOUT_REDIRECT_URI || 'http://localhost:3000/auth/sso/logout',
+            appBase: process.env.NUXT_PUBLIC_APP_BASE || 'http://localhost:3000'
         }
     },
 });

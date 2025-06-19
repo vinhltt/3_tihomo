@@ -466,7 +466,7 @@ public void ConfigureServices(IServiceCollection services)
                 .WithOrigins(
                     "https://tihomo.local",
                     "https://admin.tihomo.local",
-                    "http://localhost:3000",
+                    "http://localhost:3333",
                     "http://localhost:3001"
                 )
                 .AllowAnyMethod()

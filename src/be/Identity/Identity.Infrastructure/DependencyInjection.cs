@@ -71,15 +71,14 @@ public static class DependencyInjection
                 options.AllowAuthorizationCodeFlow()
                        .AllowRefreshTokenFlow();                // Register the signing and encryption credentials.
                 options.AddDevelopmentEncryptionCertificate()
-                       .AddDevelopmentSigningCertificate();
-
-                // Register the ASP.NET Core host and configure the ASP.NET Core-specific options.
+                       .AddDevelopmentSigningCertificate();                // Register the ASP.NET Core host and configure the ASP.NET Core-specific options.
                 options.UseAspNetCore()
                        .EnableAuthorizationEndpointPassthrough()
                        .EnableTokenEndpointPassthrough()
-                       .EnableStatusCodePagesIntegration();
+                       .EnableStatusCodePagesIntegration()
+                       .DisableTransportSecurityRequirement(); // Allow HTTP in development
 
-                // Note: In OpenIddict 5.8.0, HTTPS requirement is automatically disabled in development environment
+                // Note: DisableTransportSecurityRequirement allows HTTP for development only
             })
 
             // Register the OpenIddict validation components.

@@ -160,46 +160,55 @@
                             <span class="absolute inset-x-0 top-1/2 h-px w-full -translate-y-1/2 bg-white-light dark:bg-white-dark"></span>
                             <span class="relative bg-white px-2 font-bold uppercase text-white-dark dark:bg-dark dark:text-white-light">or</span>
                         </div>                        <div class="mb-10 md:mb-[60px]">
-                            <ul class="flex justify-center gap-3.5">
-                                <li>
-                                    <button
-                                        type="button"
-                                        @click="handleGoogleLogin"
-                                        :disabled="isLoading"
-                                        class="inline-flex h-8 w-8 items-center justify-center rounded-full p-0 transition hover:scale-110 disabled:opacity-50"
-                                        style="background: linear-gradient(135deg, rgba(239, 18, 98, 1) 0%, rgba(67, 97, 238, 1) 100%)"
-                                    >
-                                        <icon-google />
-                                    </button>
-                                </li>
-                                <li>
-                                    <a
-                                        href="javascript:"
-                                        class="inline-flex h-8 w-8 items-center justify-center rounded-full p-0 transition hover:scale-110"
-                                        style="background: linear-gradient(135deg, rgba(239, 18, 98, 1) 0%, rgba(67, 97, 238, 1) 100%)"
-                                    >
-                                        <icon-facebook-circle />
-                                    </a>
-                                </li>
-                                <li>
-                                    <a
-                                        href="javascript:"
-                                        class="inline-flex h-8 w-8 items-center justify-center rounded-full p-0 transition hover:scale-110"
-                                        style="background: linear-gradient(135deg, rgba(239, 18, 98, 1) 0%, rgba(67, 97, 238, 1) 100%)"
-                                    >
-                                        <icon-twitter :fill="true" />
-                                    </a>
-                                </li>
-                                <li>
-                                    <a
-                                        href="javascript:"
-                                        class="inline-flex h-8 w-8 items-center justify-center rounded-full p-0 transition hover:scale-110"
-                                        style="background: linear-gradient(135deg, rgba(239, 18, 98, 1) 0%, rgba(67, 97, 238, 1) 100%)"
-                                    >
-                                        <icon-instagram />
-                                    </a>
-                                </li>
-                            </ul>
+                            <div class="space-y-3">
+                                <!-- Google Login Button -->
+                                <button
+                                    type="button"
+                                    @click="handleGoogleLogin"
+                                    :disabled="socialLoading"
+                                    class="btn w-full border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+                                >
+                                    <span v-if="socialLoading && currentSocialProvider === 'Google'" class="mr-2">
+                                        <svg class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                        </svg>
+                                    </span>
+                                    <icon-google class="mr-2" />
+                                    {{ socialLoading && currentSocialProvider === 'Google' ? 'Signing in with Google...' : 'Continue with Google' }}
+                                </button>
+
+                                <!-- Facebook Login Button -->
+                                <button
+                                    type="button"
+                                    @click="handleFacebookLogin"
+                                    :disabled="socialLoading"
+                                    class="btn w-full border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+                                >
+                                    <span v-if="socialLoading && currentSocialProvider === 'Facebook'" class="mr-2">
+                                        <svg class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                        </svg>
+                                    </span>
+                                    <icon-facebook-circle class="mr-2" />
+                                    {{ socialLoading && currentSocialProvider === 'Facebook' ? 'Signing in with Facebook...' : 'Continue with Facebook' }}
+                                </button>
+                            </div>
+
+                            <!-- Social Login Error -->
+                            <div v-if="socialError" class="mt-4 rounded-md bg-red-50 p-4 dark:bg-red-900/10">
+                                <div class="flex">
+                                    <div class="ml-3">
+                                        <h3 class="text-sm font-medium text-red-800 dark:text-red-200">
+                                            Social Login Failed
+                                        </h3>
+                                        <div class="mt-2 text-sm text-red-700 dark:text-red-300">
+                                            <p>{{ socialError }}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                         <div class="text-center dark:text-white">
                             Don't have an account ?
@@ -215,19 +224,23 @@
     </div>
 </template>
 <script lang="ts" setup>
-import { computed, reactive, ref } from 'vue'
+import { computed, reactive, ref, watch, onMounted } from 'vue'
 import appSetting from '@/app-setting'
 import { useAppStore } from '@/stores/index'
 import { useAuth } from '@/composables/useAuth'
+import { useSocialAuth } from '@/composables/useSocialAuth'
+import type { SocialProvider } from '@/types/auth'
 
 useHead({ title: 'Login Cover' })
 
 definePageMeta({
     layout: 'auth-layout',
+    auth: false // Disable auth middleware for this page
 })
 
 const store = useAppStore()
-const { login, loginWithGoogle, isLoading, error, clearError } = useAuth()
+const { login, isLoading, error, clearError } = useAuth()
+const { loginWith, isLoading: socialLoading, error: socialError, initializeProviders } = useSocialAuth()
 const { setLocale } = useI18n()
 
 // Form state
@@ -239,6 +252,7 @@ const loginForm = reactive({
 const rememberMe = ref(false)
 const emailError = ref('')
 const passwordError = ref('')
+const currentSocialProvider = ref<SocialProvider | null>(null)
 
 // Form validation
 const validateForm = (): boolean => {
@@ -291,18 +305,29 @@ const handleLogin = async (): Promise<void> => {
 
 // Handle Google login
 const handleGoogleLogin = async (): Promise<void> => {
-    clearError()
-
     try {
-        // In a real implementation, you would integrate with Google OAuth SDK
-        // For now, this is a placeholder
-        console.log('Google login clicked - implement Google OAuth integration')
-
-        // Example:
-        // const googleToken = await getGoogleToken()
-        // await loginWithGoogle(googleToken)
+        currentSocialProvider.value = 'Google'
+        await loginWith('Google')
+        console.log('Google login successful')
+        // Navigation will be handled by the auth store
     } catch (err) {
         console.error('Google login error:', err)
+    } finally {
+        currentSocialProvider.value = null
+    }
+}
+
+// Handle Facebook login
+const handleFacebookLogin = async (): Promise<void> => {
+    try {
+        currentSocialProvider.value = 'Facebook'
+        await loginWith('Facebook')
+        console.log('Facebook login successful')
+        // Navigation will be handled by the auth store
+    } catch (err) {
+        console.error('Facebook login error:', err)
+    } finally {
+        currentSocialProvider.value = null
     }
 }
 
@@ -313,6 +338,15 @@ const changeLanguage = (item: any) => {
 
 const currentFlag = computed(() => {
     return `/assets/images/flags/${store.locale?.toUpperCase()}.svg`
+})
+
+// Initialize social providers on mount
+onMounted(async () => {
+    try {
+        await initializeProviders()
+    } catch (error) {
+        console.warn('Failed to initialize social providers:', error)
+    }
 })
 
 // Clear errors when user starts typing

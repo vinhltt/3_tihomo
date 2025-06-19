@@ -60,6 +60,7 @@ export type User = {
   roles: UserRole[]
   createdAt: string
   updatedAt: string
+  pictureUrl?: string
 }
 
 /**
@@ -151,4 +152,44 @@ export type ChangePasswordRequest = {
 export type UpdateProfileRequest = {
   firstName: string
   lastName: string
+}
+
+/**
+ * Social login providers (EN)
+ * Các nhà cung cấp đăng nhập xã hội (VI)
+ */
+export type SocialProvider = 'Google' | 'Facebook'
+
+/**
+ * Social login request data (EN)
+ * Dữ liệu yêu cầu đăng nhập xã hội (VI)
+ */
+export type SocialLoginRequest = {
+  provider: SocialProvider
+  token: string
+}
+
+/**
+ * Social login response from provider (EN)
+ * Phản hồi đăng nhập xã hội từ nhà cung cấp (VI)
+ */
+export type SocialLoginResponse = {
+  user: UserInfo
+  accessToken: string
+  refreshToken: string
+  expiresAt: string
+}
+
+/**
+ * User information from social login (EN)
+ * Thông tin người dùng từ đăng nhập xã hội (VI)
+ */
+export type UserInfo = {
+  id: string
+  email: string
+  name: string
+  pictureUrl?: string
+  isActive: boolean
+  createdAt: string
+  providers: string[]
 }

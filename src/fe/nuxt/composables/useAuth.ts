@@ -1,5 +1,5 @@
 import { useAuthStore } from '@/stores/auth'
-import type { LoginCredentials } from '@/types/auth'
+import type { SocialProvider } from '@/types/auth'
 
 /**
  * Authentication composable for managing login, logout, and auth state (EN)
@@ -25,17 +25,13 @@ export const useAuth = () => {
   }
 
   /**
-   * Login with Google OAuth (EN)
-   * Đăng nhập bằng Google OAuth (VI)
+   * Login with social provider (EN)
+   * Đăng nhập bằng nhà cung cấp xã hội (VI)
    */
-  const loginWithGoogle = async (googleToken: string): Promise<boolean> => {
-    const success = await authStore.loginWithGoogle(googleToken)
-
-    if (success) {
-      await router.push('/dashboard')
-    }
-
-    return success
+  const loginWithSocial = async (provider: SocialProvider): Promise<void> => {
+    await authStore.loginWithSocial(provider)
+    // Redirect will be handled by the social auth flow
+    await router.push('/dashboard')
   }
 
   /**
@@ -96,7 +92,7 @@ export const useAuth = () => {
 
     // Actions
     login,
-    loginWithGoogle,
+    loginWithSocial,
     logout,
     hasRole,
     isAdmin,
