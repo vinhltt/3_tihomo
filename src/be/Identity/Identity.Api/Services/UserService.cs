@@ -110,13 +110,10 @@ public class UserService(IdentityDbContext context, ILogger<UserService> logger)
             logger.LogError(ex, "Failed to get or create user for {Email}", socialUserInfo.Email);
             return null;
         }
-    }
-
-    public async Task<UserInfo> MapToUserInfoAsync(User user)
-    {
-        var providers = user.UserLogins.Select(ul => ul.Provider).Distinct().ToList();
+    }    public Task<UserInfo> MapToUserInfoAsync(User user)
+    {        var providers = user.UserLogins.Select(ul => ul.Provider).Distinct().ToList();
         
-        return new UserInfo
+        var userInfo = new UserInfo
         {
             Id = user.Id,
             Email = user.Email,
@@ -126,6 +123,8 @@ public class UserService(IdentityDbContext context, ILogger<UserService> logger)
             CreatedAt = user.CreatedAt,
             Providers = providers
         };
+        
+        return Task.FromResult(userInfo);
     }
 
     public async Task<bool> UpdateUserAsync(User user)
