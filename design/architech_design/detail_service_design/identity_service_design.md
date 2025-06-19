@@ -398,115 +398,494 @@ sequenceDiagram
     SSO->>Client: Return access_token + refresh_token
 ```
 
-## 7. Production-Ready Improvements
+## 7. Production-Ready Improvements ⚠️ **CRITICAL FIXES NEEDED**
 
-### 7.1 Multi-Layer Token Validation Strategy
+### 7.1 Enhanced Token Verification Strategy 🔥 **HIGH PRIORITY**
 
-**Issue**: Verifying with Google on every request is inefficient and creates external dependency risk.
+**Issue**: Current design verifies Google token on every request - MAJOR performance and security risk.
 
-**Solution**: Implement multi-layer validation with local verification and intelligent caching.
-
+**Root Cause**: 
 ```csharp
-public class EnhancedTokenValidationService
-{
-    private readonly IMemoryCache _cache;
-    private readonly IGoogleTokenValidator _googleValidator;
-    private readonly ILocalTokenValidator _localValidator;
-    
-    public async Task<TokenValidationResult> ValidateAsync(string token, string provider)
-    {
-        // Layer 1: Check cache first
-        var cacheKey = $"token:{provider}:{ComputeHash(token)}";
-        if (_cache.TryGetValue(cacheKey, out TokenValidationResult cachedResult))
-        {
-            return cachedResult;
-        }
-        
-        // Layer 2: Local validation (if we have local JWT)
-        var localResult = await _localValidator.ValidateAsync(token);
-        if (localResult.IsValid)
-        {
-            _cache.Set(cacheKey, localResult, TimeSpan.FromMinutes(5));
-            return localResult;
-        }
-        
-        // Layer 3: External provider validation
-        var externalResult = await _googleValidator.ValidateAsync(token);
-        if (externalResult.IsValid)
-        {
-            _cache.Set(cacheKey, externalResult, TimeSpan.FromMinutes(5));
-        }
-        
-        return externalResult;
-    }
-}
+// ❌ PROBLEMATIC: Current implementation
+var googleResponse = await _httpClient.GetAsync(
+    $"https://oauth2.googleapis.com/tokeninfo?id_token={request.Token}");
+// This calls Google API on EVERY request!
 ```
 
-### 7.2 Comprehensive Refresh Token Management
-
-**Issue**: Google ID tokens expire in 1 hour without proper refresh mechanism.
-
-**Solution**: Implement automatic token refresh with secure storage and error handling.
+**Solution**: Multi-layer validation with local verification and intelligent caching.
 
 ```csharp
-public class RefreshTokenService
+// ✅ PRODUCTION-READY: Enhanced Token Validation
+public class EnhancedTokenVerificationService : ITokenVerificationService
 {
-    private readonly IDistributedCache _cache;
-    private readonly IGoogleTokenProvider _googleProvider;
+    private readonly IMemoryCache _cache;
+    private readonly IDistributedCache _distributedCache;
+    private readonly HttpClient _httpClient;
+    private readonly ILogger<EnhancedTokenVerificationService> _logger;
     
-    public async Task<RefreshTokenResult> RefreshTokenAsync(string refreshToken)
+    public async Task<TokenVerificationResult> VerifyTokenAsync(string token, string provider)
     {
+        var stopwatch = Stopwatch.StartNew();
+        
         try
         {
-            var result = await _googleProvider.RefreshAsync(refreshToken);
+            // Step 1: Parse JWT locally first (validation without API call)
+            var jwt = ParseJwtToken(token);
+            if (jwt == null || jwt.ValidTo < DateTime.UtcNow)
+            {
+                return TokenVerificationResult.Invalid("Token expired or malformed");
+            }
             
-            // Store new tokens securely
-            await _cache.SetStringAsync($"access_token:{result.UserId}", 
-                result.AccessToken, 
-                new DistributedCacheEntryOptions
-                {
-                    AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(55) // 5min buffer
-                });
+            // Step 2: Check L1 cache (Memory) - 2 minute TTL
+            var cacheKey = $"token_verify:{provider}:{ComputeHash(token)}";
+            if (_cache.TryGetValue(cacheKey, out TokenVerificationResult cachedResult))
+            {
+                _logger.LogDebug("Token verification from L1 cache in {Duration}ms", stopwatch.ElapsedMilliseconds);
+                return cachedResult;
+            }
+            
+            // Step 3: Check L2 cache (Redis) - 5 minute TTL
+            var distributedResult = await GetFromDistributedCache(cacheKey);
+            if (distributedResult != null)
+            {
+                _cache.Set(cacheKey, distributedResult, TimeSpan.FromMinutes(2));
+                _logger.LogDebug("Token verification from L2 cache in {Duration}ms", stopwatch.ElapsedMilliseconds);
+                return distributedResult;
+            }
+            
+            // Step 4: Only verify with Google when necessary
+            var verificationResult = await VerifyWithGoogleApi(token);
+            
+            // Cache results if valid
+            if (verificationResult.IsValid)
+            {
+                var cacheDuration = TimeSpan.FromMinutes(2);
+                _cache.Set(cacheKey, verificationResult, cacheDuration);
+                await _distributedCache.SetStringAsync(cacheKey, 
+                    JsonSerializer.Serialize(verificationResult),
+                    new DistributedCacheEntryOptions 
+                    { 
+                        AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5) 
+                    });
+            }
+            
+            _logger.LogInformation("Token verification completed in {Duration}ms, Valid: {IsValid}", 
+                stopwatch.ElapsedMilliseconds, verificationResult.IsValid);
                 
-            return result;
+            return verificationResult;
         }
         catch (Exception ex)
         {
-            // Log and handle refresh failure
-            _logger.LogError(ex, "Token refresh failed for user");
-            return RefreshTokenResult.Failed();
+            _logger.LogError(ex, "Token verification failed in {Duration}ms", stopwatch.ElapsedMilliseconds);
+            return TokenVerificationResult.Invalid("Verification failed");
         }
+    }
+    
+    private JwtSecurityToken ParseJwtToken(string token)
+    {
+        try
+        {
+            var handler = new JwtSecurityTokenHandler();
+            return handler.ReadJwtToken(token);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+    
+    private string ComputeHash(string input)
+    {
+        using var sha256 = SHA256.Create();
+        var hash = sha256.ComputeHash(Encoding.UTF8.GetBytes(input));
+        return Convert.ToBase64String(hash);
+    }
+    
+    private async Task<TokenVerificationResult> VerifyWithGoogleApi(string token)
+    {
+        var response = await _httpClient.GetAsync(
+            $"https://oauth2.googleapis.com/tokeninfo?id_token={token}");
+            
+        if (response.IsSuccessStatusCode)
+        {
+            var content = await response.Content.ReadAsStringAsync();
+            var tokenInfo = JsonSerializer.Deserialize<GoogleTokenInfo>(content);
+            
+            return new TokenVerificationResult
+            {
+                IsValid = true,
+                UserId = tokenInfo.Sub,
+                Email = tokenInfo.Email,
+                Name = tokenInfo.Name,
+                Provider = "Google",
+                ExpiresAt = DateTimeOffset.FromUnixTimeSeconds(long.Parse(tokenInfo.Exp)).DateTime
+            };
+        }
+        
+        return TokenVerificationResult.Invalid("Google API validation failed");
+    }
+}
+
+// Enhanced result model
+public class TokenVerificationResult
+{
+    public bool IsValid { get; set; }
+    public string UserId { get; set; }
+    public string Email { get; set; }
+    public string Name { get; set; }
+    public string Provider { get; set; }
+    public DateTime? ExpiresAt { get; set; }
+    public string ErrorCode { get; set; }
+    public string ErrorMessage { get; set; }
+    
+    public static TokenVerificationResult Invalid(string error) 
+        => new() { IsValid = false, ErrorMessage = error };
+}
+```
+
+### 7.2 Optimized User Management Service 🔥 **HIGH PRIORITY**
+
+**Issue**: Database hit on every request to check/create user causes performance bottleneck.
+
+**Solution**: Multi-level caching with upsert pattern instead of check-then-create.
+
+```csharp
+// ✅ PRODUCTION-READY: Cached User Service
+public class CachedUserService : IUserService
+{
+    private readonly IMemoryCache _memoryCache;
+    private readonly IDistributedCache _distributedCache;
+    private readonly IUserRepository _userRepository;
+    private readonly ILogger<CachedUserService> _logger;
+    
+    public async Task<User> GetOrCreateUserAsync(string email, string provider, string providerId)
+    {
+        // L1 Cache (Memory) - 5 minute TTL for active users
+        var userCacheKey = $"user:{provider}:{providerId}";
+        if (_memoryCache.TryGetValue(userCacheKey, out User cachedUser))
+        {
+            return cachedUser;
+        }
+        
+        // L2 Cache (Redis) - 15 minute TTL
+        var distributedUser = await GetUserFromDistributedCache(userCacheKey);
+        if (distributedUser != null)
+        {
+            _memoryCache.Set(userCacheKey, distributedUser, TimeSpan.FromMinutes(5));
+            return distributedUser;
+        }
+        
+        // Database with UPSERT pattern (atomic operation)
+        var user = await _userRepository.UpsertUserAsync(new UserUpsertRequest
+        {
+            Email = email,
+            Provider = provider,
+            ProviderId = providerId
+        });
+        
+        // Cache in both layers
+        _memoryCache.Set(userCacheKey, user, TimeSpan.FromMinutes(5));
+        await CacheUserInDistributedCache(userCacheKey, user, TimeSpan.FromMinutes(15));
+        
+        _logger.LogInformation("User retrieved/created: {UserId}, Email: {Email}, Provider: {Provider}", 
+            user.Id, user.Email, provider);
+            
+        return user;
+    }
+    
+    private async Task<User> GetUserFromDistributedCache(string key)
+    {
+        var cachedData = await _distributedCache.GetStringAsync(key);
+        if (!string.IsNullOrEmpty(cachedData))
+        {
+            return JsonSerializer.Deserialize<User>(cachedData);
+        }
+        return null;
+    }
+    
+    private async Task CacheUserInDistributedCache(string key, User user, TimeSpan expiry)
+    {
+        await _distributedCache.SetStringAsync(key, 
+            JsonSerializer.Serialize(user),
+            new DistributedCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow = expiry
+            });
+    }
+}
+
+// Database Repository with UPSERT
+public class UserRepository : IUserRepository
+{
+    private readonly IdentityDbContext _context;
+    
+    public async Task<User> UpsertUserAsync(UserUpsertRequest request)
+    {
+        // Try to find existing user first
+        var existingUser = await _context.Users
+            .Include(u => u.Logins)
+            .FirstOrDefaultAsync(u => u.Logins.Any(l => l.Provider == request.Provider && l.ProviderUserId == request.ProviderId));
+            
+        if (existingUser != null)
+        {
+            // Update existing user if needed
+            existingUser.Email = request.Email;
+            existingUser.UpdatedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+            return existingUser;
+        }
+        
+        // Create new user with atomic transaction
+        var newUser = new User
+        {
+            Id = Guid.NewGuid(),
+            Email = request.Email,
+            Name = request.Email.Split('@')[0], // Default name from email
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow,
+            IsActive = true,
+            Logins = new List<UserLogin>
+            {
+                new UserLogin
+                {
+                    Provider = request.Provider,
+                    ProviderUserId = request.ProviderId,
+                    CreatedAt = DateTime.UtcNow
+                }
+            }
+        };
+        
+        _context.Users.Add(newUser);
+        await _context.SaveChangesAsync();
+        
+        return newUser;
     }
 }
 ```
 
-### 7.3 Circuit Breaker & Resilience Patterns
+### 7.3 Refresh Token Management 🔥 **MEDIUM PRIORITY**
 
-**Issue**: Single points of failure and external service dependencies.
+**Issue**: Google ID tokens expire in 1 hour, causing users to logout frequently.
 
-**Solution**: Implement circuit breaker, fallback strategies, and timeout management.
+**Solution**: Implement automatic token refresh with secure storage and proactive refresh.
 
 ```csharp
-public class ResilientAuthenticationService
+// ✅ FRONTEND: Auto-refresh token logic
+// composables/useAutoRefresh.ts
+export const useAutoRefresh = () => {
+  const authStore = useAuthStore()
+  const refreshInterval = ref<NodeJS.Timeout>()
+  
+  const startAutoRefresh = () => {
+    // Check token expiry every 5 minutes
+    refreshInterval.value = setInterval(async () => {
+      const token = authStore.token
+      if (!token) return
+      
+      const tokenInfo = parseJWT(token)
+      const expiresAt = new Date(tokenInfo.exp * 1000)
+      const now = new Date()
+      const timeUntilExpiry = expiresAt.getTime() - now.getTime()
+      
+      // Refresh if token expires in less than 10 minutes
+      if (timeUntilExpiry < 10 * 60 * 1000) {
+        await refreshTokenIfNeeded()
+      }
+    }, 5 * 60 * 1000) // Check every 5 minutes
+  }
+  
+  const refreshTokenIfNeeded = async () => {
+    try {
+      // Use Google's token refresh API
+      const result = await $fetch('/api/auth/refresh', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${authStore.token}`
+        }
+      })
+      
+      if (result.success && result.token) {
+        authStore.setToken(result.token)
+        console.log('Token refreshed successfully')
+      }
+    } catch (error) {
+      console.error('Token refresh failed:', error)
+      // Redirect to login if refresh fails
+      await navigateTo('/auth/login')
+    }
+  }
+  
+  const stopAutoRefresh = () => {
+    if (refreshInterval.value) {
+      clearInterval(refreshInterval.value)
+    }
+  }
+  
+  return {
+    startAutoRefresh,
+    stopAutoRefresh,
+    refreshTokenIfNeeded
+  }
+}
+
+// ✅ BACKEND: Refresh token endpoint
+[HttpPost("refresh")]
+public async Task<ActionResult<RefreshTokenResponse>> RefreshToken()
 {
-    private readonly ICircuitBreaker _googleCircuitBreaker;
-    private readonly IFallbackTokenValidator _fallbackValidator;
+    try
+    {
+        var currentToken = GetTokenFromHeader();
+        var jwt = new JwtSecurityTokenHandler().ReadJwtToken(currentToken);
+        
+        // Extract user info from current token
+        var userId = jwt.Claims.FirstOrDefault(c => c.Type == "sub")?.Value;
+        var email = jwt.Claims.FirstOrDefault(c => c.Type == "email")?.Value;
+        
+        if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(email))
+        {
+            return BadRequest("Invalid token structure");
+        }
+        
+        // Generate new token with fresh expiry
+        var newToken = await _tokenService.GenerateTokenAsync(userId, email);
+        
+        return Ok(new RefreshTokenResponse
+        {
+            Success = true,
+            Token = newToken,
+            ExpiresAt = DateTime.UtcNow.AddHours(1)
+        });
+    }
+    catch (Exception ex)
+    {
+        _logger.LogError(ex, "Token refresh failed");
+        return StatusCode(500, new RefreshTokenResponse
+        {
+            Success = false,
+            Error = "Token refresh failed"
+        });
+    }
+}
+
+// Token service to generate internal JWT
+public class TokenService : ITokenService
+{
+    private readonly IConfiguration _configuration;
+    
+    public async Task<string> GenerateTokenAsync(string userId, string email)
+    {
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:SecretKey"]));
+        var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+        
+        var claims = new[]
+        {
+            new Claim("sub", userId),
+            new Claim("email", email),
+            new Claim("iss", "identity-service"),
+            new Claim("aud", "tihomo-services"),
+            new Claim("iat", DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64),
+            new Claim("exp", DateTimeOffset.UtcNow.AddHours(1).ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64)
+        };
+        
+        var token = new JwtSecurityToken(
+            issuer: "identity-service",
+            audience: "tihomo-services",
+            claims: claims,
+            expires: DateTime.UtcNow.AddHours(1),
+            signingCredentials: credentials
+        );
+        
+        return new JwtSecurityTokenHandler().WriteToken(token);
+    }
+}
+```
+
+### 7.4 Circuit Breaker & Resilience Patterns 🔥 **MEDIUM PRIORITY**
+
+**Issue**: Single point of failure - if Identity service is down, entire system fails.
+
+**Solution**: Implement circuit breaker with fallback mechanisms and graceful degradation.
+
+```csharp
+// ✅ PRODUCTION-READY: Resilient Authentication Service
+public class ResilientAuthenticationService : IAuthenticationService
+{
+    private readonly ICircuitBreaker _identityCircuitBreaker;
+    private readonly ITokenVerificationService _primaryService;
+    private readonly ILocalJwtValidator _fallbackValidator;
+    private readonly ILogger<ResilientAuthenticationService> _logger;
     
     public async Task<AuthenticationResult> AuthenticateAsync(string token)
     {
         try
         {
-            // Try primary authentication with circuit breaker
-            return await _googleCircuitBreaker.ExecuteAsync(async () =>
+            // Try primary Identity service with circuit breaker protection
+            return await _identityCircuitBreaker.ExecuteAsync(async () =>
             {
-                return await _primaryValidator.ValidateAsync(token);
+                var result = await _primaryService.VerifyTokenAsync(token, "Google");
+                
+                if (!result.IsValid)
+                {
+                    throw new AuthenticationException("Token validation failed");
+                }
+                
+                return new AuthenticationResult
+                {
+                    IsSuccess = true,
+                    UserId = result.UserId,
+                    Email = result.Email,
+                    Claims = CreateClaims(result)
+                };
             });
         }
         catch (CircuitBreakerOpenException)
         {
-            // Circuit breaker is open, use fallback
-            _logger.LogWarning("Google authentication circuit breaker open, using fallback");
-            return await _fallbackValidator.ValidateAsync(token);
+            // Circuit breaker is open - use fallback local validation
+            _logger.LogWarning("Identity service circuit breaker OPEN - using fallback validation");
+            return await FallbackAuthentication(token);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Primary authentication failed - attempting fallback");
+            return await FallbackAuthentication(token);
+        }
+    }
+    
+    private async Task<AuthenticationResult> FallbackAuthentication(string token)
+    {
+        try
+        {
+            // Fallback 1: Local JWT validation (if we have local tokens)
+            var localResult = await _fallbackValidator.ValidateLocalJwtAsync(token);
+            if (localResult.IsValid)
+            {
+                _logger.LogInformation("Fallback authentication successful via local JWT");
+                return new AuthenticationResult
+                {
+                    IsSuccess = true,
+                    UserId = localResult.UserId,
+                    Email = localResult.Email,
+                    Claims = CreateClaims(localResult),
+                    IsFallback = true
+                };
+            }
+            
+            // Fallback 2: Cached validation result
+            var cachedResult = await GetCachedAuthenticationResult(token);
+            if (cachedResult != null)
+            {
+                _logger.LogInformation("Fallback authentication successful via cache");
+                return cachedResult;
+            }
+            
+            // All fallbacks failed
+            _logger.LogError("All authentication methods failed");
+            return AuthenticationResult.Failed("Authentication service unavailable");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Fallback authentication failed");
+            return AuthenticationResult.Failed("Authentication failed");
         }
     }
 }
@@ -514,87 +893,230 @@ public class ResilientAuthenticationService
 // Circuit Breaker Configuration
 public class CircuitBreakerOptions
 {
-    public int FailureThreshold { get; set; } = 5;
-    public TimeSpan RetryTimeout { get; set; } = TimeSpan.FromSeconds(30);
-    public TimeSpan SamplingDuration { get; set; } = TimeSpan.FromMinutes(2);
+    public string ServiceName { get; set; } = "IdentityService";
+    public int FailureThreshold { get; set; } = 5; // Open after 5 consecutive failures
+    public TimeSpan OpenTimeout { get; set; } = TimeSpan.FromSeconds(30); // Stay open for 30 seconds
+    public TimeSpan SamplingDuration { get; set; } = TimeSpan.FromMinutes(2); // Sample window
+    public int MinimumThroughput { get; set; } = 10; // Minimum requests before considering failure rate
 }
-```
 
-### 7.4 Performance Optimization & Multi-Level Caching
-
-**Issue**: Database queries on every request causing performance bottlenecks.
-
-**Solution**: Implement layered caching strategy with different TTLs.
-
-```csharp
-public class CachedUserService
+// API Gateway middleware
+public class ResilientAuthenticationMiddleware
 {
-    private readonly IMemoryCache _l1Cache; // In-memory cache
-    private readonly IDistributedCache _l2Cache; // Redis cache
-    private readonly IUserRepository _repository;
+    private readonly RequestDelegate _next;
+    private readonly ResilientAuthenticationService _authService;
     
-    public async Task<User> GetUserByIdAsync(Guid userId)
+    public async Task InvokeAsync(HttpContext context)
     {
-        // L1 Cache (Memory) - 1 minute TTL
-        var cacheKey = $"user:{userId}";
-        if (_l1Cache.TryGetValue(cacheKey, out User cachedUser))
+        var token = ExtractToken(context);
+        if (string.IsNullOrEmpty(token))
         {
-            return cachedUser;
+            context.Response.StatusCode = 401;
+            await context.Response.WriteAsync("Missing authentication token");
+            return;
         }
         
-        // L2 Cache (Redis) - 10 minute TTL
-        var distributedUser = await _l2Cache.GetStringAsync(cacheKey);
-        if (!string.IsNullOrEmpty(distributedUser))
-        {
-            var user = JsonSerializer.Deserialize<User>(distributedUser);
-            _l1Cache.Set(cacheKey, user, TimeSpan.FromMinutes(1));
-            return user;
-        }
+        var authResult = await _authService.AuthenticateAsync(token);
         
-        // Database fallback
-        var dbUser = await _repository.GetByIdAsync(userId);
-        if (dbUser != null)
+        if (authResult.IsSuccess)
         {
-            // Cache in both layers
-            _l1Cache.Set(cacheKey, dbUser, TimeSpan.FromMinutes(1));
-            await _l2Cache.SetStringAsync(cacheKey, 
-                JsonSerializer.Serialize(dbUser),
-                new DistributedCacheEntryOptions
-                {
-                    AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(10)
-                });
+            // Inject user claims into headers for downstream services
+            context.Request.Headers.Add("X-User-Id", authResult.UserId);
+            context.Request.Headers.Add("X-User-Email", authResult.Email);
+            
+            if (authResult.IsFallback)
+            {
+                context.Request.Headers.Add("X-Auth-Mode", "fallback");
+            }
+            
+            await _next(context);
         }
-        
-        return dbUser;
+        else
+        {
+            context.Response.StatusCode = 401;
+            await context.Response.WriteAsync($"Authentication failed: {authResult.ErrorMessage}");
+        }
     }
 }
 ```
 
-## 8. Monitoring & Observability
+## 8. Monitoring & Observability 📊 **PRODUCTION ESSENTIAL**
 
-### 8.1 Key Metrics
-- Token verification success/failure rates
-- API key usage statistics  
-- Response times cho verification calls
-- Social provider API health
-
-### 8.2 Logging Strategy
+### 8.1 Key Performance Metrics
 ```csharp
-// Structured logging trong Identity service
-_logger.LogInformation("Token verification", new {
-    Provider = request.Provider,
-    UserId = result.UserId,
-    Duration = stopwatch.ElapsedMilliseconds,
-    Success = result.IsValid
-});
+// Metrics collection service
+public class AuthenticationMetrics : IAuthenticationMetrics
+{
+    private readonly IMetricsCollector _metrics;
+    private readonly ILogger<AuthenticationMetrics> _logger;
+    
+    public void RecordTokenVerification(string provider, bool success, TimeSpan duration, string cacheHit = null)
+    {
+        _metrics.Counter("auth_token_verification_total")
+            .WithTag("provider", provider)
+            .WithTag("success", success.ToString())
+            .WithTag("cache_hit", cacheHit ?? "none")
+            .Increment();
+            
+        _metrics.Histogram("auth_token_verification_duration_ms")
+            .WithTag("provider", provider)
+            .Record(duration.TotalMilliseconds);
+            
+        if (!success)
+        {
+            _metrics.Counter("auth_failures_total")
+                .WithTag("provider", provider)
+                .Increment();
+        }
+    }
+    
+    public void RecordDatabaseOperation(string operation, TimeSpan duration, bool cacheHit)
+    {
+        _metrics.Histogram("auth_database_operation_duration_ms")
+            .WithTag("operation", operation)
+            .WithTag("cache_hit", cacheHit.ToString())
+            .Record(duration.TotalMilliseconds);
+    }
+    
+    public void RecordCircuitBreakerState(string service, string state)
+    {
+        _metrics.Gauge("auth_circuit_breaker_state")
+            .WithTag("service", service)
+            .WithTag("state", state) // "closed", "open", "half_open"
+            .Set(state == "open" ? 1 : 0);
+    }
+}
 
-// API Key usage logging
-_logger.LogInformation("API key used", new {
-    KeyId = apiKey.Id,
-    UserId = apiKey.UserId,
-    Endpoint = context.Request.Path,
-    UserAgent = context.Request.Headers.UserAgent
-});
+// Health check endpoints
+[ApiController]
+[Route("api/health")]
+public class HealthController : ControllerBase
+{
+    private readonly ITokenVerificationService _tokenService;
+    private readonly IUserRepository _userRepository;
+    private readonly IDistributedCache _cache;
+    
+    [HttpGet]
+    public async Task<ActionResult<HealthCheckResult>> GetHealth()
+    {
+        var healthChecks = new List<ServiceHealth>();
+        
+        // Check database connectivity
+        try
+        {
+            await _userRepository.HealthCheckAsync();
+            healthChecks.Add(new ServiceHealth("Database", "Healthy", null));
+        }
+        catch (Exception ex)
+        {
+            healthChecks.Add(new ServiceHealth("Database", "Unhealthy", ex.Message));
+        }
+        
+        // Check cache connectivity
+        try
+        {
+            await _cache.SetStringAsync("health_check", "ok", TimeSpan.FromSeconds(10));
+            await _cache.GetStringAsync("health_check");
+            healthChecks.Add(new ServiceHealth("Cache", "Healthy", null));
+        }
+        catch (Exception ex)
+        {
+            healthChecks.Add(new ServiceHealth("Cache", "Unhealthy", ex.Message));
+        }
+        
+        // Check Google API connectivity
+        try
+        {
+            // Simple check - don't actually validate a token
+            using var client = new HttpClient();
+            client.Timeout = TimeSpan.FromSeconds(5);
+            var response = await client.GetAsync("https://oauth2.googleapis.com/.well-known/openid_configuration");
+            var status = response.IsSuccessStatusCode ? "Healthy" : "Degraded";
+            healthChecks.Add(new ServiceHealth("GoogleAPI", status, null));
+        }
+        catch (Exception ex)
+        {
+            healthChecks.Add(new ServiceHealth("GoogleAPI", "Unhealthy", ex.Message));
+        }
+        
+        var overallStatus = healthChecks.All(h => h.Status == "Healthy") ? "Healthy" : "Degraded";
+        
+        return Ok(new HealthCheckResult
+        {
+            Status = overallStatus,
+            Services = healthChecks,
+            Timestamp = DateTime.UtcNow
+        });
+    }
+}
+```
+
+### 8.2 Structured Logging Strategy
+```csharp
+// Logging middleware with correlation IDs
+public class CorrelationIdMiddleware
+{
+    private readonly RequestDelegate _next;
+    private readonly ILogger<CorrelationIdMiddleware> _logger;
+    
+    public async Task InvokeAsync(HttpContext context)
+    {
+        var correlationId = context.Request.Headers["X-Correlation-Id"].FirstOrDefault() 
+                          ?? Guid.NewGuid().ToString();
+                          
+        context.Items["CorrelationId"] = correlationId;
+        context.Response.Headers.Add("X-Correlation-Id", correlationId);
+        
+        using (_logger.BeginScope(new Dictionary<string, object>
+        {
+            ["CorrelationId"] = correlationId,
+            ["RequestPath"] = context.Request.Path,
+            ["RequestMethod"] = context.Request.Method
+        }))
+        {
+            await _next(context);
+        }
+    }
+}
+
+// Enhanced service logging
+public class TokenVerificationService
+{
+    public async Task<TokenVerificationResult> VerifyTokenAsync(string token, string provider)
+    {
+        var stopwatch = Stopwatch.StartNew();
+        var correlationId = _httpContext.Items["CorrelationId"]?.ToString();
+        
+        using var scope = _logger.BeginScope(new Dictionary<string, object>
+        {
+            ["CorrelationId"] = correlationId,
+            ["Provider"] = provider,
+            ["Operation"] = "TokenVerification"
+        });
+        
+        try
+        {
+            _logger.LogInformation("Starting token verification for provider {Provider}", provider);
+            
+            var result = await PerformVerification(token, provider);
+            
+            _logger.LogInformation("Token verification completed: {Success} in {Duration}ms", 
+                result.IsValid, stopwatch.ElapsedMilliseconds);
+                
+            _metrics.RecordTokenVerification(provider, result.IsValid, stopwatch.Elapsed);
+            
+            return result;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Token verification failed for provider {Provider} after {Duration}ms", 
+                provider, stopwatch.ElapsedMilliseconds);
+                
+            _metrics.RecordTokenVerification(provider, false, stopwatch.Elapsed);
+            throw;
+        }
+    }
+}
 ```
 
 ## 9. Security Considerations
@@ -627,18 +1149,79 @@ builder.Services.AddCors(options =>
 });
 ```
 
-## Conclusion
+## 10. Production Readiness Checklist 🎯 **IMPLEMENTATION ROADMAP**
 
-Thiết kế Identity Service này cung cấp một authentication solution đơn giản, an toàn và có thể scale được. Bằng cách sử dụng stateless token verification pattern, chúng ta đạt được:
+### Phase 1: Critical Performance Fixes (Week 1) 🔥
+- [ ] **Enhanced Token Verification Service**
+  - [ ] Implement JWT local parsing for structure validation
+  - [ ] Add L1 (Memory) cache with 2-minute TTL
+  - [ ] Add L2 (Redis) cache with 5-minute TTL  
+  - [ ] Hash tokens for secure cache keys
+  - [ ] Only call Google API on cache miss
 
-1. **Easier maintenance** - ít components phức tạp để manage
-2. **Better performance** - stateless verification với intelligent caching  
-3. **Enhanced security** - direct verification với social providers
-4. **Developer experience** - clear và predictable flows
-5. **Production ready** - với resilience patterns và monitoring
+- [ ] **Optimized User Service**
+  - [ ] Implement multi-level user caching (5min/15min TTL)
+  - [ ] Replace check-then-create with atomic upsert pattern
+  - [ ] Add proper database indexing on Provider + ProviderUserId
+  - [ ] Implement cache invalidation strategies
 
-Flow này phù hợp với modern microservices architecture và social authentication patterns được sử dụng rộng rãi trong industry.
+### Phase 2: User Experience (Week 2) 🔥
+- [ ] **Refresh Token Flow**
+  - [ ] Frontend auto-refresh logic (check every 5 minutes)
+  - [ ] Proactive refresh when token expires in <10 minutes
+  - [ ] Backend refresh endpoint with new JWT generation
+  - [ ] Graceful handling of refresh failures → redirect to login
 
----
-**Created**: December 2024  
-**Last Updated**: January 2025
+### Phase 3: Resilience & Reliability (Week 3) 🔥
+- [ ] **Circuit Breaker Implementation**
+  - [ ] Circuit breaker for Google API calls (5 failures → 30s open)
+  - [ ] Fallback to local JWT validation when available
+  - [ ] Fallback to cached authentication results
+  - [ ] Graceful degradation with clear error messages
+
+- [ ] **Error Handling & Rate Limiting**
+  - [ ] Implement rate limiting per user/IP (100 requests/minute)
+  - [ ] Add retry policies with exponential backoff
+  - [ ] Proper error codes and user-friendly messages
+  - [ ] Session invalidation on security events
+
+### Phase 4: Monitoring & Operations (Week 4) 📊
+- [ ] **Comprehensive Monitoring**
+  - [ ] Token verification metrics (success rate, duration, cache hit rate)
+  - [ ] Database operation metrics (query time, cache hit rate)  
+  - [ ] Circuit breaker state monitoring
+  - [ ] Social provider API health checks
+
+- [ ] **Observability & Alerting**
+  - [ ] Structured logging with correlation IDs
+  - [ ] Health check endpoints for all dependencies
+  - [ ] Alerts for high error rates (>5%), slow responses (>2s)
+  - [ ] Dashboard for authentication metrics
+
+### Phase 5: Security Hardening (Week 5) 🔒
+- [ ] **Enhanced Security**
+  - [ ] API key rate limiting and usage quotas
+  - [ ] CORS policies for production domains
+  - [ ] Input validation and sanitization
+  - [ ] Secure token storage (HttpOnly cookies for web)
+  - [ ] Regular security audits and penetration testing
+
+### Current Status Assessment ✅
+Based on memory bank, current implementation has:
+- ✅ **Basic Google login working** (Frontend + Backend)
+- ✅ **Identity.Api service running** on port 5214
+- ✅ **JWT token flow implemented**
+- ✅ **Database user storage working**
+
+**CRITICAL GAPS** that need immediate attention:
+- ❌ **No token verification caching** → Google API called on every request
+- ❌ **No refresh token flow** → Users logout every hour  
+- ❌ **No fallback mechanisms** → Single point of failure
+- ❌ **No monitoring/observability** → Blind to performance issues
+
+### Implementation Priority 🎯
+1. **Week 1**: Token caching + User caching (CRITICAL for performance)
+2. **Week 2**: Refresh token flow (CRITICAL for UX)
+3. **Week 3**: Circuit breaker + Resilience (CRITICAL for reliability)
+4. **Week 4**: Monitoring + Health checks (CRITICAL for operations)
+5. **Week 5**: Security hardening (IMPORTANT for production)
