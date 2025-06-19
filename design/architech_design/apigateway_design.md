@@ -95,15 +95,15 @@ public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
 
 | Route Pattern | Downstream Service | Port | Authentication | Rate Limit |
 |---------------|-------------------|------|----------------|------------|
-| `/sso/*` | Identity.Sso | 5217 | Optional | 60/min |
 | `/api/auth/*` | Identity.Api | 5228 | Optional | 100/min |
-| `/api/users/*` | Identity.Api | 5228 | Required (JWT) | 200/min |
-| `/api/accounts/*` | CoreFinance.Api | 5001 | Required (JWT) | 300/min |
-| `/api/transactions/*` | CoreFinance.Api | 5001 | Required (JWT) | 500/min |
-| `/api/budgets/*` | MoneyManagement.Api | 5002 | Required (JWT) | 200/min |
-| `/api/goals/*` | PlanningInvestment.Api | 5003 | Required (JWT) | 150/min |
-| `/api/reports/*` | Reporting.Api | 5004 | Required (JWT) | 50/min |
-| `/api/notifications/*` | Reporting.Api | 5004 | Required (JWT) | 100/min |
+| `/api/users/*` | Identity.Api | 5228 | Required (Bearer/ApiKey) | 200/min |
+| `/api/apikeys/*` | Identity.Api | 5228 | Required (Bearer/ApiKey) | 100/min |
+| `/api/accounts/*` | CoreFinance.Api | 5001 | Required (Bearer/ApiKey) | 300/min |
+| `/api/transactions/*` | CoreFinance.Api | 5001 | Required (Bearer/ApiKey) | 500/min |
+| `/api/budgets/*` | MoneyManagement.Api | 5002 | Required (Bearer/ApiKey) | 200/min |
+| `/api/goals/*` | PlanningInvestment.Api | 5003 | Required (Bearer/ApiKey) | 150/min |
+| `/api/reports/*` | Reporting.Api | 5004 | Required (Bearer/ApiKey) | 50/min |
+| `/api/notifications/*` | Reporting.Api | 5004 | Required (Bearer/ApiKey) | 100/min |
 
 ### 3.2 Route Configuration Details
 
@@ -112,19 +112,48 @@ public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
 {
   "Routes": [
     {
-      "DownstreamPathTemplate": "/connect/{everything}",
-      "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "identity-sso", "Port": 5217 }],
-      "UpstreamPathTemplate": "/sso/{everything}",
-      "UpstreamHttpMethod": [ "GET", "POST" ],
-      "Priority": 1
-    },
-    {
       "DownstreamPathTemplate": "/api/auth/{everything}",
       "DownstreamScheme": "http", 
       "DownstreamHostAndPorts": [{ "Host": "identity-api", "Port": 5228 }],
       "UpstreamPathTemplate": "/api/auth/{everything}",
-      "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE" ]
+      "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE" ],
+      "RateLimitOptions": {
+        "EnableRateLimiting": true,
+        "Period": "1m",
+        "Limit": 100
+      }
+    },
+    {
+      "DownstreamPathTemplate": "/api/users/{everything}",
+      "DownstreamScheme": "http", 
+      "DownstreamHostAndPorts": [{ "Host": "identity-api", "Port": 5228 }],
+      "UpstreamPathTemplate": "/api/users/{everything}",
+      "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE" ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "Bearer",
+        "AllowedScopes": []
+      },
+      "RateLimitOptions": {
+        "EnableRateLimiting": true,
+        "Period": "1m",
+        "Limit": 200
+      }
+    },
+    {
+      "DownstreamPathTemplate": "/api/apikeys/{everything}",
+      "DownstreamScheme": "http", 
+      "DownstreamHostAndPorts": [{ "Host": "identity-api", "Port": 5228 }],
+      "UpstreamPathTemplate": "/api/apikeys/{everything}",
+      "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE" ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "Bearer",
+        "AllowedScopes": []
+      },
+      "RateLimitOptions": {
+        "EnableRateLimiting": true,
+        "Period": "1m",
+        "Limit": 100
+      }
     }
   ]
 }
@@ -156,34 +185,62 @@ public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
 
 ## 4. Authentication & Authorization
 
-### 4.1 JWT Bearer Configuration
+### 4.1 Token Verification Configuration
 
 ```csharp
 public void ConfigureServices(IServiceCollection services)
 {
-    services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-        .AddJwtBearer("Bearer", options =>
-        {
-            options.Authority = "http://identity-sso:5217";
-            options.TokenValidationParameters = new TokenValidationParameters
-            {
-                ValidateIssuer = true,
-                ValidIssuer = "http://identity-sso:5217",
-                ValidateAudience = true,
-                ValidAudiences = new[] { "tihomo-api", "corefinance-api", "moneymanagement-api" },
-                ValidateLifetime = true,
-                ClockSkew = TimeSpan.FromMinutes(5),
-                RequireSignedTokens = true
-            };
-        });
+    // Register Identity API client for token verification
+    services.AddHttpClient<IIdentityApiClient, IdentityApiClient>(client =>
+    {
+        client.BaseAddress = new Uri("http://identity-api:5228");
+    });
+
+    services.AddAuthentication("Bearer")
+        .AddScheme<BearerTokenAuthenticationSchemeOptions, BearerTokenAuthenticationHandler>("Bearer", options => { })
+        .AddScheme<ApiKeyAuthenticationSchemeOptions, ApiKeyAuthenticationHandler>("ApiKey", options => { });
         
     services.AddAuthorization(options =>
     {
         options.AddPolicy("RequireUser", policy =>
-            policy.RequireClaim("role", "User", "Admin"));
+            policy.RequireAuthenticatedUser());
         options.AddPolicy("RequireAdmin", policy =>
             policy.RequireClaim("role", "Admin"));
+        options.AddPolicy("RequireApiKey", policy =>
+            policy.RequireClaim(ClaimTypes.Role, "ApiUser"));
     });
+}
+
+// Bearer Token Authentication Handler
+public class BearerTokenAuthenticationHandler : AuthenticationHandler<BearerTokenAuthenticationSchemeOptions>
+{
+    private readonly IIdentityApiClient _identityClient;
+    
+    protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
+    {
+        if (!Request.Headers.TryGetValue("Authorization", out var authHeader))
+            return AuthenticateResult.NoResult();
+            
+        var token = authHeader.FirstOrDefault()?.Replace("Bearer ", "");
+        if (string.IsNullOrEmpty(token))
+            return AuthenticateResult.Fail("Invalid token format");
+            
+        // Verify token with Identity API
+        var verification = await _identityClient.VerifyTokenAsync(token);
+        if (!verification.IsValid)
+            return AuthenticateResult.Fail("Token verification failed");
+            
+        var claims = new[]
+        {
+            new Claim(ClaimTypes.NameIdentifier, verification.UserId),
+            new Claim(ClaimTypes.Email, verification.Email),
+            new Claim("provider", verification.Provider)
+        };
+        
+        var identity = new ClaimsIdentity(claims, Scheme.Name);
+        return AuthenticateResult.Success(new AuthenticationTicket(
+            new ClaimsPrincipal(identity), Scheme.Name));
+    }
 }
 ```
 
@@ -196,29 +253,60 @@ public class ApiKeyAuthenticationHandler : AuthenticationHandler<ApiKeyAuthentic
     
     protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
     {
-        if (!Request.Headers.TryGetValue("X-API-Key", out var apiKeyValues))
-        {
+        // Check for API Key in Authorization header
+        if (!Request.Headers.TryGetValue("Authorization", out var authHeader))
             return AuthenticateResult.NoResult();
-        }
-        
-        var apiKey = apiKeyValues.FirstOrDefault();
+            
+        var authValue = authHeader.FirstOrDefault();
+        if (string.IsNullOrEmpty(authValue) || !authValue.StartsWith("ApiKey "))
+            return AuthenticateResult.NoResult();
+            
+        var apiKey = authValue.Replace("ApiKey ", "");
         if (string.IsNullOrEmpty(apiKey))
-        {
-            return AuthenticateResult.Fail("Invalid API Key");
-        }
+            return AuthenticateResult.Fail("Invalid API Key format");
         
-        var validationResult = await _identityClient.ValidateApiKeyAsync(apiKey);
-        if (!validationResult.IsValid)
-        {
-            return AuthenticateResult.Fail("API Key validation failed");
-        }
+        // Verify API Key with Identity API
+        var verification = await _identityClient.VerifyApiKeyAsync(apiKey);
+        if (!verification.IsValid)
+            return AuthenticateResult.Fail("API Key verification failed");
         
         var claims = new[]
         {
-            new Claim(ClaimTypes.NameIdentifier, validationResult.UserId.ToString()),
-            new Claim("api_key_id", validationResult.ApiKeyId.ToString()),
-            new Claim(ClaimTypes.Role, "ApiUser")
+            new Claim(ClaimTypes.NameIdentifier, verification.UserId),
+            new Claim("api_key_id", verification.ApiKeyId),
+            new Claim(ClaimTypes.Role, "ApiUser"),
+            new Claim("scope", verification.Scope ?? "read")
         };
+        
+        var identity = new ClaimsIdentity(claims, Scheme.Name);
+        return AuthenticateResult.Success(new AuthenticationTicket(
+            new ClaimsPrincipal(identity), Scheme.Name));
+    }
+}
+
+// Identity API Client Interface
+public interface IIdentityApiClient
+{
+    Task<TokenVerificationResult> VerifyTokenAsync(string token);
+    Task<ApiKeyVerificationResult> VerifyApiKeyAsync(string apiKey);
+}
+
+public class TokenVerificationResult
+{
+    public bool IsValid { get; set; }
+    public string UserId { get; set; }
+    public string Email { get; set; }
+    public string Provider { get; set; }
+}
+
+public class ApiKeyVerificationResult
+{
+    public bool IsValid { get; set; }
+    public string UserId { get; set; }
+    public string ApiKeyId { get; set; }
+    public string Scope { get; set; }
+}
+```
         
         var identity = new ClaimsIdentity(claims, Scheme.Name);
         var principal = new ClaimsPrincipal(identity);

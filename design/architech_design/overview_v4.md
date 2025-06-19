@@ -6,10 +6,10 @@ Hệ thống TiHoMo được thiết kế theo kiến trúc microservices, với
 
 ## 2. Các Bounded Context và Microservices
 
-### 2.1 Identity & Access
-- **Identity.Sso** (Port 5217): SSO Server với UI, OpenIddict OAuth2/OIDC provider
-- **Identity.Api** (Port 5228): Pure REST API cho user/role/API key management (không có UI)
-- **Shared Services**: AuthService, UserService, RoleService, ApiKeyService
+### 2.1 Identity & Access (Simplified)
+- **Identity.Api** (Port 5228): Single service cho social auth, user management, API key management
+- **Social Providers**: Google, Facebook, Apple authentication integration
+- **Token Management**: JWT generation, refresh token handling
 - **Database**: db_identity (PostgreSQL)
 
 ### 2.2 Core Finance
@@ -39,45 +39,63 @@ Hệ thống TiHoMo được thiết kế theo kiến trúc microservices, với
 
 ## 2.x Flow chi tiết các BE Microservice
 
-### 2.1 Identity & Access (Identity Service)
+### 2.1 Identity & Access (Simplified Design)
 #### 2.1.1 Tổng quan
-**Gồm 2 project chính:**
-- **Identity.Sso** (Port 5217): SSO Server với UI cho login/consent/register, OpenIddict OAuth2/OIDC provider
-- **Identity.Api** (Port 5228): Pure REST API cho quản lý user, role, API key (không có UI)
+**Single Service Architecture:**
+- **Identity.Api** (Port 5228): Unified service cho authentication, user management, và API key management
+- **No SSO Server**: Loại bỏ complexity của OAuth2/OIDC server riêng biệt
+- **Social Login Focus**: Tập trung vào Google, Facebook, Apple authentication
 
 **Kiến trúc:**
-- **Shared Infrastructure**: Cùng sử dụng IdentityDbContext, repositories, và business services
-- **Separation of Concerns**: SSO xử lý OAuth flows, API xử lý management operations
-- **Database**: db_identity (PostgreSQL) - shared giữa 2 projects
+- **Stateless Authentication**: Token verification thay vì server-side sessions
+- **Social Provider Integration**: Direct integration với Google/Facebook/Apple APIs
+- **API Gateway Integration**: Token verification thông qua gateway middleware
+- **Database**: db_identity (PostgreSQL) - đơn giản hóa schema
 
 **Chức năng:**
-- Cung cấp xác thực (username/password, Google OAuth2, API Key)
-- Quản lý người dùng, vai trò, phân quyền (RBAC, claims, policy)  
-- Phát hành và xác thực JWT, refresh token, OpenIddict SSO
-- Tích hợp API Gateway (Ocelot), event bus (RabbitMQ)
-- Đảm bảo bảo mật, logging, validation, OpenAPI
+- Social authentication (Google, Facebook, Apple)
+- Traditional username/password authentication
+- User profile management
+- API key lifecycle management
+- Token verification cho API Gateway
+- Security audit logging
 
-#### 2.1.2 Project Architecture & Responsibilities
+#### 2.1.2 Simplified Architecture & Responsibilities
 
-**Identity.Sso (Port 5217) - SSO Server:**
-- **Purpose**: Single Sign-On server cho OAuth2/OIDC flows
-- **UI Components**: Login/Register/Consent pages với Razor Views
+**Identity.Api (Port 5228) - Unified Service:**
+- **Purpose**: All-in-one authentication và user management service
+- **Authentication Methods**: 
+  - Social login token verification
+  - Traditional username/password
+  - API key authentication
 - **Controllers**: 
-  - `ConnectController` - OAuth2 endpoints (/connect/authorize, /connect/token, /connect/userinfo)
-  - `AuthController` - UI authentication (login/register pages)
-- **Authentication**: Cookie-based cho UI sessions
-- **Target Users**: End users thông qua browser interface
-
-**Identity.Api (Port 5228) - Management API:**
-- **Purpose**: REST API để quản lý users, roles, API keys
-- **UI Components**: Swagger/OpenAPI documentation only
-- **Controllers**: 
-  - `AuthController` - Direct API authentication (JWT login, Google OAuth)
+  - `AuthController` - Authentication endpoints (login, social verify, refresh, logout)
   - `UsersController` - User profile management
-  - `RolesController` - Role management (admin only)
   - `ApiKeysController` - API key lifecycle management
-- **Authentication**: JWT Bearer tokens và API Key authentication
-- **Target Users**: Applications, admins, third-party integrations
+- **Token Handling**: JWT generation, refresh token management, token verification
+- **Target Users**: Web apps, mobile apps, third-party integrations
+
+#### 2.1.3 Authentication Flows (Simplified)
+
+**A. Social Login Flow:**
+1. Client authenticates với social provider (Google/Facebook/Apple)
+2. Client receives ID token từ social provider
+3. Client gửi token tới POST /api/auth/social → Identity.Api
+4. Identity.Api verifies token với social provider
+5. Identity.Api tạo user record (nếu chưa có) và return JWT
+6. Client sử dụng JWT cho subsequent API calls
+
+**B. API Gateway Integration:**
+1. Client gửi request với Authorization: Bearer {jwt} header
+2. Gateway calls Identity.Api để verify token
+3. Identity.Api validates JWT và return user claims
+4. Gateway forwards request tới target service với user context
+
+**C. API Key Authentication:**
+1. Client gửi request với Authorization: ApiKey {key} header
+2. Gateway calls Identity.Api để verify API key
+3. Identity.Api validates key và return associated user/scopes
+4. Gateway forwards request với API user context
 
 **Shared Components:**
 - **Database**: Cùng sử dụng IdentityDbContext với PostgreSQL
@@ -108,67 +126,68 @@ Hệ thống TiHoMo được thiết kế theo kiến trúc microservices, với
   3. Lưu refresh token vào DB, trả LoginResponse (accessToken, refreshToken, user)
 - **Google OAuth2:**
   1. Client lấy Google ID Token → POST /api/auth/login/google {idToken} → Identity.Api
-  2. AuthService verify Google ID Token, tìm hoặc tạo user
-  3. Sinh JWT + refresh token, trả LoginResponse
-- **API Key:**
-  1. Client gửi request với header `Authorization: ApiKey {key}`
-  2. API Gateway hoặc middleware gọi GET /api/apikeys/verify/{key}
-  3. Nếu hợp lệ, gán claim vào principal, forward request
-- **Refresh Token:**
-  1. Client gửi POST /api/auth/token/refresh {refreshToken}
-  2. AuthService kiểm tra refresh token, sinh access token mới
-- **Logout:**
-  1. Client gửi POST /api/auth/logout {refreshToken}
-  2. AuthService revoke refresh token trong DB
+  2. AuthService verify Google ID Token, tìm hoặc tạo user#### 2.1.4 API Endpoints (Simplified)
 
-#### 2.1.4 User & Role Management (Identity.Api)
-- **UserService:** CRUD user, đổi mật khẩu, kiểm tra tồn tại, phân trang, validate password, lấy roles
-  - `GET /api/users/me` - Get current user profile
-  - `PUT /api/users/me` - Update current user
-  - `POST /api/users/change-password` - Change password
-- **RoleService:** CRUD role, gán/xóa role cho user, lấy quyền, kiểm tra tồn tại
-  - `GET /api/roles` - List all roles (admin only)
-  - `POST /api/roles` - Create role (admin only)
-  - `PUT /api/roles/{id}` - Update role (admin only)
-- **ApiKeyService:** Tạo, thu hồi, kiểm tra, tracking usage, scope-based
-  - `GET /api/apikeys` - Get user's API keys
-  - `POST /api/apikeys` - Create new API key
-  - `PUT /api/apikeys/{id}` - Update API key
-  - `POST /api/apikeys/{id}/revoke` - Revoke API key
-  - `GET /api/apikeys/verify/{key}` - Verify API key (internal)
+**Authentication Endpoints:**
+- `POST /api/auth/login` - Traditional username/password login
+- `POST /api/auth/social` - Social login token verification
+- `POST /api/auth/refresh` - Refresh access token
+- `POST /api/auth/logout` - Logout và revoke token
+- `GET /api/auth/verify` - Token verification (for API Gateway)
 
-#### 2.1.5 Authorization Policies & Middleware
-- **RBAC:** Role-based access control, policy-based (RequireUser, RequireAdmin, RequireApiKey, RequireUserOrAdmin)
-- **Middleware:**
-  - JWT Bearer authentication
-  - API Key authentication (custom middleware)
-  - Global exception handling
-  - FluentValidation cho DTO
-- **OpenIddict:**
-  - SSO endpoints: /connect/authorize, /connect/token, /connect/userinfo, /connect/logout
-  - Scopes: email, profile, roles, offline_access
-  - Discovery: /.well-known/openid-configuration
+**User Management:**
+- `GET /api/users/me` - Get current user profile
+- `PUT /api/users/me` - Update current user profile
+- `POST /api/users/change-password` - Change password
 
-#### 2.1.6 Logging, Monitoring, OpenAPI
-- **Logging:** Structured logging, ELK/EFK, audit log đăng nhập/thay đổi
-- **Validation:** FluentValidation, DataAnnotations
-- **OpenAPI:** Swagger UI, XML comments cho controller/model
-- **Health Check:** /health endpoint, kiểm tra DB, external dependencies
+**API Key Management:**
+- `GET /api/apikeys` - List user's API keys
+- `POST /api/apikeys` - Create new API key
+- `PUT /api/apikeys/{id}` - Update API key (scope, name)
+- `DELETE /api/apikeys/{id}` - Revoke API key
+- `GET /api/apikeys/verify/{key}` - Verify API key (internal, for Gateway)
 
-#### 2.1.7 Integration & Communication
-- **Database Sharing**: Cả 2 projects cùng truy cập db_identity
-- **Service Layer**: Shared business logic qua Application layer
-- **Cross-Project Scenarios**:
-  - User đăng ký qua Identity.Sso → có thể quản lý qua Identity.Api
-  - API Key tạo qua Identity.Api → có thể xác thực cho cả 2 projects
-  - SSO login thành công → có thể access Identity.Api với JWT token
-- **Deployment**: Có thể deploy độc lập hoặc cùng docker-compose
+#### 2.1.5 Database Schema (Simplified)
 
-#### 2.1.8 Deployment & DevOps
-- **Docker Compose, Kubernetes**
-- **CI/CD:** Automated test, build, deploy
-- **CORS:** Policy cho frontend, SSO, API
-- **Security:** HTTPS, CORS, security headers, penetration test
+**Users Table:**
+- id, email, name, provider, provider_id, created_at, updated_at, is_active
+
+**UserLogins Table (Social Auth):**
+- id, user_id, provider, provider_user_id, created_at
+
+**ApiKeys Table:**
+- id, user_id, name, key_prefix, key_hash, scope, created_at, expires_at, is_revoked
+
+**RefreshTokens Table:**
+- id, user_id, token_hash, expires_at, created_at, is_revoked
+
+#### 2.1.6 Security & Integration
+
+**Security Features:**
+- JWT token generation với expiration
+- Secure API key generation (SHA256 hashing)
+- Social provider token verification
+- Rate limiting protection
+- Audit logging for security events
+
+**API Gateway Integration:**
+- Stateless token verification
+- User claims injection into request headers
+- API key scope-based authorization
+- Standardized error responses
+
+**External Integration:**
+- Google OAuth2 API for token verification
+- Facebook Graph API for profile validation
+- Apple Sign-In token verification
+- Extensible for additional social providers
+
+#### 2.1.7 Deployment Configuration
+- **Single Service**: Identity.Api chạy trên port 5228
+- **Database**: PostgreSQL với connection pooling
+- **Environment Variables**: Social provider credentials, JWT secrets
+- **Docker Support**: Container-ready với health checks
+- **Monitoring**: Structured logging, metrics endpoints
 
 ### Core Finance
 #### AccountService

@@ -31,10 +31,8 @@ flowchart TB
     end
   end
 
-  subgraph "Microservices Layer"
-    subgraph "Identity & Access - Domain"
-      IdentitySSO[Identity.Sso<br/>OAuth2/OIDC Server<br/>Port 5217]
-      IdentityAPI[Identity.Api<br/>User Management<br/>Port 5228]
+  subgraph "Microservices Layer"    subgraph "Identity & Access - Domain"
+      IdentityAPI[Identity.Api<br/>Social Auth & User Management<br/>Port 5228]
       IdentityDB[(PostgreSQL<br/>db_identity<br/>Port 5432)]
     end
 
@@ -73,9 +71,7 @@ flowchart TB
   GW_CORS --> GW_Auth
   GW_Auth --> GW_Rate
   GW_Rate --> GW_Log
-
   %% Gateway to Services
-  GW_Log --> IdentitySSO
   GW_Log --> IdentityAPI
   GW_Log --> CoreAPI
   GW_Log --> MoneyAPI
@@ -83,7 +79,6 @@ flowchart TB
   GW_Log --> ReportAPI
 
   %% Services to Databases
-  IdentitySSO --> IdentityDB
   IdentityAPI --> IdentityDB
   CoreAPI --> CoreDB
   MoneyAPI --> MoneyDB
@@ -115,7 +110,7 @@ flowchart TB
 
   class FE,Mobile,ThirdParty clientLayer
   class Gateway,GW_Auth,GW_CORS,GW_Rate,GW_Log gatewayLayer
-  class IdentitySSO,IdentityAPI,CoreAPI,MoneyAPI,PlanAPI,ReportAPI serviceLayer
+  class IdentityAPI,CoreAPI,MoneyAPI,PlanAPI,ReportAPI serviceLayer
   class IdentityDB,CoreDB,MoneyDB,PlanDB,ReportDB,MinIO dataLayer
   class RabbitMQ,EventEx,DeadLetter messageLayer
 ```
@@ -155,10 +150,9 @@ flowchart TB
     
     subgraph "Route Configuration (ocelot.json)"
       direction TB
-      
-      subgraph "Authentication Routes"
-        SSORoute[/sso/* → Identity.Sso:5217<br/>OAuth2/OIDC Flows<br/>No Auth Required]
-        AuthRoute[/auth/* → Identity.Api:5228<br/>Login/Register<br/>No Auth Required]
+        subgraph "Authentication Routes"
+        AuthRoute[/api/auth/* → Identity.Api:5228<br/>Social Login & Token Auth<br/>No Auth Required]
+        ApiKeyRoute[/api/apikeys/* → Identity.Api:5228<br/>API Key Management<br/>Requires: Valid JWT]
       end
       
       subgraph "API Routes (JWT Required)"
@@ -183,10 +177,8 @@ flowchart TB
       LoadBalancer[Round Robin<br/>Least Connections<br/>Weighted Distribution]
     end
   end
-
   subgraph "Downstream Services"
     direction TB
-    IdentitySSO[Identity.Sso:5217]
     IdentityAPI[Identity.Api:5228]
     CoreAPI[CoreFinance.Api:5001]
     MoneyAPI[MoneyManagement.Api:5002]
@@ -198,9 +190,7 @@ flowchart TB
   WebReq --> Middleware1
   MobileReq --> Middleware1
   APIReq --> Middleware1
-  
-  %% Route Mapping
-  Middleware9 --> SSORoute
+    %% Route Mapping
   Middleware9 --> AuthRoute
   Middleware9 --> UserRoute
   Middleware9 --> AdminRoute
@@ -217,10 +207,10 @@ flowchart TB
   LoadBalancer --> Middleware9
   
   %% Downstream Routing
-  SSORoute --> IdentitySSO
   AuthRoute --> IdentityAPI
   UserRoute --> IdentityAPI
   AdminRoute --> IdentityAPI
+  ApiKeyRoute --> IdentityAPI
   CoreRoute --> CoreAPI
   MoneyRoute --> MoneyAPI
   PlanRoute --> PlanAPI
@@ -242,52 +232,54 @@ flowchart TB
   class IdentitySSO,IdentityAPI,CoreAPI,MoneyAPI,PlanAPI,ReportAPI serviceStyle
 ```
 
-## 3. Identity & Access Services - Detailed Architecture
+## 3. Identity & Access Services - Simplified Architecture
 
 ```mermaid
 flowchart TB
   subgraph "Client Applications"
-    WebApp[Web Frontend<br/>SPA Application<br/>OAuth2 Flow]
-    MobileApp[Mobile App<br/>Native Application<br/>Direct JWT Auth]
+    WebApp[Web Frontend<br/>Nuxt.js SPA<br/>Social Login]
+    MobileApp[Mobile App<br/>Native Application<br/>Social Login]
     ThirdPartyApp[Third Party<br/>External Integration<br/>API Key Auth]
     AdminPanel[Admin Dashboard<br/>Management UI<br/>Enhanced Permissions]
   end
 
   subgraph "Ocelot Gateway :5000"
-    Gateway[Load Balancer<br/>& Route Mapping]
+    Gateway[Token Verification<br/>& Route Mapping]
   end
 
-  subgraph "Identity & Access Domain"
-    subgraph "Identity.Sso - Port 5217 (OAuth2/OIDC Server)"
+  subgraph "Identity Service - Simplified"
+    subgraph "Identity.Api - Port 5228 (Single Service)"
       direction TB
       
-      subgraph "OAuth2 Endpoints"
-        AuthorizeEndpoint[/connect/authorize<br/>Authorization Request]
-        TokenEndpoint[/connect/token<br/>Token Exchange]
-        UserInfoEndpoint[/connect/userinfo<br/>User Profile]
-        IntrospectEndpoint[/connect/introspect<br/>Token Validation]
-        RevocationEndpoint[/connect/revocation<br/>Token Revocation]
+      subgraph "Social Authentication"
+        GoogleAuth[Google OAuth2<br/>Token Verification]
+        FacebookAuth[Facebook Login<br/>Token Verification]
+        AppleAuth[Apple Sign-In<br/>Token Verification]
       end
-      
-      subgraph "Authentication UI"
-        LoginUI[/auth/login<br/>Login Form]
-        RegisterUI[/auth/register<br/>Registration Form]
-        ConsentUI[/auth/consent<br/>Permission Grant]
-        LogoutUI[/auth/logout<br/>Session Termination]
-      end
-    end
-
-    subgraph "Identity.Api - Port 5228 (REST API)"
-      direction TB
       
       subgraph "Authentication API"
-        LoginAPI[POST /api/auth/login<br/>Direct JWT Login]
+        LoginAPI[POST /api/auth/login<br/>Traditional Login]
+        SocialAPI[POST /api/auth/social<br/>Social Login Verification]
         RefreshAPI[POST /api/auth/refresh<br/>Token Refresh]
-        ValidateAPI[GET /api/auth/validate<br/>Token Validation]
-        RevokeAPI[POST /api/auth/revoke<br/>Token Revocation]
+        LogoutAPI[POST /api/auth/logout<br/>Token Revocation]
       end
       
       subgraph "User Management API"
+        UsersAPI[GET|POST|PUT /api/users<br/>User CRUD Operations]
+        ProfileAPI[GET|PUT /api/users/me<br/>Profile Management]
+        PasswordAPI[POST /api/users/change-password<br/>Password Change]
+      end
+      
+      subgraph "API Key Management"
+        ApiKeysAPI[GET|POST|PUT|DELETE /api/apikeys<br/>API Key Lifecycle]
+        VerifyAPI[GET /api/apikeys/verify<br/>Key Verification]
+      end
+    end
+
+    subgraph "Database Layer"
+      IdentityDB[(PostgreSQL<br/>db_identity<br/>Users, ApiKeys, UserLogins)]
+    end
+  end
         UsersAPI[/api/users/*<br/>CRUD Operations]
         ProfileAPI[/api/users/profile<br/>User Profile]
         PasswordAPI[/api/users/password<br/>Password Management]
@@ -304,58 +296,45 @@ flowchart TB
 
     subgraph "Shared Business Logic Layer"
       direction TB
-      
-      subgraph "Core Services"
-        AuthService[AuthService<br/>Authentication Logic]
-        UserService[UserService<br/>User Operations]
-        RoleService[RoleService<br/>RBAC Implementation]
-        ApiKeyService[ApiKeyService<br/>API Key Management]
-      end
-      
-      subgraph "Security Services"
-        JwtService[JwtTokenService<br/>JWT Operations]
-        PasswordService[PasswordService<br/>Hash & Validation]
-        AuditService[AuditService<br/>Security Logging]
-        SessionService[SessionService<br/>Session Management]
-      end
-    end
-
-    subgraph "Data Layer"
-      IdentityDB[(PostgreSQL<br/>db_identity<br/>Port 5432)]
-      
-      subgraph "Database Tables"
-        Users[Users Table]
-        Roles[Roles Table]
-        Permissions[Permissions Table]
-        ApiKeys[ApiKeys Table]
-        RefreshTokens[RefreshTokens Table]
-        AuditLogs[AuditLogs Table]
-      end
-    end
-  end
-
-  subgraph "External Integration"
-    RabbitMQ[RabbitMQ<br/>Event Bus]
-    Redis[(Redis Cache<br/>Session Store)]
-  end
-
-  %% Client Flows
-  WebApp -->|OAuth2/OIDC| Gateway
-  MobileApp -->|Direct JWT| Gateway
+    %% Connection Flow
+  WebApp -->|Social Auth Tokens| Gateway
+  MobileApp -->|Social Auth Tokens| Gateway
   ThirdPartyApp -->|API Key| Gateway
-  AdminPanel -->|Enhanced Auth| Gateway
+  AdminPanel -->|JWT Bearer| Gateway
 
   %% Gateway Routing
-  Gateway -->|/sso/*| AuthorizeEndpoint
-  Gateway -->|/sso/*| TokenEndpoint
-  Gateway -->|/auth/*| LoginUI
+  Gateway -->|Token Verification| IdentityAPI
   Gateway -->|/api/auth/*| LoginAPI
+  Gateway -->|/api/auth/*| SocialAPI
   Gateway -->|/api/users/*| UsersAPI
-  Gateway -->|/api/roles/*| RolesAPI
   Gateway -->|/api/apikeys/*| ApiKeysAPI
 
-  %% SSO Service Dependencies
-  AuthorizeEndpoint --> AuthService
+  %% Social Authentication Flow
+  WebApp --> GoogleAuth
+  WebApp --> FacebookAuth
+  WebApp --> AppleAuth
+  
+  %% Service Dependencies
+  GoogleAuth --> IdentityDB
+  FacebookAuth --> IdentityDB
+  AppleAuth --> IdentityDB
+  LoginAPI --> IdentityDB
+  SocialAPI --> IdentityDB
+  UsersAPI --> IdentityDB
+  ApiKeysAPI --> IdentityDB
+
+  %% External Integration
+  VerifyAPI -.->|Token Validation| Gateway
+
+  %% Styling
+  classDef clientStyle fill:#e3f2fd
+  classDef serviceStyle fill:#e8f5e8
+  classDef dataStyle fill:#fff3e0
+
+  class WebApp,MobileApp,ThirdPartyApp,AdminPanel clientStyle
+  class GoogleAuth,FacebookAuth,AppleAuth,LoginAPI,SocialAPI,UsersAPI,ApiKeysAPI serviceStyle
+  class IdentityDB dataStyle
+```
   TokenEndpoint --> AuthService
   UserInfoEndpoint --> UserService
   LoginUI --> AuthService
@@ -675,50 +654,48 @@ flowchart TB
 
 ## 6. Sequence Diagrams - Detailed Service Interactions
 
-### 6.1 OAuth2 SSO Login Flow (Web Application)
+### 6.1 Social Login Flow (Simplified)
 
 ```mermaid
 sequenceDiagram
     participant Browser as Web Browser
-    participant Frontend as Frontend SPA
+    participant Frontend as Nuxt.js SPA
     participant Gateway as Ocelot Gateway
-    participant SSO as Identity.Sso
-    participant AuthSvc as AuthService
-    participant JwtSvc as JwtTokenService
+    participant Identity as Identity.Api
+    participant Google as Google OAuth2
     participant DB as PostgreSQL
-    participant Redis as Redis Cache
 
-    Note over Browser,Redis: OAuth2 Authorization Code Flow with PKCE
+    Note over Browser,DB: Simplified Social Authentication Flow
 
-    Browser->>Frontend: Click "Login" button
-    Frontend->>Frontend: Generate PKCE challenge
-    Frontend->>Browser: Redirect to authorization endpoint
+    Browser->>Frontend: Click "Login with Google"
+    Frontend->>Google: Initiate Google OAuth2 flow
+    Google->>Browser: Show Google login dialog
+    Browser->>Google: Enter credentials
+    Google-->>Frontend: Return ID Token (JWT)
     
-    Browser->>Gateway: GET /sso/connect/authorize?client_id=spa&response_type=code&code_challenge=...
-    Gateway->>SSO: Forward authorization request
-    SSO->>Redis: Check existing session
-    Redis-->>SSO: No active session
+    Frontend->>Gateway: POST /api/auth/social {provider: "google", token: "jwt_token"}
+    Gateway->>Identity: Forward social login request
+    Identity->>Google: Verify token with Google API
+    Google-->>Identity: Token validation result + user profile
     
-    SSO->>Browser: Redirect to /auth/login
-    Browser->>SSO: GET /auth/login (Login UI)
-    SSO-->>Browser: Return login form
+    Identity->>DB: SELECT user WHERE provider_id = ? AND provider = 'google'
+    DB-->>Identity: User record (if exists)
     
-    Browser->>Gateway: POST /sso/auth/login {username, password, remember_me}
-    Gateway->>SSO: Forward login credentials
-    SSO->>AuthSvc: ValidateCredentialsAsync(request)
-    AuthSvc->>DB: SELECT user WHERE username = ? AND active = true
-    DB-->>AuthSvc: User profile + hashed password
-    AuthSvc->>AuthSvc: Verify password hash
-    AuthSvc-->>SSO: Authentication successful
+    alt User exists
+        Identity->>DB: UPDATE last_login_at = NOW()
+    else User not found
+        Identity->>DB: INSERT new user (email, name, provider, provider_id)
+    end
     
-    SSO->>Redis: Store session data (user_id, roles, permissions)
-    SSO->>DB: Log security event (successful login)
-    SSO->>Browser: Set authentication cookie + redirect with auth code
+    Identity->>Identity: Generate JWT access token
+    Identity->>DB: INSERT refresh_token
+    Identity-->>Gateway: {access_token, refresh_token, user_profile}
+    Gateway-->>Frontend: Authentication response
     
-    Browser->>Gateway: POST /sso/connect/token {code, code_verifier, client_id}
-    Gateway->>SSO: Forward token exchange
-    SSO->>SSO: Validate authorization code + PKCE
-    SSO->>AuthSvc: Generate access token
+    Frontend->>Frontend: Store tokens in secure storage
+    Frontend->>Browser: Redirect to dashboard
+    
+    Note over Browser,DB: Subsequent API calls use JWT Bearer token
     AuthSvc->>JwtSvc: CreateAccessTokenAsync(user, scopes)
     JwtSvc->>JwtSvc: Sign JWT with RS256
     AuthSvc->>DB: Store refresh token (hashed)
@@ -733,44 +710,37 @@ sequenceDiagram
     Gateway-->>Frontend: User profile data
 ```
 
-### 6.2 Mobile Direct JWT Authentication Flow
+### 6.2 API Key Authentication Flow
 
 ```mermaid
 sequenceDiagram
-    participant Mobile as Mobile App
+    participant ThirdParty as Third Party System
     participant Gateway as Ocelot Gateway
-    participant IdentityAPI as Identity.Api
-    participant AuthSvc as AuthService
-    participant JwtSvc as JwtTokenService
+    participant Identity as Identity.Api
     participant DB as PostgreSQL
-    participant DeviceDB as Device Registry
 
-    Note over Mobile,DeviceDB: Direct JWT Authentication with Device Registration
+    Note over ThirdParty,DB: API Key Authentication Flow
 
-    Mobile->>Mobile: Generate device fingerprint
-    Mobile->>Gateway: POST /api/auth/login
-    Note right of Mobile: {username, password, device_info, app_version}
+    ThirdParty->>Gateway: GET /api/transactions
+    Note right of ThirdParty: Authorization: ApiKey abc123...
     
-    Gateway->>Gateway: Rate limiting check (10 attempts/minute)
-    Gateway->>IdentityAPI: Forward to Identity.Api:5228
-    IdentityAPI->>AuthSvc: LoginAsync(loginRequest)
+    Gateway->>Gateway: Extract API Key from header
+    Gateway->>Identity: GET /api/apikeys/verify/abc123...
+    Identity->>DB: SELECT api_key WHERE key_hash = ? AND is_active = true
+    DB-->>Identity: API key record + user_id + scopes
     
-    AuthSvc->>DB: Validate user credentials
-    DB-->>AuthSvc: User data + security settings
-    AuthSvc->>AuthSvc: Check account status (locked, 2FA required)
-    
-    alt Two-Factor Authentication Required
-        AuthSvc->>AuthSvc: Generate 2FA challenge
-        AuthSvc-->>IdentityAPI: {requires_2fa: true, challenge_id}
-        IdentityAPI-->>Gateway: 2FA challenge response
-        Gateway-->>Mobile: Prompt for 2FA code
-        
-        Mobile->>Gateway: POST /api/auth/verify-2fa {challenge_id, code}
-        Gateway->>IdentityAPI: Forward 2FA verification
-        IdentityAPI->>AuthSvc: Verify2FAAsync(challenge, code)
-        AuthSvc->>DB: Validate TOTP/SMS code
-        DB-->>AuthSvc: 2FA verification result
+    alt API Key Valid
+        Identity-->>Gateway: {valid: true, user_id: "123", scopes: ["transactions:read"]}
+        Gateway->>Gateway: Set user claims from API key
+        Gateway->>CoreFinance: Forward request with user context
+        CoreFinance-->>Gateway: Transaction data
+        Gateway-->>ThirdParty: API response
+    else API Key Invalid/Expired
+        Identity-->>Gateway: {valid: false, error: "Invalid API key"}
+        Gateway-->>ThirdParty: 401 Unauthorized
     end
+    
+    Note over Identity,DB: API key usage tracked for analytics
     
     AuthSvc->>DeviceDB: Register/update device info
     AuthSvc->>JwtSvc: GenerateTokensAsync(user, device)
