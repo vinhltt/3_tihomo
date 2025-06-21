@@ -13,8 +13,9 @@ namespace CoreFinance.Application.Tests.RecurringTransactionTemplateServiceTests
 public partial class RecurringTransactionTemplateServiceTests
 {
     /// <summary>
-    /// (EN) Verifies that GenerateExpectedTransactionsAsync generates transactions when the template is active and auto-generate is enabled.<br/>
-    /// (VI) Xác minh rằng GenerateExpectedTransactionsAsync tạo giao dịch khi mẫu đang hoạt động và bật tự động tạo.
+    ///     (EN) Verifies that GenerateExpectedTransactionsAsync generates transactions when the template is active and
+    ///     auto-generate is enabled.<br />
+    ///     (VI) Xác minh rằng GenerateExpectedTransactionsAsync tạo giao dịch khi mẫu đang hoạt động và bật tự động tạo.
     /// </summary>
     [Fact]
     public async Task GenerateExpectedTransactionsAsync_ShouldGenerateTransactions_WhenTemplateIsActiveAndAutoGenerate()
@@ -78,8 +79,9 @@ public partial class RecurringTransactionTemplateServiceTests
     }
 
     /// <summary>
-    /// (EN) Verifies that GenerateExpectedTransactionsAsync does not generate transactions when the template is inactive.<br/>
-    /// (VI) Xác minh rằng GenerateExpectedTransactionsAsync không tạo giao dịch khi mẫu không hoạt động.
+    ///     (EN) Verifies that GenerateExpectedTransactionsAsync does not generate transactions when the template is inactive.
+    ///     <br />
+    ///     (VI) Xác minh rằng GenerateExpectedTransactionsAsync không tạo giao dịch khi mẫu không hoạt động.
     /// </summary>
     [Fact]
     public async Task GenerateExpectedTransactionsAsync_ShouldNotGenerateTransactions_WhenTemplateIsInactive()
@@ -129,8 +131,9 @@ public partial class RecurringTransactionTemplateServiceTests
     }
 
     /// <summary>
-    /// (EN) Verifies that GenerateExpectedTransactionsAsync does not generate transactions when auto-generate is false.<br/>
-    /// (VI) Xác minh rằng GenerateExpectedTransactionsAsync không tạo giao dịch khi tự động tạo tắt.
+    ///     (EN) Verifies that GenerateExpectedTransactionsAsync does not generate transactions when auto-generate is false.
+    ///     <br />
+    ///     (VI) Xác minh rằng GenerateExpectedTransactionsAsync không tạo giao dịch khi tự động tạo tắt.
     /// </summary>
     [Fact]
     public async Task GenerateExpectedTransactionsAsync_ShouldNotGenerateTransactions_WhenAutoGenerateIsFalse()
@@ -180,8 +183,10 @@ public partial class RecurringTransactionTemplateServiceTests
     }
 
     /// <summary>
-    /// (EN) Verifies that GenerateExpectedTransactionsAsync rolls back the transaction when an exception occurs during the process.<br/>
-    /// (VI) Xác minh rằng GenerateExpectedTransactionsAsync thực hiện rollback giao dịch khi có ngoại lệ xảy ra trong quá trình xử lý.
+    ///     (EN) Verifies that GenerateExpectedTransactionsAsync rolls back the transaction when an exception occurs during the
+    ///     process.<br />
+    ///     (VI) Xác minh rằng GenerateExpectedTransactionsAsync thực hiện rollback giao dịch khi có ngoại lệ xảy ra trong quá
+    ///     trình xử lý.
     /// </summary>
     [Fact]
     public async Task GenerateExpectedTransactionsAsync_ShouldRollbackTransaction_WhenExceptionOccurs()
@@ -206,7 +211,7 @@ public partial class RecurringTransactionTemplateServiceTests
         var service = new RecurringTransactionTemplateService(_mapper, unitOfWorkMock.Object, loggerMock.Object);
 
         // Act
-        Func<Task> act = async () => await service.GenerateExpectedTransactionsAsync(templateId, daysInAdvance);
+        var act = async () => await service.GenerateExpectedTransactionsAsync(templateId, daysInAdvance);
 
         // Assert
         await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("Database error");

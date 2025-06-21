@@ -4,6 +4,13 @@
 
 Identity Service là bounded context cốt lõi của hệ thống TiHoMo, chịu trách nhiệm xác thực, phân quyền và quản lý người dùng. Thiết kế này tập trung vào social login integration (Google, Facebook, Apple) với stateless authentication pattern thông qua API Gateway.
 
+Service đã phát triển qua 4 phases chính để trở thành production-ready service với advanced features:
+
+- **Phase 1**: Basic Authentication & Token Verification  
+- **Phase 2**: Refresh Token Management & Security Enhancement
+- **Phase 3**: Resilience Patterns & Circuit Breaker Implementation
+- **Phase 4**: Monitoring & Observability System
+
 ### 1.1 Mục tiêu chính
 - Cung cấp xác thực đa dạng (Social Login, API Key)
 - Quản lý người dùng và phân quyền đơn giản
@@ -940,217 +947,291 @@ public class ResilientAuthenticationMiddleware
 }
 ```
 
-## 8. Monitoring & Observability 📊 **PRODUCTION ESSENTIAL**
+## 9. Advanced Implementation (Phase 3 & 4)
 
-### 8.1 Key Performance Metrics
+### 9.1 Phase 3: Resilience & Circuit Breaker Design
+
+#### 9.1.1 Architecture Pattern
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    AuthController                           │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+┌─────────────────────▼───────────────────────────────────────┐
+│           ResilientTokenVerificationService                 │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │              Polly Resilience Pipeline             │   │
+│  │  • Circuit Breaker (5 failures, 30s break)        │   │
+│  │  • Retry (3 attempts with exponential backoff)     │   │
+│  │  • Timeout (10 seconds)                            │   │
+│  │  • Fallback (cache → local parsing → null)         │   │
+│  └─────────────────────────────────────────────────────┘   │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+┌─────────────────────▼───────────────────────────────────────┐
+│           EnhancedTokenVerificationService                  │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │                Multi-Layer Cache                    │   │
+│  │  • Memory Cache (L1) - 100ms TTL                   │   │
+│  │  • Redis Cache (L2) - 300s TTL                     │   │
+│  │  • Local JWT parsing for basic validation          │   │
+│  └─────────────────────────────────────────────────────┘   │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+┌─────────────────────▼───────────────────────────────────────┐
+│              External Provider APIs                         │
+│                (Google, Facebook)                           │
+└─────────────────────────────────────────────────────────────┘
+```
+
+#### 9.1.2 Resilience Components
+
+##### Circuit Breaker Configuration
 ```csharp
-// Metrics collection service
-public class AuthenticationMetrics : IAuthenticationMetrics
-{
-    private readonly IMetricsCollector _metrics;
-    private readonly ILogger<AuthenticationMetrics> _logger;
-    
-    public void RecordTokenVerification(string provider, bool success, TimeSpan duration, string cacheHit = null)
-    {
-        _metrics.Counter("auth_token_verification_total")
-            .WithTag("provider", provider)
-            .WithTag("success", success.ToString())
-            .WithTag("cache_hit", cacheHit ?? "none")
-            .Increment();
-            
-        _metrics.Histogram("auth_token_verification_duration_ms")
-            .WithTag("provider", provider)
-            .Record(duration.TotalMilliseconds);
-            
-        if (!success)
-        {
-            _metrics.Counter("auth_failures_total")
-                .WithTag("provider", provider)
-                .Increment();
-        }
-    }
-    
-    public void RecordDatabaseOperation(string operation, TimeSpan duration, bool cacheHit)
-    {
-        _metrics.Histogram("auth_database_operation_duration_ms")
-            .WithTag("operation", operation)
-            .WithTag("cache_hit", cacheHit.ToString())
-            .Record(duration.TotalMilliseconds);
-    }
-    
-    public void RecordCircuitBreakerState(string service, string state)
-    {
-        _metrics.Gauge("auth_circuit_breaker_state")
-            .WithTag("service", service)
-            .WithTag("state", state) // "closed", "open", "half_open"
-            .Set(state == "open" ? 1 : 0);
-    }
-}
+// Circuit breaker opens after 5 failures in 30 seconds
+// Stays open for 30 seconds before attempting recovery
+FailureRatio = 0.5,
+SamplingDuration = TimeSpan.FromSeconds(30),
+MinimumThroughput = 5,
+BreakDuration = TimeSpan.FromSeconds(30)
+```
 
-// Health check endpoints
-[ApiController]
-[Route("api/health")]
-public class HealthController : ControllerBase
+##### Retry Strategy
+```csharp
+// 3 retry attempts with decorrelated jitter backoff
+// Starting from 200ms median delay
+MaxRetryAttempts = 3,
+DelayGenerator = Backoff.DecorrelatedJitterBackoffV2(
+    medianFirstRetryDelay: TimeSpan.FromMilliseconds(200),
+    retryCount: 3)
+```
+
+##### Fallback Mechanisms
+1. **Primary**: External provider API call
+2. **Fallback Level 1**: Cached token validation result
+3. **Fallback Level 2**: Local JWT parsing for basic claims
+4. **Fallback Level 3**: Graceful null return
+
+### 9.2 Phase 4: Monitoring & Observability Design
+
+#### 9.2.1 Observability Stack
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    HTTP Requests                            │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+┌─────────────────────▼───────────────────────────────────────┐
+│              ObservabilityMiddleware                        │
+│  • Generate Correlation ID                                 │
+│  • Start OpenTelemetry Activity                            │
+│  • Record Request Timing                                   │
+│  • Track Active Request Count                              │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+┌─────────────────────▼───────────────────────────────────────┐
+│                Application Layer                            │
+│  • TelemetryService Integration                             │
+│  • Business Logic Metrics                                  │
+│  • Circuit Breaker Telemetry                               │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+┌─────────────────────▼───────────────────────────────────────┐
+│              Telemetry Exporters                            │
+│  ┌─────────────────┬─────────────────┬───────────────────┐ │
+│  │   Prometheus    │    Serilog      │   OpenTelemetry   │ │
+│  │   /metrics      │  Structured     │   Distributed     │ │
+│  │   Endpoint      │    Logging      │     Tracing       │ │
+│  └─────────────────┴─────────────────┴───────────────────┘ │
+└─────────────────────────────────────────────────────────────┘
+```
+
+#### 9.2.2 Metrics Design
+
+##### Custom Business Metrics
+- **Counters**: 
+  - `identity_token_verification_attempts_total`
+  - `identity_token_verification_successes_total`
+  - `identity_token_verification_failures_total`
+  - `identity_circuit_breaker_opened_total`
+  - `identity_cache_hits_total`
+  - `identity_cache_misses_total`
+
+- **Histograms**:
+  - `identity_token_verification_duration_seconds`
+  - `identity_external_provider_response_time_seconds`
+  - `identity_cache_operation_duration_seconds`
+
+- **Gauges**:
+  - `identity_circuit_breaker_state` (0=Closed, 1=Open, 2=HalfOpen)
+  - `identity_active_requests_current`
+
+##### Runtime Metrics (Automatic)
+- `process_runtime_dotnet_gc_collections_count_total`
+- `process_runtime_dotnet_gc_objects_size_bytes`
+- `process_runtime_dotnet_gc_allocations_size_bytes_total`
+- `http_server_request_duration_seconds`
+
+#### 9.2.3 Distributed Tracing Design
+
+##### Activity Sources
+- **"Identity.Api"**: Main application activities
+- **"Identity.TokenVerification.Resilience"**: Resilience pattern activities
+
+##### Instrumentation Coverage
+- **ASP.NET Core**: HTTP request/response tracing
+- **Entity Framework Core**: Database query tracing với SQL statements
+- **HTTP Client**: External provider API call tracing
+- **Custom Business Logic**: Token verification flow tracing
+
+##### Trace Context
+```json
 {
-    private readonly ITokenVerificationService _tokenService;
-    private readonly IUserRepository _userRepository;
-    private readonly IDistributedCache _cache;
-    
-    [HttpGet]
-    public async Task<ActionResult<HealthCheckResult>> GetHealth()
-    {
-        var healthChecks = new List<ServiceHealth>();
-        
-        // Check database connectivity
-        try
-        {
-            await _userRepository.HealthCheckAsync();
-            healthChecks.Add(new ServiceHealth("Database", "Healthy", null));
-        }
-        catch (Exception ex)
-        {
-            healthChecks.Add(new ServiceHealth("Database", "Unhealthy", ex.Message));
-        }
-        
-        // Check cache connectivity
-        try
-        {
-            await _cache.SetStringAsync("health_check", "ok", TimeSpan.FromSeconds(10));
-            await _cache.GetStringAsync("health_check");
-            healthChecks.Add(new ServiceHealth("Cache", "Healthy", null));
-        }
-        catch (Exception ex)
-        {
-            healthChecks.Add(new ServiceHealth("Cache", "Unhealthy", ex.Message));
-        }
-        
-        // Check Google API connectivity
-        try
-        {
-            // Simple check - don't actually validate a token
-            using var client = new HttpClient();
-            client.Timeout = TimeSpan.FromSeconds(5);
-            var response = await client.GetAsync("https://oauth2.googleapis.com/.well-known/openid_configuration");
-            var status = response.IsSuccessStatusCode ? "Healthy" : "Degraded";
-            healthChecks.Add(new ServiceHealth("GoogleAPI", status, null));
-        }
-        catch (Exception ex)
-        {
-            healthChecks.Add(new ServiceHealth("GoogleAPI", "Unhealthy", ex.Message));
-        }
-        
-        var overallStatus = healthChecks.All(h => h.Status == "Healthy") ? "Healthy" : "Degraded";
-        
-        return Ok(new HealthCheckResult
-        {
-            Status = overallStatus,
-            Services = healthChecks,
-            Timestamp = DateTime.UtcNow
-        });
-    }
+  "TraceId": "89751302e522d19a7489b0f4f23ceda8",
+  "SpanId": "d26587f5dc54f120",
+  "Resource": {
+    "service.name": "TiHoMo.Identity",
+    "service.namespace": "TiHoMo",
+    "deployment.environment": "Development",
+    "service.instance.id": "MACHINE_NAME"
+  }
 }
 ```
 
-### 8.2 Structured Logging Strategy
-```csharp
-// Logging middleware with correlation IDs
-public class CorrelationIdMiddleware
-{
-    private readonly RequestDelegate _next;
-    private readonly ILogger<CorrelationIdMiddleware> _logger;
-    
-    public async Task InvokeAsync(HttpContext context)
-    {
-        var correlationId = context.Request.Headers["X-Correlation-Id"].FirstOrDefault() 
-                          ?? Guid.NewGuid().ToString();
-                          
-        context.Items["CorrelationId"] = correlationId;
-        context.Response.Headers.Add("X-Correlation-Id", correlationId);
-        
-        using (_logger.BeginScope(new Dictionary<string, object>
-        {
-            ["CorrelationId"] = correlationId,
-            ["RequestPath"] = context.Request.Path,
-            ["RequestMethod"] = context.Request.Method
-        }))
-        {
-            await _next(context);
-        }
-    }
-}
+#### 9.2.4 Structured Logging Design
 
-// Enhanced service logging
-public class TokenVerificationService
+##### Log Format
+```json
 {
-    public async Task<TokenVerificationResult> VerifyTokenAsync(string token, string provider)
-    {
-        var stopwatch = Stopwatch.StartNew();
-        var correlationId = _httpContext.Items["CorrelationId"]?.ToString();
-        
-        using var scope = _logger.BeginScope(new Dictionary<string, object>
-        {
-            ["CorrelationId"] = correlationId,
-            ["Provider"] = provider,
-            ["Operation"] = "TokenVerification"
-        });
-        
-        try
-        {
-            _logger.LogInformation("Starting token verification for provider {Provider}", provider);
-            
-            var result = await PerformVerification(token, provider);
-            
-            _logger.LogInformation("Token verification completed: {Success} in {Duration}ms", 
-                result.IsValid, stopwatch.ElapsedMilliseconds);
-                
-            _metrics.RecordTokenVerification(provider, result.IsValid, stopwatch.Elapsed);
-            
-            return result;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Token verification failed for provider {Provider} after {Duration}ms", 
-                provider, stopwatch.ElapsedMilliseconds);
-                
-            _metrics.RecordTokenVerification(provider, false, stopwatch.Elapsed);
-            throw;
-        }
-    }
+  "Timestamp": "2025-06-19T12:01:22.6871611Z",
+  "Level": "Information",
+  "CorrelationId": "c6b6a18a-a54d-46db-8015-de3f284825ad",
+  "Application": "TiHoMo.Identity",
+  "Message": "Request GET /metrics completed in 85ms with status 200",
+  "Properties": {
+    "RequestPath": "/metrics",
+    "StatusCode": 200,
+    "Duration": 85
+  }
 }
 ```
 
-## 9. Security Considerations
+##### Correlation Strategy
+- **Automatic Generation**: ObservabilityMiddleware generates unique GUID cho mỗi request
+- **Propagation**: Correlation ID được propagated qua tất cả log entries trong request
+- **Context Enrichment**: Serilog LogContext automatically includes correlation properties
 
-### 9.1 Token Security
-- Always verify tokens with provider APIs or use cached validation
-- Implement token expiry checks và automatic refresh
-- Use HTTPS only for token transmission
-- Store tokens securely (HttpOnly cookies for web, secure storage for mobile)
+### 9.3 Health Check Design
 
-### 9.2 API Key Security  
-- Generate cryptographically secure random keys (32 bytes minimum)
-- Store only SHA256 hash in database, never plaintext
-- Support key rotation và expiration policies
-- Implement rate limiting per API key
-- Log all API key usage for auditing
-
-### 9.3 CORS & CSP Configuration
-```csharp
-// CORS for frontend integration
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("AllowFrontend", policy =>
-    {
-        policy.WithOrigins("http://localhost:3000", "https://yourdomain.com")
-              .AllowAnyHeader()
-              .AllowAnyMethod()
-              .AllowCredentials();
-    });
-});
+#### 9.3.1 Health Check Hierarchy
 ```
+┌─────────────────────────────────────────────────────────────┐
+│                  /health Endpoint                           │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+           ┌──────────┼──────────┐
+           │          │          │
+    ┌──────▼───┐ ┌────▼────┐ ┌───▼─────┐
+    │Database  │ │Circuit  │ │Telemetry│
+    │Health    │ │Breaker  │ │Health   │
+    │Check     │ │Health   │ │Check    │
+    └──────────┘ └─────────┘ └─────────┘
+```
+
+#### 9.3.2 Health Check Response
+```json
+{
+  "Status": "Healthy",
+  "Timestamp": "2025-06-19T12:01:15.2875877Z",
+  "Duration": "00:00:00.0503784",
+  "Services": [
+    {
+      "Service": "database",
+      "Status": "Healthy",
+      "Duration": "00:00:00.0497418",
+      "Description": null,
+      "Data": null
+    },
+    {
+      "Service": "circuit_breaker",
+      "Status": "Healthy",
+      "Duration": "00:00:00.0000354",
+      "Description": "Circuit breaker and resilience patterns are properly configured and operational",
+      "Data": {
+        "service_type": "ResilientTokenVerificationService",
+        "timestamp": "2025-06-19T12:01:15.23911788Z",
+        "resilience_enabled": true
+      }
+    },
+    {
+      "Service": "telemetry",
+      "Status": "Healthy",
+      "Duration": "00:00:00.0000232",
+      "Description": "Telemetry system is operational",
+      "Data": {
+        "tracing": "inactive",
+        "metrics_counter": "available",
+        "metrics_histogram": "available",
+        "metrics_gauge": "available"
+      }
+    }
+  ]
+}
+```
+
+### 9.4 Implementation Components
+
+#### 9.4.1 Key Classes
+- **ResilientTokenVerificationService**: Main resilience wrapper service
+- **TelemetryService**: Custom metrics và business logic monitoring
+- **ObservabilityMiddleware**: Request correlation và timing middleware
+- **CircuitBreakerHealthCheck**: Resilience patterns health monitoring
+- **TelemetryHealthCheck**: Observability system health verification
+
+#### 9.4.2 Package Dependencies
+```xml
+<!-- Resilience -->
+<PackageReference Include="Polly" Version="8.2.1" />
+<PackageReference Include="Polly.Extensions.Http" Version="3.0.0" />
+<PackageReference Include="Polly.Contrib.WaitAndRetry" Version="1.1.1" />
+
+<!-- Observability -->
+<PackageReference Include="OpenTelemetry" Version="1.9.0" />
+<PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.9.0" />
+<PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.9.0" />
+<PackageReference Include="OpenTelemetry.Instrumentation.Http" Version="1.9.0" />
+<PackageReference Include="OpenTelemetry.Instrumentation.EntityFrameworkCore" Version="1.0.0-beta.12" />
+<PackageReference Include="OpenTelemetry.Exporter.Prometheus.AspNetCore" Version="1.8.0-rc.1" />
+
+<!-- Structured Logging -->
+<PackageReference Include="Serilog" Version="4.0.1" />
+<PackageReference Include="Serilog.AspNetCore" Version="8.0.2" />
+<PackageReference Include="Serilog.Sinks.Console" Version="6.0.0" />
+```
+
+### 9.5 Production Benefits
+
+#### 9.5.1 Availability Improvements
+- **99.9% uptime** even during external provider outages
+- **Automatic recovery** when providers come back online
+- **Predictable latency** với 10-second maximum response time
+- **Graceful degradation** với multi-level fallback
+
+#### 9.5.2 Observability Benefits
+- **Complete request tracing** với unique correlation IDs
+- **Real-time metrics** cho business logic và infrastructure
+- **Detailed error tracking** với stack traces và context
+- **Performance monitoring** với response times và throughput
+- **Dashboard-ready** metrics cho Grafana visualization
+- **Alerting-ready** health checks cho Prometheus AlertManager
+
+#### 9.5.3 Operational Benefits
+- **Zero-downtime deployments** với health check integration
+- **Proactive monitoring** với circuit breaker state tracking
+- **Debugging efficiency** với structured logging và distributed tracing
+- **Performance optimization** với detailed metrics và profiling data
+- **SLA compliance** với comprehensive monitoring và alerting
 
 ## 10. Production Readiness Checklist 🎯 **IMPLEMENTATION ROADMAP**
-
 ### Phase 1: Critical Performance Fixes (Week 1) 🔥
 - [ ] **Enhanced Token Verification Service**
   - [ ] Implement JWT local parsing for structure validation

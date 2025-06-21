@@ -1,11 +1,11 @@
 namespace CoreFinance.Domain.Exceptions;
 
 /// <summary>
-/// Exception thrown when an entity is not found.
+///     Exception thrown when an entity is not found.
 /// </summary>
 public class EntityNotFoundException : Exception
 {
-    public EntityNotFoundException() : base()
+    public EntityNotFoundException()
     {
     }
 

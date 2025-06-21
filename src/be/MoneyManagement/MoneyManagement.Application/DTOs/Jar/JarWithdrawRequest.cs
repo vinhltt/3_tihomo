@@ -4,8 +4,7 @@ namespace MoneyManagement.Application.DTOs.Jar;
 
 public class JarWithdrawRequest
 {
-    [Required]
-    public Guid JarId { get; set; }
+    [Required] public Guid JarId { get; set; }
 
     [Required]
     [Range(0.01, double.MaxValue, ErrorMessage = "Amount must be greater than 0")]

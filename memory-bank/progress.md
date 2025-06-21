@@ -83,7 +83,6 @@
   - **✅ Health Check Integration: CircuitBreakerHealthCheck monitors resilience patterns và service state.**
   - **✅ Dependency Injection: Properly registered ResilientTokenVerificationService wrapping EnhancedTokenVerificationService.**
   - **✅ Production Testing: Comprehensive unit tests for resilience scenarios và fallback behaviors.**
-  - **✅ Build Success: 0 errors, 0 warnings - Production-ready với complete observability.**
 - **✅ HOÀN THÀNH Identity Service Monitoring & Observability Implementation (June 19, 2025):**
   - **✅ Phase 4: Comprehensive production-grade observability system với OpenTelemetry, Prometheus, Serilog.**
   - **✅ OpenTelemetry Integration: Distributed tracing cho HTTP requests, EF Core queries, external API calls.**
@@ -95,6 +94,15 @@
   - **✅ Resilience Telemetry Integration: Circuit breaker events, retry attempts, fallback activations.**
   - **✅ Production Validation: All endpoints tested và working - ready for dashboard/alerting integration.**
   - **✅ Performance Monitoring: Request timing, external provider response time, cache hit rates.**
+  - **✅ Build Success: 0 errors, 0 warnings - Complete observability system production-ready.**
+- **Đã hoàn thành cập nhật tài liệu thiết kế Identity Service:**
+  - **Đã cập nhật và gộp toàn bộ tài liệu thiết kế Identity Service.**
+  - **Đã hợp nhất các chi tiết implementation advanced (Phase 3: Resilience Patterns, Phase 4: Monitoring & Observability) vào tài liệu thiết kế chính.**
+  - **Đã tổ chức lại cấu trúc file với thư mục riêng cho identity và hierarchy tài liệu phù hợp.**
+  - **Đã cập nhật tất cả các file memory bank với trạng thái implementation nâng cao.**
+  - **Đã chuẩn hóa định dạng và cấu trúc tài liệu theo hướng dẫn của dự án.**
+  - **Đã bảo tồn các file legacy để sao lưu và tham khảo.**
+  - **Đã tạo README.md giải thích cấu trúc file và sự tiến hóa của tài liệu.**
 
 ## Còn lại
 - **SharedExpenseService Implementation (Immediate Priority):**
@@ -126,15 +134,16 @@
 - Dự án đã có nền tảng tài liệu nghiệp vụ, kiến trúc, kỹ thuật vững chắc.
 - **✅ CURRENT BUILD STATUS: All projects compile successfully với 100% build success rate:**
   - **MoneyManagement**: ✅ SUCCESS (0 errors, 3 warnings) - Production ready
-  - **Identity**: ✅ SUCCESS (0 errors, 0 warnings) - Consolidated architecture với production observability
+  - **Identity**: ✅ SUCCESS (0 errors, 0 warnings) - Advanced production observability system
   - **CoreFinance**: ✅ SUCCESS (0 errors) - Stable với recurring transactions
   - **ExcelApi**: ✅ SUCCESS (0 errors) - Reorganized trong BE structure
 - **✅ Identity & Access Management đã hoàn thành đầy đủ và production-ready với advanced monitoring:**
   - **✅ Complete Authentication System: User, Role, ApiKey management, SSO integration, Frontend authentication**
   - **✅ Resilience Patterns: Circuit breaker, retry, timeout, fallback cho external providers**
-  - **✅ Observability System: OpenTelemetry tracing, Prometheus metrics, Serilog structured logging**
-  - **✅ Health Monitoring: Comprehensive health checks với detailed status reporting**
-  - **✅ Performance Tracking: Request timing, correlation IDs, error tracking với stack traces**
+  - **✅ Advanced Observability: OpenTelemetry tracing, Prometheus metrics, Serilog structured logging**
+  - **✅ Production Monitoring: Comprehensive health checks với detailed status reporting**
+  - **✅ Operational Excellence: Request correlation IDs, error tracking với stack traces, performance monitoring**
+  - **✅ Zero-Downtime Capability: Health check integration, automatic recovery, predictable latency**
 - **✅ Identity Project Architecture: Successfully consolidated từ 2 projects (Identity.Api + Identity.Sso) thành 1 project (Identity.Sso) với dual authentication support (Cookie + JWT).**
 - **Core Finance bounded context đã có đầy đủ chức năng cơ bản: Account, Transaction, RecurringTransactionTemplate, ExpectedTransaction.**
 - **Tính năng Recurring Transactions đã hoàn thành đầy đủ: Backend services, API Controllers, Background Job, Frontend UI.**

@@ -6,23 +6,23 @@ using MoneyManagement.Domain.Enums;
 namespace MoneyManagement.Api.Controllers;
 
 /// <summary>
-/// Controller for managing jars (6 Jars methodology) (EN)<br/>
-/// Controller quản lý các jar (phương pháp 6 Jar) (VI)
+///     Controller for managing jars (6 Jars methodology) (EN)<br />
+///     Controller quản lý các jar (phương pháp 6 Jar) (VI)
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
 [Produces("application/json")]
 public class JarController(IJarService jarService, ILogger<JarController> logger) : ControllerBase
 {
+    private const string GenericErrorMessage = "An error occurred while processing your request";
     private readonly IJarService _jarService = jarService ?? throw new ArgumentNullException(nameof(jarService));
     private readonly ILogger<JarController> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-    private const string GenericErrorMessage = "An error occurred while processing your request";
 
     /// <summary>
-    /// Get all jars for the current user (EN)<br/>
-    /// Lấy tất cả jar của người dùng hiện tại (VI)
+    ///     Get all jars for the current user (EN)<br />
+    ///     Lấy tất cả jar của người dùng hiện tại (VI)
     /// </summary>
-    /// <returns>List of jar response DTOs (EN)<br/>Danh sách DTO phản hồi jar (VI)</returns>
+    /// <returns>List of jar response DTOs (EN)<br />Danh sách DTO phản hồi jar (VI)</returns>
     [HttpGet]
     [ProducesResponseType(typeof(IEnumerable<JarResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
@@ -41,11 +41,11 @@ public class JarController(IJarService jarService, ILogger<JarController> logger
     }
 
     /// <summary>
-    /// Get jar by ID (EN)<br/>
-    /// Lấy jar theo ID (VI)
+    ///     Get jar by ID (EN)<br />
+    ///     Lấy jar theo ID (VI)
     /// </summary>
-    /// <param name="id">Jar ID (EN)<br/>ID jar (VI)</param>
-    /// <returns>Jar response DTO (EN)<br/>DTO phản hồi jar (VI)</returns>
+    /// <param name="id">Jar ID (EN)<br />ID jar (VI)</param>
+    /// <returns>Jar response DTO (EN)<br />DTO phản hồi jar (VI)</returns>
     [HttpGet("{id:guid}")]
     [ProducesResponseType(typeof(JarResponseDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -55,10 +55,7 @@ public class JarController(IJarService jarService, ILogger<JarController> logger
         try
         {
             var jar = await _jarService.GetJarByIdAsync(id);
-            if (jar == null)
-            {
-                return NotFound($"Jar with ID {id} not found");
-            }
+            if (jar == null) return NotFound($"Jar with ID {id} not found");
             return Ok(jar);
         }
         catch (Exception ex)
@@ -69,11 +66,11 @@ public class JarController(IJarService jarService, ILogger<JarController> logger
     }
 
     /// <summary>
-    /// Get jar by type (EN)<br/>
-    /// Lấy jar theo loại (VI)
+    ///     Get jar by type (EN)<br />
+    ///     Lấy jar theo loại (VI)
     /// </summary>
-    /// <param name="jarType">Jar type (EN)<br/>Loại jar (VI)</param>
-    /// <returns>Jar response DTO (EN)<br/>DTO phản hồi jar (VI)</returns>
+    /// <param name="jarType">Jar type (EN)<br />Loại jar (VI)</param>
+    /// <returns>Jar response DTO (EN)<br />DTO phản hồi jar (VI)</returns>
     [HttpGet("type/{jarType}")]
     [ProducesResponseType(typeof(JarResponseDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -83,10 +80,7 @@ public class JarController(IJarService jarService, ILogger<JarController> logger
         try
         {
             var jar = await _jarService.GetJarByTypeAsync(jarType);
-            if (jar == null)
-            {
-                return NotFound($"Jar with type {jarType} not found");
-            }
+            if (jar == null) return NotFound($"Jar with type {jarType} not found");
             return Ok(jar);
         }
         catch (Exception ex)
@@ -97,11 +91,11 @@ public class JarController(IJarService jarService, ILogger<JarController> logger
     }
 
     /// <summary>
-    /// Create a new jar (EN)<br/>
-    /// Tạo jar mới (VI)
+    ///     Create a new jar (EN)<br />
+    ///     Tạo jar mới (VI)
     /// </summary>
-    /// <param name="createDto">Create jar DTO (EN)<br/>DTO tạo jar (VI)</param>
-    /// <returns>Created jar response DTO (EN)<br/>DTO phản hồi jar đã tạo (VI)</returns>
+    /// <param name="createDto">Create jar DTO (EN)<br />DTO tạo jar (VI)</param>
+    /// <returns>Created jar response DTO (EN)<br />DTO phản hồi jar đã tạo (VI)</returns>
     [HttpPost]
     [ProducesResponseType(typeof(JarResponseDto), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -110,10 +104,7 @@ public class JarController(IJarService jarService, ILogger<JarController> logger
     {
         try
         {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ModelState);
-            }
+            if (!ModelState.IsValid) return BadRequest(ModelState);
 
             var jar = await _jarService.CreateJarAsync(createDto);
             return CreatedAtAction(nameof(GetJarById), new { id = jar.Id }, jar);
@@ -131,12 +122,12 @@ public class JarController(IJarService jarService, ILogger<JarController> logger
     }
 
     /// <summary>
-    /// Update an existing jar (EN)<br/>
-    /// Cập nhật jar hiện có (VI)
+    ///     Update an existing jar (EN)<br />
+    ///     Cập nhật jar hiện có (VI)
     /// </summary>
-    /// <param name="id">Jar ID (EN)<br/>ID jar (VI)</param>
-    /// <param name="updateDto">Update jar DTO (EN)<br/>DTO cập nhật jar (VI)</param>
-    /// <returns>Updated jar response DTO (EN)<br/>DTO phản hồi jar đã cập nhật (VI)</returns>
+    /// <param name="id">Jar ID (EN)<br />ID jar (VI)</param>
+    /// <param name="updateDto">Update jar DTO (EN)<br />DTO cập nhật jar (VI)</param>
+    /// <returns>Updated jar response DTO (EN)<br />DTO phản hồi jar đã cập nhật (VI)</returns>
     [HttpPut("{id:guid}")]
     [ProducesResponseType(typeof(JarResponseDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -146,10 +137,7 @@ public class JarController(IJarService jarService, ILogger<JarController> logger
     {
         try
         {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ModelState);
-            }
+            if (!ModelState.IsValid) return BadRequest(ModelState);
 
             var jar = await _jarService.UpdateJarAsync(id, updateDto);
             return Ok(jar);
@@ -167,11 +155,11 @@ public class JarController(IJarService jarService, ILogger<JarController> logger
     }
 
     /// <summary>
-    /// Delete a jar (EN)<br/>
-    /// Xóa jar (VI)
+    ///     Delete a jar (EN)<br />
+    ///     Xóa jar (VI)
     /// </summary>
-    /// <param name="id">Jar ID (EN)<br/>ID jar (VI)</param>
-    /// <returns>Success indicator (EN)<br/>Chỉ báo thành công (VI)</returns>
+    /// <param name="id">Jar ID (EN)<br />ID jar (VI)</param>
+    /// <returns>Success indicator (EN)<br />Chỉ báo thành công (VI)</returns>
     [HttpDelete("{id:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -181,10 +169,7 @@ public class JarController(IJarService jarService, ILogger<JarController> logger
         try
         {
             var result = await _jarService.DeleteJarAsync(id);
-            if (!result)
-            {
-                return NotFound($"Jar with ID {id} not found");
-            }
+            if (!result) return NotFound($"Jar with ID {id} not found");
             return NoContent();
         }
         catch (Exception ex)
@@ -195,10 +180,10 @@ public class JarController(IJarService jarService, ILogger<JarController> logger
     }
 
     /// <summary>
-    /// Initialize default jars for the current user (EN)<br/>
-    /// Khởi tạo jar mặc định cho người dùng hiện tại (VI)
+    ///     Initialize default jars for the current user (EN)<br />
+    ///     Khởi tạo jar mặc định cho người dùng hiện tại (VI)
     /// </summary>
-    /// <returns>List of created jar response DTOs (EN)<br/>Danh sách DTO phản hồi jar đã tạo (VI)</returns>
+    /// <returns>List of created jar response DTOs (EN)<br />Danh sách DTO phản hồi jar đã tạo (VI)</returns>
     [HttpPost("initialize")]
     [ProducesResponseType(typeof(IEnumerable<JarResponseDto>), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -223,12 +208,12 @@ public class JarController(IJarService jarService, ILogger<JarController> logger
     }
 
     /// <summary>
-    /// Add money to a jar (EN)<br/>
-    /// Thêm tiền vào jar (VI)
+    ///     Add money to a jar (EN)<br />
+    ///     Thêm tiền vào jar (VI)
     /// </summary>
-    /// <param name="id">Jar ID (EN)<br/>ID jar (VI)</param>
-    /// <param name="addMoneyDto">Add money DTO (EN)<br/>DTO thêm tiền (VI)</param>
-    /// <returns>Updated jar response DTO (EN)<br/>DTO phản hồi jar đã cập nhật (VI)</returns>
+    /// <param name="id">Jar ID (EN)<br />ID jar (VI)</param>
+    /// <param name="addMoneyDto">Add money DTO (EN)<br />DTO thêm tiền (VI)</param>
+    /// <returns>Updated jar response DTO (EN)<br />DTO phản hồi jar đã cập nhật (VI)</returns>
     [HttpPost("{id:guid}/add-money")]
     [ProducesResponseType(typeof(JarResponseDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -238,10 +223,7 @@ public class JarController(IJarService jarService, ILogger<JarController> logger
     {
         try
         {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ModelState);
-            }
+            if (!ModelState.IsValid) return BadRequest(ModelState);
 
             var jar = await _jarService.AddMoneyToJarAsync(id, addMoneyDto);
             return Ok(jar);
@@ -264,25 +246,23 @@ public class JarController(IJarService jarService, ILogger<JarController> logger
     }
 
     /// <summary>
-    /// Withdraw money from a jar (EN)<br/>
-    /// Rút tiền từ jar (VI)
+    ///     Withdraw money from a jar (EN)<br />
+    ///     Rút tiền từ jar (VI)
     /// </summary>
-    /// <param name="id">Jar ID (EN)<br/>ID jar (VI)</param>
-    /// <param name="withdrawDto">Withdraw money DTO (EN)<br/>DTO rút tiền (VI)</param>
-    /// <returns>Updated jar response DTO (EN)<br/>DTO phản hồi jar đã cập nhật (VI)</returns>
+    /// <param name="id">Jar ID (EN)<br />ID jar (VI)</param>
+    /// <param name="withdrawDto">Withdraw money DTO (EN)<br />DTO rút tiền (VI)</param>
+    /// <returns>Updated jar response DTO (EN)<br />DTO phản hồi jar đã cập nhật (VI)</returns>
     [HttpPost("{id:guid}/withdraw")]
     [ProducesResponseType(typeof(JarResponseDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-    public async Task<ActionResult<JarResponseDto>> WithdrawMoney(Guid id, [FromBody] WithdrawFromJarRequestDto withdrawDto)
+    public async Task<ActionResult<JarResponseDto>> WithdrawMoney(Guid id,
+        [FromBody] WithdrawFromJarRequestDto withdrawDto)
     {
         try
         {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ModelState);
-            }
+            if (!ModelState.IsValid) return BadRequest(ModelState);
 
             var jar = await _jarService.WithdrawFromJarAsync(id, withdrawDto);
             return Ok(jar);
@@ -305,24 +285,22 @@ public class JarController(IJarService jarService, ILogger<JarController> logger
     }
 
     /// <summary>
-    /// Transfer money between jars (EN)<br/>
-    /// Chuyển tiền giữa các jar (VI)
+    ///     Transfer money between jars (EN)<br />
+    ///     Chuyển tiền giữa các jar (VI)
     /// </summary>
-    /// <param name="transferDto">Transfer money DTO (EN)<br/>DTO chuyển tiền (VI)</param>
-    /// <returns>Transfer result DTO (EN)<br/>DTO kết quả chuyển (VI)</returns>
+    /// <param name="transferDto">Transfer money DTO (EN)<br />DTO chuyển tiền (VI)</param>
+    /// <returns>Transfer result DTO (EN)<br />DTO kết quả chuyển (VI)</returns>
     [HttpPost("transfer")]
     [ProducesResponseType(typeof(TransferResultDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-    public async Task<ActionResult<TransferResultDto>> TransferMoney([FromBody] TransferBetweenJarsRequestDto transferDto)
+    public async Task<ActionResult<TransferResultDto>> TransferMoney(
+        [FromBody] TransferBetweenJarsRequestDto transferDto)
     {
         try
         {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ModelState);
-            }
+            if (!ModelState.IsValid) return BadRequest(ModelState);
 
             var result = await _jarService.TransferBetweenJarsAsync(transferDto);
             return Ok(result);
@@ -345,23 +323,21 @@ public class JarController(IJarService jarService, ILogger<JarController> logger
     }
 
     /// <summary>
-    /// Distribute income across jars using 6 Jars methodology (EN)<br/>
-    /// Phân bổ thu nhập qua các jar theo phương pháp 6 Jar (VI)
+    ///     Distribute income across jars using 6 Jars methodology (EN)<br />
+    ///     Phân bổ thu nhập qua các jar theo phương pháp 6 Jar (VI)
     /// </summary>
-    /// <param name="distributeDto">Distribute income DTO (EN)<br/>DTO phân bổ thu nhập (VI)</param>
-    /// <returns>Distribution result DTO (EN)<br/>DTO kết quả phân bổ (VI)</returns>
+    /// <param name="distributeDto">Distribute income DTO (EN)<br />DTO phân bổ thu nhập (VI)</param>
+    /// <returns>Distribution result DTO (EN)<br />DTO kết quả phân bổ (VI)</returns>
     [HttpPost("distribute")]
     [ProducesResponseType(typeof(DistributionResultDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-    public async Task<ActionResult<DistributionResultDto>> DistributeIncome([FromBody] DistributeIncomeRequestDto distributeDto)
+    public async Task<ActionResult<DistributionResultDto>> DistributeIncome(
+        [FromBody] DistributeIncomeRequestDto distributeDto)
     {
         try
         {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ModelState);
-            }
+            if (!ModelState.IsValid) return BadRequest(ModelState);
 
             var result = await _jarService.DistributeIncomeAsync(distributeDto);
             return Ok(result);
@@ -379,10 +355,10 @@ public class JarController(IJarService jarService, ILogger<JarController> logger
     }
 
     /// <summary>
-    /// Get jar allocation summary (EN)<br/>
-    /// Lấy tóm tắt phân bổ jar (VI)
+    ///     Get jar allocation summary (EN)<br />
+    ///     Lấy tóm tắt phân bổ jar (VI)
     /// </summary>
-    /// <returns>Jar allocation summary DTO (EN)<br/>DTO tóm tắt phân bổ jar (VI)</returns>
+    /// <returns>Jar allocation summary DTO (EN)<br />DTO tóm tắt phân bổ jar (VI)</returns>
     [HttpGet("allocation-summary")]
     [ProducesResponseType(typeof(JarAllocationSummaryDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]

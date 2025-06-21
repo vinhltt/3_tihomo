@@ -1,8 +1,8 @@
-using Microsoft.EntityFrameworkCore;
-using Identity.Api.Configuration;
-using Identity.Api.Models;
 using System.Security.Cryptography;
 using System.Text;
+using Identity.Api.Configuration;
+using Identity.Api.Models;
+using Microsoft.EntityFrameworkCore;
 
 namespace Identity.Api.Services;
 
@@ -26,7 +26,7 @@ public class ApiKeyService(IdentityDbContext context, ILogger<ApiKeyService> log
             var apiKey = GenerateApiKey();
             var keyHash = HashApiKey(apiKey);
             var keyPrefix = apiKey[..8]; // First 8 characters for identification
-            
+
             var newApiKey = new ApiKey
             {
                 UserId = userId,
@@ -39,10 +39,10 @@ public class ApiKeyService(IdentityDbContext context, ILogger<ApiKeyService> log
                 IsActive = true,
                 CreatedAt = DateTime.UtcNow
             };
-            
+
             context.ApiKeys.Add(newApiKey);
             await context.SaveChangesAsync();
-            
+
             return new CreateApiKeyResponse
             {
                 Id = newApiKey.Id,
@@ -66,7 +66,7 @@ public class ApiKeyService(IdentityDbContext context, ILogger<ApiKeyService> log
             .Where(ak => ak.UserId == userId)
             .OrderByDescending(ak => ak.CreatedAt)
             .ToListAsync();
-        
+
         return apiKeys.Select(MapToApiKeyInfo).ToList();
     }
 
@@ -74,7 +74,7 @@ public class ApiKeyService(IdentityDbContext context, ILogger<ApiKeyService> log
     {
         var apiKey = await context.ApiKeys
             .FirstOrDefaultAsync(ak => ak.Id == keyId && ak.UserId == userId);
-        
+
         return apiKey != null ? MapToApiKeyInfo(apiKey) : null;
     }
 
@@ -84,12 +84,12 @@ public class ApiKeyService(IdentityDbContext context, ILogger<ApiKeyService> log
         {
             var apiKey = await context.ApiKeys
                 .FirstOrDefaultAsync(ak => ak.Id == keyId && ak.UserId == userId);
-            
+
             if (apiKey == null) return false;
-            
+
             apiKey.IsActive = false;
             await context.SaveChangesAsync();
-            
+
             return true;
         }
         catch (Exception ex)
@@ -105,33 +105,27 @@ public class ApiKeyService(IdentityDbContext context, ILogger<ApiKeyService> log
         {
             if (string.IsNullOrEmpty(apiKey) || apiKey.Length < 8)
                 return null;
-            
+
             var keyPrefix = apiKey[..8];
             var keyHash = HashApiKey(apiKey);
-            
+
             var dbApiKey = await context.ApiKeys
                 .Include(ak => ak.User)
-                .FirstOrDefaultAsync(ak => ak.KeyPrefix == keyPrefix && 
-                                          ak.KeyHash == keyHash && 
-                                          ak.IsActive);
-            
+                .FirstOrDefaultAsync(ak => ak.KeyPrefix == keyPrefix &&
+                                           ak.KeyHash == keyHash &&
+                                           ak.IsActive);
+
             if (dbApiKey == null) return null;
-            
+
             // Check if key is expired
-            if (dbApiKey.ExpiresAt.HasValue && dbApiKey.ExpiresAt.Value < DateTime.UtcNow)
-            {
-                return null;
-            }
-            
+            if (dbApiKey.ExpiresAt.HasValue && dbApiKey.ExpiresAt.Value < DateTime.UtcNow) return null;
+
             // Check if user is active
-            if (!dbApiKey.User.IsActive)
-            {
-                return null;
-            }
-            
+            if (!dbApiKey.User.IsActive) return null;
+
             // Update last used time asynchronously
             _ = Task.Run(async () => await UpdateLastUsedAsync(dbApiKey.Id));
-            
+
             return dbApiKey.User;
         }
         catch (Exception ex)
@@ -147,10 +141,10 @@ public class ApiKeyService(IdentityDbContext context, ILogger<ApiKeyService> log
         {
             var apiKey = await context.ApiKeys.FindAsync(keyId);
             if (apiKey == null) return false;
-            
+
             apiKey.LastUsedAt = DateTime.UtcNow;
             await context.SaveChangesAsync();
-            
+
             return true;
         }
         catch (Exception ex)
@@ -188,9 +182,9 @@ public class ApiKeyService(IdentityDbContext context, ILogger<ApiKeyService> log
             ExpiresAt = apiKey.ExpiresAt,
             LastUsedAt = apiKey.LastUsedAt,
             Description = apiKey.Description,
-            Scopes = !string.IsNullOrEmpty(apiKey.Scopes) ? 
-                     apiKey.Scopes.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList() : 
-                     null
+            Scopes = !string.IsNullOrEmpty(apiKey.Scopes)
+                ? apiKey.Scopes.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList()
+                : null
         };
     }
 }

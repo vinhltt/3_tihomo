@@ -4,8 +4,8 @@ using MoneyManagement.Application.DTOs.SharedExpense;
 namespace MoneyManagement.Application.Validators;
 
 /// <summary>
-/// Validator for UpdateSharedExpenseRequestDto (EN)<br/>
-/// Validator cho UpdateSharedExpenseRequestDto (VI)
+///     Validator for UpdateSharedExpenseRequestDto (EN)<br />
+///     Validator cho UpdateSharedExpenseRequestDto (VI)
 /// </summary>
 public class UpdateSharedExpenseRequestValidator : AbstractValidator<UpdateSharedExpenseRequestDto>
 {
@@ -26,7 +26,8 @@ public class UpdateSharedExpenseRequestValidator : AbstractValidator<UpdateShare
             .GreaterThan(0)
             .WithMessage("Total amount must be greater than 0")
             .LessThanOrEqualTo(1000000000)
-            .WithMessage("Total amount cannot exceed 1,000,000,000");        RuleFor(x => x.Category)
+            .WithMessage("Total amount cannot exceed 1,000,000,000");
+        RuleFor(x => x.Category)
             .MaximumLength(100)
             .WithMessage("Category cannot exceed 100 characters")
             .When(x => !string.IsNullOrEmpty(x.Category));

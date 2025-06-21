@@ -11,15 +11,20 @@ namespace Identity.Infrastructure.Services;
 
 public class JwtTokenService(IConfiguration configuration) : IJwtTokenService
 {
-    private readonly string _secretKey = configuration["Jwt:SecretKey"] ?? throw new InvalidOperationException("JWT secret key not configured");
-    private readonly string _issuer = configuration["Jwt:Issuer"] ?? throw new InvalidOperationException("JWT issuer not configured");
-    private readonly string _audience = configuration["Jwt:Audience"] ?? throw new InvalidOperationException("JWT audience not configured");
+    private readonly string _audience = configuration["Jwt:Audience"] ??
+                                        throw new InvalidOperationException("JWT audience not configured");
 
-    public TimeSpan AccessTokenLifetime => 
-        TimeSpan.FromMinutes(configuration.GetValue<int>("Jwt:AccessTokenExpirationMinutes", 30));
+    private readonly string _issuer =
+        configuration["Jwt:Issuer"] ?? throw new InvalidOperationException("JWT issuer not configured");
 
-    public TimeSpan RefreshTokenLifetime => 
-        TimeSpan.FromDays(configuration.GetValue<int>("Jwt:RefreshTokenExpirationDays", 7));
+    private readonly string _secretKey = configuration["Jwt:SecretKey"] ??
+                                         throw new InvalidOperationException("JWT secret key not configured");
+
+    public TimeSpan AccessTokenLifetime =>
+        TimeSpan.FromMinutes(configuration.GetValue("Jwt:AccessTokenExpirationMinutes", 30));
+
+    public TimeSpan RefreshTokenLifetime =>
+        TimeSpan.FromDays(configuration.GetValue("Jwt:RefreshTokenExpirationDays", 7));
 
     public string GenerateAccessToken(UserProfile user)
     {
@@ -35,10 +40,7 @@ public class JwtTokenService(IConfiguration configuration) : IJwtTokenService
         };
 
         // Add roles as claims
-        foreach (var role in user.Roles)
-        {
-            claims.Add(new Claim(ClaimTypes.Role, role));
-        }
+        foreach (var role in user.Roles) claims.Add(new Claim(ClaimTypes.Role, role));
 
         var tokenDescriptor = new SecurityTokenDescriptor
         {
@@ -46,7 +48,8 @@ public class JwtTokenService(IConfiguration configuration) : IJwtTokenService
             Expires = DateTime.UtcNow.Add(AccessTokenLifetime),
             Issuer = _issuer,
             Audience = _audience,
-            SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
+            SigningCredentials =
+                new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
         };
 
         var token = tokenHandler.CreateToken(tokenDescriptor);
@@ -81,7 +84,7 @@ public class JwtTokenService(IConfiguration configuration) : IJwtTokenService
             };
 
             var principal = await tokenHandler.ValidateTokenAsync(token, validationParameters);
-            
+
             if (principal.IsValid)
             {
                 var userIdClaim = principal.ClaimsIdentity.FindFirst(ClaimTypes.NameIdentifier);

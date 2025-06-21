@@ -26,7 +26,8 @@ public class RoleRepository(IdentityDbContext context) : BaseRepository<Role, Gu
         return await DbSet.AnyAsync(r => r.Name == name, cancellationToken);
     }
 
-    public async Task<bool> IsNameExistsAsync(string name, Guid excludeRoleId, CancellationToken cancellationToken = default)
+    public async Task<bool> IsNameExistsAsync(string name, Guid excludeRoleId,
+        CancellationToken cancellationToken = default)
     {
         return await DbSet.AnyAsync(r => r.Name == name && r.Id != excludeRoleId, cancellationToken);
     }
@@ -39,7 +40,7 @@ public class RoleRepository(IdentityDbContext context) : BaseRepository<Role, Gu
             RoleId = roleId,
             AssignedAt = DateTime.UtcNow
         };
-        
+
         Context.UserRoles.Add(userRole);
         await Context.SaveChangesAsync(cancellationToken);
     }
@@ -48,7 +49,7 @@ public class RoleRepository(IdentityDbContext context) : BaseRepository<Role, Gu
     {
         var userRole = await Context.UserRoles
             .FirstOrDefaultAsync(ur => ur.UserId == userId && ur.RoleId == roleId, cancellationToken);
-        
+
         if (userRole != null)
         {
             Context.UserRoles.Remove(userRole);

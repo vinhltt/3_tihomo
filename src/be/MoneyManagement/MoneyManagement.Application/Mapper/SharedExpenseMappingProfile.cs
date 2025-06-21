@@ -2,12 +2,13 @@ using AutoMapper;
 using MoneyManagement.Application.DTOs.SharedExpense;
 using MoneyManagement.Application.DTOs.SharedExpenseParticipant;
 using MoneyManagement.Domain.Entities;
+using MoneyManagement.Domain.Enums;
 
 namespace MoneyManagement.Application.Mapper;
 
 /// <summary>
-/// AutoMapper profile for SharedExpense entity mappings (EN)<br/>
-/// Profile AutoMapper cho ánh xạ entity SharedExpense (VI)
+///     AutoMapper profile for SharedExpense entity mappings (EN)<br />
+///     Profile AutoMapper cho ánh xạ entity SharedExpense (VI)
 /// </summary>
 public class SharedExpenseMappingProfile : Profile
 {
@@ -24,7 +25,7 @@ public class SharedExpenseMappingProfile : Profile
             .ForMember(dest => dest.Id, opt => opt.Ignore())
             .ForMember(dest => dest.CreatedByUserId, opt => opt.Ignore()) // Will be set from user context
             .ForMember(dest => dest.SettledAmount, opt => opt.MapFrom(src => 0))
-            .ForMember(dest => dest.Status, opt => opt.MapFrom(src => Domain.Enums.SharedExpenseStatus.Pending))
+            .ForMember(dest => dest.Status, opt => opt.MapFrom(src => SharedExpenseStatus.Pending))
             .ForMember(dest => dest.Participants, opt => opt.Ignore())
             .ForMember(dest => dest.CreateAt, opt => opt.Ignore())
             .ForMember(dest => dest.UpdateAt, opt => opt.Ignore())
@@ -43,7 +44,8 @@ public class SharedExpenseMappingProfile : Profile
             .ForMember(dest => dest.UpdateAt, opt => opt.Ignore())
             .ForMember(dest => dest.CreateBy, opt => opt.Ignore())
             .ForMember(dest => dest.UpdateBy, opt => opt.Ignore())
-            .ForMember(dest => dest.Deleted, opt => opt.Ignore());        // SharedExpenseParticipant entity to SharedExpenseParticipantResponseDto mapping
+            .ForMember(dest => dest.Deleted,
+                opt => opt.Ignore()); // SharedExpenseParticipant entity to SharedExpenseParticipantResponseDto mapping
         CreateMap<SharedExpenseParticipant, SharedExpenseParticipantResponseDto>()
             .ForMember(dest => dest.RemainingAmount, opt => opt.MapFrom(src => src.OwedAmount))
             .ForMember(dest => dest.IsSettled, opt => opt.MapFrom(src => src.IsSettled))

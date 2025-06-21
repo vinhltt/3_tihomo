@@ -5,14 +5,11 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
-
   <ItemGroup>
     <PackageReference Include="Castle.Core" Version="5.2.1" />
     <PackageReference Include="Castle.Core.AsyncInterceptor" Version="2.1.0" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.4" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.6" />
     <PackageReference Include="System.Text.Json" Version="9.0.5" />
   </ItemGroup>
-
-  <Import Project="..\..\Shared.Contracts\Shared.Contracts.projitems" Label="Shared" />
 
 </Project>

@@ -1,6 +1,5 @@
+using System.Text.Json;
 using Google.Apis.Auth;
-using Identity.Api.Models;
-using System.IdentityModel.Tokens.Jwt;
 
 namespace Identity.Api.Services;
 
@@ -47,10 +46,11 @@ public class TokenVerificationService(
                 return null;
             }
 
-            var payload = await GoogleJsonWebSignature.ValidateAsync(token, new GoogleJsonWebSignature.ValidationSettings
-            {
-                Audience = new[] { clientId }
-            });
+            var payload = await GoogleJsonWebSignature.ValidateAsync(token,
+                new GoogleJsonWebSignature.ValidationSettings
+                {
+                    Audience = new[] { clientId }
+                });
 
             return new SocialUserInfo
             {
@@ -74,7 +74,7 @@ public class TokenVerificationService(
         {
             var appId = configuration["FacebookAuth:AppId"];
             var appSecret = configuration["FacebookAuth:AppSecret"];
-            
+
             if (string.IsNullOrEmpty(appId) || string.IsNullOrEmpty(appSecret))
             {
                 logger.LogError("Facebook App ID or Secret not configured");
@@ -82,9 +82,10 @@ public class TokenVerificationService(
             }
 
             // Verify token with Facebook Graph API
-            var verifyUrl = $"https://graph.facebook.com/debug_token?input_token={token}&access_token={appId}|{appSecret}";
+            var verifyUrl =
+                $"https://graph.facebook.com/debug_token?input_token={token}&access_token={appId}|{appSecret}";
             var verifyResponse = await httpClient.GetAsync(verifyUrl);
-            
+
             if (!verifyResponse.IsSuccessStatusCode)
             {
                 logger.LogError("Facebook token verification failed");
@@ -94,7 +95,7 @@ public class TokenVerificationService(
             // Get user info
             var userUrl = $"https://graph.facebook.com/me?fields=id,name,email,picture&access_token={token}";
             var userResponse = await httpClient.GetAsync(userUrl);
-            
+
             if (!userResponse.IsSuccessStatusCode)
             {
                 logger.LogError("Failed to get Facebook user info");
@@ -102,8 +103,8 @@ public class TokenVerificationService(
             }
 
             var userJson = await userResponse.Content.ReadAsStringAsync();
-            var userInfo = System.Text.Json.JsonSerializer.Deserialize<dynamic>(userJson);
-            
+            var userInfo = JsonSerializer.Deserialize<dynamic>(userJson);
+
             // Note: This is a simplified implementation. In production, you'd want better JSON handling
             return new SocialUserInfo
             {

@@ -4,8 +4,8 @@ using MoneyManagement.Application.DTOs.Budget;
 namespace MoneyManagement.Application.Validators;
 
 /// <summary>
-/// Validator for CreateBudgetRequest (EN)<br/>
-/// Validator cho CreateBudgetRequest (VI)
+///     Validator for CreateBudgetRequest (EN)<br />
+///     Validator cho CreateBudgetRequest (VI)
 /// </summary>
 public class CreateBudgetRequestValidator : AbstractValidator<CreateBudgetRequest>
 {
@@ -55,4 +55,4 @@ public class CreateBudgetRequestValidator : AbstractValidator<CreateBudgetReques
             .WithMessage("Notes cannot exceed 1000 characters")
             .When(x => !string.IsNullOrEmpty(x.Notes));
     }
-} 
+}

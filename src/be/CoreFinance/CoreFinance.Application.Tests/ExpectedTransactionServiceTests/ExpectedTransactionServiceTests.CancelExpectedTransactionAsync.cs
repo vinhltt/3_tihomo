@@ -11,14 +11,16 @@ using Moq;
 namespace CoreFinance.Application.Tests.ExpectedTransactionServiceTests;
 
 /// <summary>
-/// Contains test cases for the CancelExpectedTransactionAsync method of ExpectedTransactionService. (EN)<br/>
-/// Chứa các trường hợp kiểm thử cho phương thức CancelExpectedTransactionAsync của ExpectedTransactionService. (VI)
+///     Contains test cases for the CancelExpectedTransactionAsync method of ExpectedTransactionService. (EN)<br />
+///     Chứa các trường hợp kiểm thử cho phương thức CancelExpectedTransactionAsync của ExpectedTransactionService. (VI)
 /// </summary>
 public partial class ExpectedTransactionServiceTests
 {
     /// <summary>
-    /// Verifies that CancelExpectedTransactionAsync returns true and updates the transaction status and reason when cancellation is successful. (EN)<br/>
-    /// Xác minh rằng CancelExpectedTransactionAsync trả về true và cập nhật trạng thái giao dịch cùng lý do khi hủy bỏ thành công. (VI)
+    ///     Verifies that CancelExpectedTransactionAsync returns true and updates the transaction status and reason when
+    ///     cancellation is successful. (EN)<br />
+    ///     Xác minh rằng CancelExpectedTransactionAsync trả về true và cập nhật trạng thái giao dịch cùng lý do khi hủy bỏ
+    ///     thành công. (VI)
     /// </summary>
     [Fact]
     public async Task CancelExpectedTransactionAsync_ShouldReturnTrue_WhenTransactionIsCancelledSuccessfully()
@@ -72,8 +74,9 @@ public partial class ExpectedTransactionServiceTests
     }
 
     /// <summary>
-    /// Verifies that CancelExpectedTransactionAsync returns false when the expected transaction to cancel is not found. (EN)<br/>
-    /// Xác minh rằng CancelExpectedTransactionAsync trả về false khi không tìm thấy giao dịch dự kiến cần hủy bỏ. (VI)
+    ///     Verifies that CancelExpectedTransactionAsync returns false when the expected transaction to cancel is not found.
+    ///     (EN)<br />
+    ///     Xác minh rằng CancelExpectedTransactionAsync trả về false khi không tìm thấy giao dịch dự kiến cần hủy bỏ. (VI)
     /// </summary>
     [Fact]
     public async Task CancelExpectedTransactionAsync_ShouldReturnFalse_WhenTransactionNotFound()
@@ -108,8 +111,10 @@ public partial class ExpectedTransactionServiceTests
     }
 
     /// <summary>
-    /// Verifies that CancelExpectedTransactionAsync returns false when the expected transaction is not in the Pending status. (EN)<br/>
-    /// Xác minh rằng CancelExpectedTransactionAsync trả về false khi giao dịch dự kiến không ở trạng thái Đang chờ xử lý. (VI)
+    ///     Verifies that CancelExpectedTransactionAsync returns false when the expected transaction is not in the Pending
+    ///     status. (EN)<br />
+    ///     Xác minh rằng CancelExpectedTransactionAsync trả về false khi giao dịch dự kiến không ở trạng thái Đang chờ xử lý.
+    ///     (VI)
     /// </summary>
     [Fact]
     public async Task CancelExpectedTransactionAsync_ShouldReturnFalse_WhenTransactionIsNotPending()
@@ -152,8 +157,10 @@ public partial class ExpectedTransactionServiceTests
     }
 
     /// <summary>
-    /// Verifies that CancelExpectedTransactionAsync returns false and logs an error when an exception occurs during the cancellation process. (EN)<br/>
-    /// Xác minh rằng CancelExpectedTransactionAsync trả về false và ghi log lỗi khi có ngoại lệ xảy ra trong quá trình hủy bỏ. (VI)
+    ///     Verifies that CancelExpectedTransactionAsync returns false and logs an error when an exception occurs during the
+    ///     cancellation process. (EN)<br />
+    ///     Xác minh rằng CancelExpectedTransactionAsync trả về false và ghi log lỗi khi có ngoại lệ xảy ra trong quá trình hủy
+    ///     bỏ. (VI)
     /// </summary>
     [Fact]
     public async Task CancelExpectedTransactionAsync_ShouldReturnFalse_WhenExceptionOccurs()

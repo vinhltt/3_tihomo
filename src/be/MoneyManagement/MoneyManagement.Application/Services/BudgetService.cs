@@ -10,8 +10,8 @@ using MoneyManagement.Domain.UnitOfWorks;
 namespace MoneyManagement.Application.Services;
 
 /// <summary>
-/// Budget management service implementation (EN)<br/>
-/// Triển khai dịch vụ quản lý ngân sách (VI)
+///     Budget management service implementation (EN)<br />
+///     Triển khai dịch vụ quản lý ngân sách (VI)
 /// </summary>
 public class BudgetService(IMapper mapper, IUnitOfWork unitOfWork, ILogger<BudgetService> logger)
     : IBudgetService
@@ -153,8 +153,8 @@ public class BudgetService(IMapper mapper, IUnitOfWork unitOfWork, ILogger<Budge
     {
         var budgets = await unitOfWork.Repository<Budget, Guid>()
             .GetNoTrackingEntities()
-            .Where(b => b.UserId == userId && b.Status == BudgetStatus.Active && 
-                       b.AlertThreshold.HasValue && b.EnableNotifications && string.IsNullOrEmpty(b.Deleted))
+            .Where(b => b.UserId == userId && b.Status == BudgetStatus.Active &&
+                        b.AlertThreshold.HasValue && b.EnableNotifications && string.IsNullOrEmpty(b.Deleted))
             .ToListAsync();
 
         var alertBudgets = budgets.Where(b => b.IsAlertThresholdReached).ToList();
@@ -186,4 +186,4 @@ public class BudgetService(IMapper mapper, IUnitOfWork unitOfWork, ILogger<Budge
 
         return mapper.Map<BudgetViewModel>(budget);
     }
-} 
+}

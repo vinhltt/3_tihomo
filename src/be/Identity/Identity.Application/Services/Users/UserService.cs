@@ -1,29 +1,30 @@
 using Identity.Application.Common.Interfaces;
-using Identity.Contracts.Users;
 using Identity.Contracts.Common;
 using Identity.Contracts.Roles;
+using Identity.Contracts.Users;
 using Identity.Domain.Entities;
 using Identity.Domain.Repositories;
 
 namespace Identity.Application.Services.Users;
 
 /// <summary>
-/// Service for managing user operations (EN)<br/>
-/// Dịch vụ quản lý các thao tác người dùng (VI)
+///     Service for managing user operations (EN)<br />
+///     Dịch vụ quản lý các thao tác người dùng (VI)
 /// </summary>
 /// <param name="userRepository">
-/// Repository for user data access (EN)<br/>
-/// Repository để truy cập dữ liệu người dùng (VI)
+///     Repository for user data access (EN)<br />
+///     Repository để truy cập dữ liệu người dùng (VI)
 /// </param>
 /// <param name="passwordHasher">
-/// Service for password hashing and verification (EN)<br/>
-/// Dịch vụ để băm và xác minh mật khẩu (VI)
+///     Service for password hashing and verification (EN)<br />
+///     Dịch vụ để băm và xác minh mật khẩu (VI)
 /// </param>
 /// <param name="roleRepository">
-/// Repository for role data access (EN)<br/>
-/// Repository để truy cập dữ liệu vai trò (VI)
+///     Repository for role data access (EN)<br />
+///     Repository để truy cập dữ liệu vai trò (VI)
 /// </param>
-public class UserService(IUserRepository userRepository, IPasswordHasher passwordHasher, IRoleRepository roleRepository) : IUserService
+public class UserService(IUserRepository userRepository, IPasswordHasher passwordHasher, IRoleRepository roleRepository)
+    : IUserService
 {
     public async Task<UserResponse?> GetByIdAsync(Guid userId, CancellationToken cancellationToken = default)
     {
@@ -37,21 +38,17 @@ public class UserService(IUserRepository userRepository, IPasswordHasher passwor
         return user == null ? null : MapToUserResponse(user);
     }
 
-    public async Task<UserResponse> UpdateAsync(Guid userId, UpdateUserRequest request, CancellationToken cancellationToken = default)
+    public async Task<UserResponse> UpdateAsync(Guid userId, UpdateUserRequest request,
+        CancellationToken cancellationToken = default)
     {
         var user = await userRepository.GetByIdAsync(userId, cancellationToken);
-        if (user == null)
-        {
-            throw new KeyNotFoundException($"User with ID {userId} not found");
-        }
+        if (user == null) throw new KeyNotFoundException($"User with ID {userId} not found");
 
         // Validate email uniqueness if changed
         if (!string.IsNullOrEmpty(request.Email) && request.Email != user.Email)
         {
             if (await userRepository.IsEmailExistsAsync(request.Email, userId, cancellationToken))
-            {
                 throw new InvalidOperationException("Email is already taken");
-            }
             user.Email = request.Email;
         }
 
@@ -59,11 +56,10 @@ public class UserService(IUserRepository userRepository, IPasswordHasher passwor
         if (!string.IsNullOrEmpty(request.Username) && request.Username != user.Username)
         {
             if (await userRepository.IsUsernameExistsAsync(request.Username, userId, cancellationToken))
-            {
                 throw new InvalidOperationException("Username is already taken");
-            }
             user.Username = request.Username;
-        }        // Update other fields - combine FirstName and LastName into FullName
+        } // Update other fields - combine FirstName and LastName into FullName
+
         if (!string.IsNullOrEmpty(request.FirstName) || !string.IsNullOrEmpty(request.LastName))
         {
             var firstName = !string.IsNullOrEmpty(request.FirstName) ? request.FirstName : "";
@@ -77,25 +73,20 @@ public class UserService(IUserRepository userRepository, IPasswordHasher passwor
         return MapToUserResponse(user);
     }
 
-    public async Task ChangePasswordAsync(Guid userId, ChangePasswordRequest request, CancellationToken cancellationToken = default)
+    public async Task ChangePasswordAsync(Guid userId, ChangePasswordRequest request,
+        CancellationToken cancellationToken = default)
     {
         var user = await userRepository.GetByIdAsync(userId, cancellationToken);
-        if (user == null)
-        {
-            throw new KeyNotFoundException($"User with ID {userId} not found");
-        }
+        if (user == null) throw new KeyNotFoundException($"User with ID {userId} not found");
 
         // For Google users who don't have a password yet, skip current password verification
-        if (!string.IsNullOrEmpty(user.PasswordHash) && !passwordHasher.VerifyPassword(request.CurrentPassword, user.PasswordHash))
-        {
+        if (!string.IsNullOrEmpty(user.PasswordHash) &&
+            !passwordHasher.VerifyPassword(request.CurrentPassword, user.PasswordHash))
             throw new UnauthorizedAccessException("Current password is incorrect");
-        }
 
         // Validate new password confirmation
         if (request.NewPassword != request.ConfirmPassword)
-        {
             throw new ArgumentException("New password and confirmation do not match");
-        }
 
         // Hash new password
         user.PasswordHash = passwordHasher.HashPassword(request.NewPassword);
@@ -104,19 +95,17 @@ public class UserService(IUserRepository userRepository, IPasswordHasher passwor
         await userRepository.UpdateAsync(user, cancellationToken);
     }
 
-    public async Task<UserResponse> CreateAsync(CreateUserRequest request, CancellationToken cancellationToken = default)
+    public async Task<UserResponse> CreateAsync(CreateUserRequest request,
+        CancellationToken cancellationToken = default)
     {
         // Check if email is already taken
         if (await userRepository.IsEmailExistsAsync(request.Email, cancellationToken))
-        {
             throw new InvalidOperationException("Email is already taken");
-        }
 
         // Check if username is already taken
         if (await userRepository.IsUsernameExistsAsync(request.Username, cancellationToken))
-        {
             throw new InvalidOperationException("Username is already taken");
-        }        var user = new User
+        var user = new User
         {
             Id = Guid.NewGuid(),
             Email = request.Email,
@@ -136,21 +125,19 @@ public class UserService(IUserRepository userRepository, IPasswordHasher passwor
     public async Task DeleteAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         var user = await userRepository.GetByIdAsync(userId, cancellationToken);
-        if (user == null)
-        {
-            throw new KeyNotFoundException($"User with ID {userId} not found");
-        }
+        if (user == null) throw new KeyNotFoundException($"User with ID {userId} not found");
 
         await userRepository.DeleteAsync(userId, cancellationToken);
     }
 
-    public async Task<PagedResponse<UserResponse>> GetPagedAsync(int page = 1, int pageSize = 10, string? search = null, CancellationToken cancellationToken = default)
+    public async Task<PagedResponse<UserResponse>> GetPagedAsync(int page = 1, int pageSize = 10, string? search = null,
+        CancellationToken cancellationToken = default)
     {
         var users = await userRepository.GetPagedAsync(page, pageSize, search, cancellationToken);
         var totalCount = await userRepository.GetTotalCountAsync(search, cancellationToken);
-        
+
         var userResponses = users.Select(MapToUserResponse).ToList();
-        
+
         return new PagedResponse<UserResponse>
         {
             Items = userResponses,
@@ -161,41 +148,43 @@ public class UserService(IUserRepository userRepository, IPasswordHasher passwor
         };
     }
 
-    public async Task<bool> ValidatePasswordAsync(Guid userId, string password, CancellationToken cancellationToken = default)
+    public async Task<bool> ValidatePasswordAsync(Guid userId, string password,
+        CancellationToken cancellationToken = default)
     {
         var user = await userRepository.GetByIdAsync(userId, cancellationToken);
-        if (user == null || string.IsNullOrEmpty(user.PasswordHash))
-        {
-            return false;
-        }
+        if (user == null || string.IsNullOrEmpty(user.PasswordHash)) return false;
 
         return passwordHasher.VerifyPassword(password, user.PasswordHash);
     }
 
-    public async Task<bool> IsEmailExistsAsync(string email, Guid? excludeUserId = null, CancellationToken cancellationToken = default)
+    public async Task<bool> IsEmailExistsAsync(string email, Guid? excludeUserId = null,
+        CancellationToken cancellationToken = default)
     {
         if (excludeUserId.HasValue)
-        {
             return await userRepository.IsEmailExistsAsync(email, excludeUserId.Value, cancellationToken);
-        }
-        
+
         return await userRepository.IsEmailExistsAsync(email, cancellationToken);
-    }    public async Task<bool> IsUsernameExistsAsync(string username, Guid? excludeUserId = null, CancellationToken cancellationToken = default)
+    }
+
+    public async Task<bool> IsUsernameExistsAsync(string username, Guid? excludeUserId = null,
+        CancellationToken cancellationToken = default)
     {
         if (excludeUserId.HasValue)
-        {
             return await userRepository.IsUsernameExistsAsync(username, excludeUserId.Value, cancellationToken);
-        }
-        
+
         return await userRepository.IsUsernameExistsAsync(username, cancellationToken);
     }
 
-    public async Task<IEnumerable<RoleResponse>> GetUserRolesAsync(Guid userId, CancellationToken cancellationToken = default)
+    public async Task<IEnumerable<RoleResponse>> GetUserRolesAsync(Guid userId,
+        CancellationToken cancellationToken = default)
     {
         var roles = await roleRepository.GetUserRolesAsync(userId, cancellationToken);
         return roles.Select(MapToRoleResponse);
-    }    private static UserResponse MapToUserResponse(User user)
-    {        return new UserResponse
+    }
+
+    private static UserResponse MapToUserResponse(User user)
+    {
+        return new UserResponse
         {
             Id = user.Id,
             Email = user.Email,

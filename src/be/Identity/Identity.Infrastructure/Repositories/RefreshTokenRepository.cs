@@ -15,7 +15,8 @@ public class RefreshTokenRepository(IdentityDbContext context)
             .FirstOrDefaultAsync(rt => rt.Token == token, cancellationToken);
     }
 
-    public async Task<IEnumerable<RefreshToken>> GetByUserIdAsync(Guid userId, CancellationToken cancellationToken = default)
+    public async Task<IEnumerable<RefreshToken>> GetByUserIdAsync(Guid userId,
+        CancellationToken cancellationToken = default)
     {
         return await DbSet
             .Where(rt => rt.UserId == userId)
@@ -23,7 +24,8 @@ public class RefreshTokenRepository(IdentityDbContext context)
             .ToListAsync(cancellationToken);
     }
 
-    public async Task RevokeAllUserTokensAsync(Guid userId, string revokedBy, CancellationToken cancellationToken = default)
+    public async Task RevokeAllUserTokensAsync(Guid userId, string revokedBy,
+        CancellationToken cancellationToken = default)
     {
         var tokens = await DbSet
             .Where(rt => rt.UserId == userId && !rt.IsRevoked)

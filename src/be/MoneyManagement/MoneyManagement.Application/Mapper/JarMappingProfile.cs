@@ -5,8 +5,8 @@ using MoneyManagement.Domain.Entities;
 namespace MoneyManagement.Application.Mapper;
 
 /// <summary>
-/// AutoMapper profile for Jar entity mappings (EN)<br/>
-/// Profile AutoMapper cho ánh xạ entity Jar (VI)
+///     AutoMapper profile for Jar entity mappings (EN)<br />
+///     Profile AutoMapper cho ánh xạ entity Jar (VI)
 /// </summary>
 public class JarMappingProfile : Profile
 {

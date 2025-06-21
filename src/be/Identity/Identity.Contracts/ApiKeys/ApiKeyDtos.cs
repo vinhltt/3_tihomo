@@ -3,16 +3,16 @@ using Identity.Domain.Enums;
 namespace Identity.Contracts.ApiKeys;
 
 public record CreateApiKeyRequest(
-    string Name, 
-    List<string> Scopes, 
+    string Name,
+    List<string> Scopes,
     DateTime? ExpiresAt);
 
 public record CreateApiKeyResponse(
-    Guid Id, 
-    string Name, 
+    Guid Id,
+    string Name,
     string ApiKey, // Only shown once!
-    List<string> Scopes, 
-    DateTime CreatedAt, 
+    List<string> Scopes,
+    DateTime CreatedAt,
     DateTime? ExpiresAt);
 
 public record UpdateApiKeyRequest(
@@ -44,13 +44,13 @@ public record VerifyApiKeyResponse
 }
 
 public record ApiKeyDetailResponse(
-    Guid Id, 
-    string Name, 
+    Guid Id,
+    string Name,
     List<string> Scopes,
-    ApiKeyStatus Status, 
-    DateTime CreatedAt, 
-    DateTime? ExpiresAt, 
-    DateTime? LastUsedAt, 
+    ApiKeyStatus Status,
+    DateTime CreatedAt,
+    DateTime? ExpiresAt,
+    DateTime? LastUsedAt,
     int UsageCount);
 
 public record ApiKeyListItem(

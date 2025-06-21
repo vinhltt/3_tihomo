@@ -1,35 +1,28 @@
-using Microsoft.Extensions.Diagnostics.HealthChecks;
-using System.Diagnostics;
 using Identity.Api.Services;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 namespace Identity.Api.HealthChecks;
 
 /// <summary>
-/// Health check for telemetry and observability systems
-/// Health check cho hệ thống telemetry và observability
+///     Health check for telemetry and observability systems
+///     Health check cho hệ thống telemetry và observability
 /// </summary>
-public class TelemetryHealthCheck : IHealthCheck
+public class TelemetryHealthCheck(
+    TelemetryService telemetryService,
+    ILogger<TelemetryHealthCheck> logger)
+    : IHealthCheck
 {
-    private readonly TelemetryService _telemetryService;
-    private readonly ILogger<TelemetryHealthCheck> _logger;
-
-    public TelemetryHealthCheck(
-        TelemetryService telemetryService,
-        ILogger<TelemetryHealthCheck> logger)
-    {
-        _telemetryService = telemetryService;
-        _logger = logger;
-    }
+    private readonly TelemetryService _telemetryService = telemetryService;
 
     public Task<HealthCheckResult> CheckHealthAsync(
-        HealthCheckContext context, 
+        HealthCheckContext context,
         CancellationToken cancellationToken = default)
     {
         try
         {
             // Check if telemetry service is working properly
             // Kiểm tra xem telemetry service có hoạt động đúng không
-            var data = new Dictionary<string, object>();            // Test activity source creation
+            var data = new Dictionary<string, object>(); // Test activity source creation
             // Test tạo activity source
             using var activity = TelemetryService.ActivitySource.StartActivity("health-check-test");
             if (activity != null)
@@ -57,7 +50,8 @@ public class TelemetryHealthCheck : IHealthCheck
                 data));
         }
         catch (Exception ex)
-        {            _logger.LogError(ex, "Telemetry health check failed");
+        {
+            logger.LogError(ex, "Telemetry health check failed");
 
             // Record failed health check - placeholder comment as method doesn't exist
             // Ghi lại health check thất bại - placeholder comment vì method không tồn tại

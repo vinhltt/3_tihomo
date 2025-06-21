@@ -1,9 +1,10 @@
 using System.Net;
+using System.Text.Json;
 
 namespace Ocelot.Gateway.Middleware;
 
 /// <summary>
-/// Global exception handling middleware
+///     Global exception handling middleware
 /// </summary>
 public class GlobalExceptionHandlingMiddleware(
     RequestDelegate next,
@@ -25,10 +26,10 @@ public class GlobalExceptionHandlingMiddleware(
     private async Task HandleExceptionAsync(HttpContext context, Exception exception)
     {
         var requestId = context.Items["RequestId"]?.ToString() ?? Guid.NewGuid().ToString();
-        
-        logger.LogError(exception, 
-            "Unhandled exception occurred for request {RequestId}: {ExceptionMessage}", 
-            requestId, 
+
+        logger.LogError(exception,
+            "Unhandled exception occurred for request {RequestId}: {ExceptionMessage}",
+            requestId,
             exception.Message);
 
         var response = context.Response;
@@ -52,12 +53,12 @@ public class GlobalExceptionHandlingMiddleware(
             _ => (int)HttpStatusCode.InternalServerError
         };
 
-        await response.WriteAsync(System.Text.Json.JsonSerializer.Serialize(errorResponse));
+        await response.WriteAsync(JsonSerializer.Serialize(errorResponse));
     }
 }
 
 /// <summary>
-/// Extension methods for registering global exception handling middleware
+///     Extension methods for registering global exception handling middleware
 /// </summary>
 public static class GlobalExceptionHandlingMiddlewareExtensions
 {

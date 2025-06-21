@@ -8,38 +8,41 @@ using Shared.Contracts.Extensions;
 namespace CoreFinance.Infrastructure;
 
 /// <summary>
-    /// (EN) Represents the database context for the Core Finance application.<br/>
-    /// (VI) Biểu thị ngữ cảnh cơ sở dữ liệu cho ứng dụng Core Finance.
+///     (EN) Represents the database context for the Core Finance application.<br />
+///     (VI) Biểu thị ngữ cảnh cơ sở dữ liệu cho ứng dụng Core Finance.
 /// </summary>
 public class CoreFinanceDbContext : DbContext
 {
-    // ReSharper disable once NotAccessedField.Local
-    private readonly IConfiguration _configuration;
     /// <summary>
-    /// (EN) The default connection string name for the database.<br/>
-    /// (VI) Tên chuỗi kết nối mặc định cho cơ sở dữ liệu.
+    ///     (EN) The default connection string name for the database.<br />
+    ///     (VI) Tên chuỗi kết nối mặc định cho cơ sở dữ liệu.
     /// </summary>
     public const string DEFAULT_CONNECTION_STRING = "CoreFinanceDb";
 
+    // ReSharper disable once NotAccessedField.Local
+    private readonly IConfiguration _configuration;
+
     /// <summary>
-    /// (EN) Initializes a new instance of the <see cref="CoreFinanceDbContext"/> class.<br/>
-    /// (VI) Khởi tạo một phiên bản mới của lớp <see cref="CoreFinanceDbContext"/>.
+    ///     (EN) Initializes a new instance of the <see cref="CoreFinanceDbContext" /> class.<br />
+    ///     (VI) Khởi tạo một phiên bản mới của lớp <see cref="CoreFinanceDbContext" />.
     /// </summary>
     public CoreFinanceDbContext()
     {
     }
 
     /// <summary>
-    /// (EN) Initializes a new instance of the <see cref="CoreFinanceDbContext"/> class with specified options and configuration.<br/>
-    /// (VI) Khởi tạo một phiên bản mới của lớp <see cref="CoreFinanceDbContext"/> với các tùy chọn và cấu hình được chỉ định.
+    ///     (EN) Initializes a new instance of the <see cref="CoreFinanceDbContext" /> class with specified options and
+    ///     configuration.<br />
+    ///     (VI) Khởi tạo một phiên bản mới của lớp <see cref="CoreFinanceDbContext" /> với các tùy chọn và cấu hình được chỉ
+    ///     định.
     /// </summary>
     /// <param name="options">
-    /// The DbContext options. (EN)<br/>
-    /// Các tùy chọn DbContext. (VI)
+    ///     The DbContext options. (EN)<br />
+    ///     Các tùy chọn DbContext. (VI)
     /// </param>
     /// <param name="configuration">
-    /// The application configuration. (EN)<br/>
-    /// Cấu hình ứng dụng. (VI)
+    ///     The application configuration. (EN)<br />
+    ///     Cấu hình ứng dụng. (VI)
     /// </param>
     public CoreFinanceDbContext(DbContextOptions<CoreFinanceDbContext> options,
         IConfiguration configuration) : base(options)
@@ -48,33 +51,36 @@ public class CoreFinanceDbContext : DbContext
     }
 
     /// <summary>
-    /// (EN) Gets or sets the DbSet for Accounts.<br/>
-    /// (VI) Lấy hoặc thiết lập DbSet cho các Tài khoản.
+    ///     (EN) Gets or sets the DbSet for Accounts.<br />
+    ///     (VI) Lấy hoặc thiết lập DbSet cho các Tài khoản.
     /// </summary>
     public DbSet<Account> Accounts { get; set; }
+
     /// <summary>
-    /// (EN) Gets or sets the DbSet for Transactions.<br/>
-    /// (VI) Lấy hoặc thiết lập DbSet cho các Giao dịch.
+    ///     (EN) Gets or sets the DbSet for Transactions.<br />
+    ///     (VI) Lấy hoặc thiết lập DbSet cho các Giao dịch.
     /// </summary>
     public DbSet<Transaction> Transactions { get; set; }
+
     /// <summary>
-    /// (EN) Gets or sets the DbSet for ExpectedTransactions.<br/>
-    /// (VI) Lấy hoặc thiết lập DbSet cho các Giao dịch Dự kiến.
+    ///     (EN) Gets or sets the DbSet for ExpectedTransactions.<br />
+    ///     (VI) Lấy hoặc thiết lập DbSet cho các Giao dịch Dự kiến.
     /// </summary>
     public DbSet<ExpectedTransaction> ExpectedTransactions { get; set; }
+
     /// <summary>
-    /// (EN) Gets or sets the DbSet for RecurringTransactionTemplates.<br/>
-    /// (VI) Lấy hoặc thiết lập DbSet cho các Mẫu Giao dịch Định kỳ.
+    ///     (EN) Gets or sets the DbSet for RecurringTransactionTemplates.<br />
+    ///     (VI) Lấy hoặc thiết lập DbSet cho các Mẫu Giao dịch Định kỳ.
     /// </summary>
     public DbSet<RecurringTransactionTemplate> RecurringTransactionTemplates { get; set; }
 
     /// <summary>
-    /// (EN) Configures the database context.<br/>
-    /// (VI) Cấu hình ngữ cảnh cơ sở dữ liệu.
+    ///     (EN) Configures the database context.<br />
+    ///     (VI) Cấu hình ngữ cảnh cơ sở dữ liệu.
     /// </summary>
     /// <param name="optionsBuilder">
-    /// The options builder. (EN)<br/>
-    /// Bộ xây dựng tùy chọn. (VI)
+    ///     The options builder. (EN)<br />
+    ///     Bộ xây dựng tùy chọn. (VI)
     /// </param>
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {

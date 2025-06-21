@@ -3,7 +3,7 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 namespace Ocelot.Gateway.HealthChecks;
 
 /// <summary>
-/// Health check for downstream services
+///     Health check for downstream services
 /// </summary>
 public class DownstreamServiceHealthCheck(
     HttpClient httpClient,
@@ -21,13 +21,14 @@ public class DownstreamServiceHealthCheck(
             logger.LogDebug("Checking health for service: {ServiceName} at {Url}", serviceName, healthCheckUrl);
 
             using var response = await httpClient.GetAsync(healthCheckUrl, cancellationToken);
-            
+
             if (response.IsSuccessStatusCode)
             {
                 var responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
-                logger.LogDebug("Health check successful for {ServiceName}: {StatusCode}", serviceName, response.StatusCode);
-                
-                return HealthCheckResult.Healthy($"{serviceName} is healthy", 
+                logger.LogDebug("Health check successful for {ServiceName}: {StatusCode}", serviceName,
+                    response.StatusCode);
+
+                return HealthCheckResult.Healthy($"{serviceName} is healthy",
                     new Dictionary<string, object>
                     {
                         ["service"] = serviceName,
@@ -50,8 +51,8 @@ public class DownstreamServiceHealthCheck(
         {
             logger.LogError(ex, "HTTP error during health check for {ServiceName}", serviceName);
             return HealthCheckResult.Unhealthy($"{serviceName} is unreachable: {ex.Message}",
-                exception: ex,
-                data: new Dictionary<string, object>
+                ex,
+                new Dictionary<string, object>
                 {
                     ["service"] = serviceName,
                     ["error"] = ex.Message,
@@ -62,8 +63,8 @@ public class DownstreamServiceHealthCheck(
         {
             logger.LogError(ex, "Timeout during health check for {ServiceName}", serviceName);
             return HealthCheckResult.Unhealthy($"{serviceName} health check timed out",
-                exception: ex,
-                data: new Dictionary<string, object>
+                ex,
+                new Dictionary<string, object>
                 {
                     ["service"] = serviceName,
                     ["error"] = "Timeout",
@@ -74,8 +75,8 @@ public class DownstreamServiceHealthCheck(
         {
             logger.LogError(ex, "Unexpected error during health check for {ServiceName}", serviceName);
             return HealthCheckResult.Unhealthy($"{serviceName} health check failed: {ex.Message}",
-                exception: ex,
-                data: new Dictionary<string, object>
+                ex,
+                new Dictionary<string, object>
                 {
                     ["service"] = serviceName,
                     ["error"] = ex.Message,

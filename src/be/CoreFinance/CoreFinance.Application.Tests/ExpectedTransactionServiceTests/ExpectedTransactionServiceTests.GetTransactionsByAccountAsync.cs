@@ -4,23 +4,23 @@ using CoreFinance.Domain.BaseRepositories;
 using CoreFinance.Domain.Entities;
 using CoreFinance.Domain.Enums;
 using CoreFinance.Domain.UnitOfWorks;
+using FluentAssertions;
 using Microsoft.Extensions.Logging;
 using MockQueryable;
 using Moq;
-using FluentAssertions;
 
 namespace CoreFinance.Application.Tests.ExpectedTransactionServiceTests;
 
 /// <summary>
-/// Contains test cases for the GetTransactionsByAccountAsync method of ExpectedTransactionService. (EN)<br/>
-/// Chứa các trường hợp kiểm thử cho phương thức GetTransactionsByAccountAsync của ExpectedTransactionService. (VI)
+///     Contains test cases for the GetTransactionsByAccountAsync method of ExpectedTransactionService. (EN)<br />
+///     Chứa các trường hợp kiểm thử cho phương thức GetTransactionsByAccountAsync của ExpectedTransactionService. (VI)
 /// </summary>
 // Tests for the GetTransactionsByAccountAsync method of ExpectedTransactionService
 public partial class ExpectedTransactionServiceTests
 {
     /// <summary>
-    /// Verifies that GetTransactionsByAccountAsync returns transactions for a specific account. (EN)<br/>
-    /// Xác minh rằng GetTransactionsByAccountAsync trả về các giao dịch cho một tài khoản cụ thể. (VI)
+    ///     Verifies that GetTransactionsByAccountAsync returns transactions for a specific account. (EN)<br />
+    ///     Xác minh rằng GetTransactionsByAccountAsync trả về các giao dịch cho một tài khoản cụ thể. (VI)
     /// </summary>
     [Fact]
     public async Task GetTransactionsByAccountAsync_ShouldReturnTransactionsForSpecificAccount()
@@ -106,8 +106,8 @@ public partial class ExpectedTransactionServiceTests
     }
 
     /// <summary>
-    /// Verifies that GetTransactionsByAccountAsync returns an empty list when the account has no transactions. (EN)<br/>
-    /// Xác minh rằng GetTransactionsByAccountAsync trả về danh sách rỗng khi tài khoản không có giao dịch nào. (VI)
+    ///     Verifies that GetTransactionsByAccountAsync returns an empty list when the account has no transactions. (EN)<br />
+    ///     Xác minh rằng GetTransactionsByAccountAsync trả về danh sách rỗng khi tài khoản không có giao dịch nào. (VI)
     /// </summary>
     [Fact]
     public async Task GetTransactionsByAccountAsync_ShouldReturnEmptyList_WhenAccountHasNoTransactions()
@@ -153,8 +153,10 @@ public partial class ExpectedTransactionServiceTests
     }
 
     /// <summary>
-    /// Verifies that GetTransactionsByAccountAsync returns an empty list when no transactions exist in the repository. (EN)<br/>
-    /// Xác minh rằng GetTransactionsByAccountAsync trả về danh sách rỗng khi không có giao dịch nào tồn tại trong repository. (VI)
+    ///     Verifies that GetTransactionsByAccountAsync returns an empty list when no transactions exist in the repository.
+    ///     (EN)<br />
+    ///     Xác minh rằng GetTransactionsByAccountAsync trả về danh sách rỗng khi không có giao dịch nào tồn tại trong
+    ///     repository. (VI)
     /// </summary>
     [Fact]
     public async Task GetTransactionsByAccountAsync_ShouldReturnEmptyList_WhenNoTransactionsExist()
@@ -183,8 +185,8 @@ public partial class ExpectedTransactionServiceTests
     }
 
     /// <summary>
-    /// Verifies that GetTransactionsByAccountAsync returns transactions ordered by ExpectedDate. (EN)<br/>
-    /// Xác minh rằng GetTransactionsByAccountAsync trả về các giao dịch được sắp xếp theo ExpectedDate. (VI)
+    ///     Verifies that GetTransactionsByAccountAsync returns transactions ordered by ExpectedDate. (EN)<br />
+    ///     Xác minh rằng GetTransactionsByAccountAsync trả về các giao dịch được sắp xếp theo ExpectedDate. (VI)
     /// </summary>
     [Fact]
     public async Task GetTransactionsByAccountAsync_ShouldReturnTransactionsOrderedByExpectedDate()
@@ -253,15 +255,13 @@ public partial class ExpectedTransactionServiceTests
         resultList[2].Description.Should().Be("Transaction C"); // Latest date
 
         // Verify ordering
-        for (int i = 0; i < resultList.Count - 1; i++)
-        {
+        for (var i = 0; i < resultList.Count - 1; i++)
             resultList[i].ExpectedDate.Should().BeOnOrBefore(resultList[i + 1].ExpectedDate);
-        }
     }
 
     /// <summary>
-    /// Verifies that GetTransactionsByAccountAsync returns transactions of all status types. (EN)<br/>
-    /// Xác minh rằng GetTransactionsByAccountAsync trả về các giao dịch của tất cả các loại trạng thái. (VI)
+    ///     Verifies that GetTransactionsByAccountAsync returns transactions of all status types. (EN)<br />
+    ///     Xác minh rằng GetTransactionsByAccountAsync trả về các giao dịch của tất cả các loại trạng thái. (VI)
     /// </summary>
     [Fact]
     public async Task GetTransactionsByAccountAsync_ShouldReturnAllStatusTypes()
@@ -329,8 +329,8 @@ public partial class ExpectedTransactionServiceTests
     }
 
     /// <summary>
-    /// Verifies that GetTransactionsByAccountAsync returns the correct transaction properties in the ViewModel. (EN)<br/>
-    /// Xác minh rằng GetTransactionsByAccountAsync trả về đúng các thuộc tính giao dịch trong ViewModel. (VI)
+    ///     Verifies that GetTransactionsByAccountAsync returns the correct transaction properties in the ViewModel. (EN)<br />
+    ///     Xác minh rằng GetTransactionsByAccountAsync trả về đúng các thuộc tính giao dịch trong ViewModel. (VI)
     /// </summary>
     [Fact]
     public async Task GetTransactionsByAccountAsync_ShouldReturnCorrectTransactionProperties()
@@ -392,8 +392,10 @@ public partial class ExpectedTransactionServiceTests
     }
 
     /// <summary>
-    /// Verifies that GetTransactionsByAccountAsync handles past and future transactions correctly, returning them all. (EN)<br/>
-    /// Xác minh rằng GetTransactionsByAccountAsync xử lý đúng các giao dịch quá khứ và tương lai, trả về tất cả chúng. (VI)
+    ///     Verifies that GetTransactionsByAccountAsync handles past and future transactions correctly, returning them all.
+    ///     (EN)<br />
+    ///     Xác minh rằng GetTransactionsByAccountAsync xử lý đúng các giao dịch quá khứ và tương lai, trả về tất cả chúng.
+    ///     (VI)
     /// </summary>
     [Fact]
     public async Task GetTransactionsByAccountAsync_ShouldHandlePastAndFutureTransactions()
@@ -464,8 +466,8 @@ public partial class ExpectedTransactionServiceTests
     }
 
     /// <summary>
-    /// Verifies that GetTransactionsByAccountAsync handles multiple transaction types (Income, Expense). (EN)<br/>
-    /// Xác minh rằng GetTransactionsByAccountAsync xử lý nhiều loại giao dịch (Thu nhập, Chi phí). (VI)
+    ///     Verifies that GetTransactionsByAccountAsync handles multiple transaction types (Income, Expense). (EN)<br />
+    ///     Xác minh rằng GetTransactionsByAccountAsync xử lý nhiều loại giao dịch (Thu nhập, Chi phí). (VI)
     /// </summary>
     [Fact]
     public async Task GetTransactionsByAccountAsync_ShouldHandleMultipleTransactionTypes()

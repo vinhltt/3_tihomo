@@ -1,5 +1,5 @@
-﻿using Shared.Contracts.BaseEfModels;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
+using Shared.Contracts.BaseEfModels;
 
 namespace Shared.Contracts.Extensions;
 
@@ -27,9 +27,9 @@ public static class ModelBuilderExtensions
     )
     {
         var entityTypes = modelBuilder.Model.GetEntityTypes()
-                                      .Where(entityType =>
-                                          typeof(BaseEntity).IsAssignableFrom(entityType.ClrType))
-                                      .ToList();
+            .Where(entityType =>
+                typeof(BaseEntity).IsAssignableFrom(entityType.ClrType))
+            .ToList();
 
         foreach (var entityType in entityTypes)
         {

@@ -1,6 +1,6 @@
 ﻿using System.Diagnostics;
-using Shared.Contracts.Utilities;
 using Microsoft.IO;
+using Shared.Contracts.Utilities;
 
 namespace CoreFinance.Api.Infrastructures.Middlewares;
 
@@ -81,4 +81,3 @@ public class PerformanceLoggingMiddleware(
         return textWriter.ToString();
     }
 }
-

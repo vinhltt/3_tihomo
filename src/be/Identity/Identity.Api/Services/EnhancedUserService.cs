@@ -1,51 +1,39 @@
+using System.Diagnostics;
+using System.Text.Json;
+using Identity.Api.Configuration;
+using Identity.Api.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Caching.Memory;
-using Identity.Api.Configuration;
-using Identity.Api.Models;
-using System.Diagnostics;
-using System.Text.Json;
 
 namespace Identity.Api.Services;
 
 /// <summary>
-/// Enhanced user service with multi-level caching and optimized database operations
-/// Service người dùng nâng cao với caching đa tầng và tối ưu hóa operations database
+///     Enhanced user service with multi-level caching and optimized database operations
+///     Service người dùng nâng cao với caching đa tầng và tối ưu hóa operations database
 /// </summary>
-public class EnhancedUserService : IUserService
+public class EnhancedUserService(
+    IdentityDbContext context,
+    IMemoryCache memoryCache,
+    IDistributedCache distributedCache,
+    ILogger<EnhancedUserService> logger)
+    : IUserService
 {
-    private readonly IdentityDbContext _context;
-    private readonly IMemoryCache _memoryCache;
-    private readonly IDistributedCache _distributedCache;
-    private readonly ILogger<EnhancedUserService> _logger;
-
-    public EnhancedUserService(
-        IdentityDbContext context,
-        IMemoryCache memoryCache,
-        IDistributedCache distributedCache,
-        ILogger<EnhancedUserService> logger)
-    {
-        _context = context;
-        _memoryCache = memoryCache;
-        _distributedCache = distributedCache;
-        _logger = logger;
-    }
-
     /// <summary>
-    /// Get user by ID with multi-level caching
-    /// Lấy user theo ID với caching đa tầng
+    ///     Get user by ID with multi-level caching
+    ///     Lấy user theo ID với caching đa tầng
     /// </summary>
     public async Task<User?> GetUserByIdAsync(Guid userId)
     {
         var stopwatch = Stopwatch.StartNew();
-        
+
         try
         {
             // L1 Cache (Memory) - 5 minute TTL for active users
             var userCacheKey = $"user_id:{userId}";
-            if (_memoryCache.TryGetValue(userCacheKey, out User? cachedUser))
+            if (memoryCache.TryGetValue(userCacheKey, out User? cachedUser))
             {
-                _logger.LogDebug("User retrieved from L1 cache in {Duration}ms", stopwatch.ElapsedMilliseconds);
+                logger.LogDebug("User retrieved from L1 cache in {Duration}ms", stopwatch.ElapsedMilliseconds);
                 return cachedUser;
             }
 
@@ -53,34 +41,34 @@ public class EnhancedUserService : IUserService
             var distributedUser = await GetUserFromDistributedCacheAsync(userCacheKey);
             if (distributedUser != null)
             {
-                _memoryCache.Set(userCacheKey, distributedUser, TimeSpan.FromMinutes(5));
-                _logger.LogDebug("User retrieved from L2 cache in {Duration}ms", stopwatch.ElapsedMilliseconds);
+                memoryCache.Set(userCacheKey, distributedUser, TimeSpan.FromMinutes(5));
+                logger.LogDebug("User retrieved from L2 cache in {Duration}ms", stopwatch.ElapsedMilliseconds);
                 return distributedUser;
             }
 
             // Database fallback
-            var dbUser = await _context.Users
+            var dbUser = await context.Users
                 .Include(u => u.UserLogins)
                 .FirstOrDefaultAsync(u => u.Id == userId);
 
             if (dbUser != null)
             {
                 await CacheUserAsync(userCacheKey, dbUser);
-                _logger.LogDebug("User retrieved from database in {Duration}ms", stopwatch.ElapsedMilliseconds);
+                logger.LogDebug("User retrieved from database in {Duration}ms", stopwatch.ElapsedMilliseconds);
             }
 
             return dbUser;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to get user by ID {UserId}", userId);
+            logger.LogError(ex, "Failed to get user by ID {UserId}", userId);
             return null;
         }
     }
 
     /// <summary>
-    /// Get user by email with caching
-    /// Lấy user theo email với caching
+    ///     Get user by email with caching
+    ///     Lấy user theo email với caching
     /// </summary>
     public async Task<User?> GetUserByEmailAsync(string email)
     {
@@ -88,12 +76,9 @@ public class EnhancedUserService : IUserService
         {
             // Check cache first using email as key
             var emailCacheKey = $"user_email:{email.ToLowerInvariant()}";
-            if (_memoryCache.TryGetValue(emailCacheKey, out User? cachedUser))
-            {
-                return cachedUser;
-            }
+            if (memoryCache.TryGetValue(emailCacheKey, out User? cachedUser)) return cachedUser;
 
-            var user = await _context.Users
+            var user = await context.Users
                 .Include(u => u.UserLogins)
                 .FirstOrDefaultAsync(u => u.Email == email);
 
@@ -101,45 +86,45 @@ public class EnhancedUserService : IUserService
             {
                 // Cache by both ID and email for faster lookup
                 await CacheUserAsync($"user_id:{user.Id}", user);
-                _memoryCache.Set(emailCacheKey, user, TimeSpan.FromMinutes(5));
+                memoryCache.Set(emailCacheKey, user, TimeSpan.FromMinutes(5));
             }
 
             return user;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to get user by email {Email}", email);
+            logger.LogError(ex, "Failed to get user by email {Email}", email);
             return null;
         }
     }
 
     /// <summary>
-    /// Get or create user with optimized upsert pattern and caching
-    /// Lấy hoặc tạo user với upsert pattern tối ưu và caching
+    ///     Get or create user with optimized upsert pattern and caching
+    ///     Lấy hoặc tạo user với upsert pattern tối ưu và caching
     /// </summary>
     public async Task<User?> GetOrCreateUserAsync(SocialUserInfo socialUserInfo)
     {
         var stopwatch = Stopwatch.StartNew();
-        
+
         try
         {
             // Check cache first for faster lookup
             var providerCacheKey = $"user_provider:{socialUserInfo.Provider}:{socialUserInfo.Id}";
-            if (_memoryCache.TryGetValue(providerCacheKey, out User? cachedUser))
+            if (memoryCache.TryGetValue(providerCacheKey, out User? cachedUser))
             {
-                _logger.LogDebug("User found in cache for provider {Provider} in {Duration}ms", 
+                logger.LogDebug("User found in cache for provider {Provider} in {Duration}ms",
                     socialUserInfo.Provider, stopwatch.ElapsedMilliseconds);
                 return cachedUser;
             }
 
             // Use atomic upsert pattern to handle concurrent requests
             var user = await UpsertUserAtomicAsync(socialUserInfo);
-            
+
             if (user != null)
             {
                 // Cache the user result for future requests
                 await CacheUserMultipleKeysAsync(user, socialUserInfo.Provider, socialUserInfo.Id);
-                _logger.LogInformation("User upserted successfully for {Email} in {Duration}ms", 
+                logger.LogInformation("User upserted successfully for {Email} in {Duration}ms",
                     socialUserInfo.Email, stopwatch.ElapsedMilliseconds);
             }
 
@@ -147,17 +132,19 @@ public class EnhancedUserService : IUserService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to get or create user for {Email}", socialUserInfo.Email);
+            logger.LogError(ex, "Failed to get or create user for {Email}", socialUserInfo.Email);
             return null;
         }
-    }    /// <summary>
-    /// Map user to UserInfo DTO
-    /// Map user thành UserInfo DTO
+    }
+
+    /// <summary>
+    ///     Map user to UserInfo DTO
+    ///     Map user thành UserInfo DTO
     /// </summary>
     public Task<UserInfo> MapToUserInfoAsync(User user)
     {
         var providers = user.UserLogins.Select(ul => ul.Provider).Distinct().ToList();
-        
+
         var userInfo = new UserInfo
         {
             Id = user.Id,
@@ -168,37 +155,37 @@ public class EnhancedUserService : IUserService
             CreatedAt = user.CreatedAt,
             Providers = providers
         };
-        
+
         return Task.FromResult(userInfo);
     }
 
     /// <summary>
-    /// Update user with cache invalidation
-    /// Cập nhật user với cache invalidation
+    ///     Update user with cache invalidation
+    ///     Cập nhật user với cache invalidation
     /// </summary>
     public async Task<bool> UpdateUserAsync(User user)
     {
         try
         {
             user.UpdatedAt = DateTime.UtcNow;
-            _context.Users.Update(user);
-            await _context.SaveChangesAsync();
-            
+            context.Users.Update(user);
+            await context.SaveChangesAsync();
+
             // Invalidate all cache entries for this user
             await InvalidateUserCacheAsync(user);
-            
+
             return true;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to update user {UserId}", user.Id);
+            logger.LogError(ex, "Failed to update user {UserId}", user.Id);
             return false;
         }
     }
 
     /// <summary>
-    /// Deactivate user with cache invalidation
-    /// Vô hiệu hóa user với cache invalidation
+    ///     Deactivate user with cache invalidation
+    ///     Vô hiệu hóa user với cache invalidation
     /// </summary>
     public async Task<bool> DeactivateUserAsync(Guid userId)
     {
@@ -206,20 +193,20 @@ public class EnhancedUserService : IUserService
         {
             var user = await GetUserByIdAsync(userId);
             if (user == null) return false;
-            
+
             user.IsActive = false;
             user.UpdatedAt = DateTime.UtcNow;
-            
-            await _context.SaveChangesAsync();
-            
+
+            await context.SaveChangesAsync();
+
             // Invalidate cache entries
             await InvalidateUserCacheAsync(user);
-            
+
             return true;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to deactivate user {UserId}", userId);
+            logger.LogError(ex, "Failed to deactivate user {UserId}", userId);
             return false;
         }
     }
@@ -227,29 +214,27 @@ public class EnhancedUserService : IUserService
     #region Private Helper Methods
 
     /// <summary>
-    /// Atomic upsert operation to prevent race conditions
-    /// Thao tác upsert atomic để tránh race conditions
+    ///     Atomic upsert operation to prevent race conditions
+    ///     Thao tác upsert atomic để tránh race conditions
     /// </summary>
     private async Task<User?> UpsertUserAtomicAsync(SocialUserInfo socialUserInfo)
     {
-        using var transaction = await _context.Database.BeginTransactionAsync();
-        
+        using var transaction = await context.Database.BeginTransactionAsync();
+
         try
         {
             // Try to find existing user by email first
-            var existingUser = await _context.Users
+            var existingUser = await context.Users
                 .Include(u => u.UserLogins)
                 .FirstOrDefaultAsync(u => u.Email == socialUserInfo.Email);
-            
+
             if (existingUser != null)
-            {
                 // Update existing user
                 return await UpdateExistingUserAsync(existingUser, socialUserInfo);
-            }
-            
+
             // Create new user
             var newUser = await CreateNewUserAsync(socialUserInfo);
-            
+
             await transaction.CommitAsync();
             return newUser;
         }
@@ -261,16 +246,16 @@ public class EnhancedUserService : IUserService
     }
 
     /// <summary>
-    /// Update existing user with new social login info
-    /// Cập nhật user hiện có với thông tin social login mới
+    ///     Update existing user with new social login info
+    ///     Cập nhật user hiện có với thông tin social login mới
     /// </summary>
     private async Task<User> UpdateExistingUserAsync(User existingUser, SocialUserInfo socialUserInfo)
     {
         // Check if this social login already exists
         var existingLogin = existingUser.UserLogins
-            .FirstOrDefault(ul => ul.Provider == socialUserInfo.Provider && 
-                                 ul.ProviderUserId == socialUserInfo.Id);
-        
+            .FirstOrDefault(ul => ul.Provider == socialUserInfo.Provider &&
+                                  ul.ProviderUserId == socialUserInfo.Id);
+
         if (existingLogin == null)
         {
             // Add new social login to existing user
@@ -282,41 +267,38 @@ public class EnhancedUserService : IUserService
                 ProviderDisplayName = socialUserInfo.Name,
                 LastLoginAt = DateTime.UtcNow
             };
-            
-            _context.UserLogins.Add(newLogin);
+
+            context.UserLogins.Add(newLogin);
         }
         else
         {
             // Update last login time
             existingLogin.LastLoginAt = DateTime.UtcNow;
         }
-        
+
         // Update user info if needed (only if changed to avoid unnecessary updates)
-        bool hasChanges = false;
+        var hasChanges = false;
         if (existingUser.Name != socialUserInfo.Name)
         {
             existingUser.Name = socialUserInfo.Name;
             hasChanges = true;
         }
-        
+
         if (existingUser.PictureUrl != socialUserInfo.PictureUrl)
         {
             existingUser.PictureUrl = socialUserInfo.PictureUrl;
             hasChanges = true;
         }
-        
-        if (hasChanges)
-        {
-            existingUser.UpdatedAt = DateTime.UtcNow;
-        }
-        
-        await _context.SaveChangesAsync();
+
+        if (hasChanges) existingUser.UpdatedAt = DateTime.UtcNow;
+
+        await context.SaveChangesAsync();
         return existingUser;
     }
 
     /// <summary>
-    /// Create new user with social login
-    /// Tạo user mới với social login
+    ///     Create new user with social login
+    ///     Tạo user mới với social login
     /// </summary>
     private async Task<User> CreateNewUserAsync(SocialUserInfo socialUserInfo)
     {
@@ -329,10 +311,10 @@ public class EnhancedUserService : IUserService
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
-        
-        _context.Users.Add(newUser);
-        await _context.SaveChangesAsync();
-        
+
+        context.Users.Add(newUser);
+        await context.SaveChangesAsync();
+
         // Add social login
         var userLogin = new UserLogin
         {
@@ -342,51 +324,49 @@ public class EnhancedUserService : IUserService
             ProviderDisplayName = socialUserInfo.Name,
             LastLoginAt = DateTime.UtcNow
         };
-        
-        _context.UserLogins.Add(userLogin);
-        await _context.SaveChangesAsync();
-        
+
+        context.UserLogins.Add(userLogin);
+        await context.SaveChangesAsync();
+
         // Reload with navigation properties
-        return await _context.Users
+        return await context.Users
             .Include(u => u.UserLogins)
             .FirstAsync(u => u.Id == newUser.Id);
     }
 
     /// <summary>
-    /// Get user from distributed cache
-    /// Lấy user từ distributed cache
+    ///     Get user from distributed cache
+    ///     Lấy user từ distributed cache
     /// </summary>
     private async Task<User?> GetUserFromDistributedCacheAsync(string key)
     {
         try
         {
-            var cachedData = await _distributedCache.GetStringAsync(key);
-            if (!string.IsNullOrEmpty(cachedData))
-            {
-                return JsonSerializer.Deserialize<User>(cachedData);
-            }
+            var cachedData = await distributedCache.GetStringAsync(key);
+            if (!string.IsNullOrEmpty(cachedData)) return JsonSerializer.Deserialize<User>(cachedData);
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Failed to get user from distributed cache");
+            logger.LogWarning(ex, "Failed to get user from distributed cache");
         }
+
         return null;
     }
 
     /// <summary>
-    /// Cache user in both memory and distributed cache
-    /// Cache user ở cả memory và distributed cache
+    ///     Cache user in both memory and distributed cache
+    ///     Cache user ở cả memory và distributed cache
     /// </summary>
     private async Task CacheUserAsync(string cacheKey, User user)
     {
         try
         {
             // L1 Cache (Memory) - 5 minute TTL
-            _memoryCache.Set(cacheKey, user, TimeSpan.FromMinutes(5));
+            memoryCache.Set(cacheKey, user, TimeSpan.FromMinutes(5));
 
             // L2 Cache (Redis) - 15 minute TTL
             var jsonData = JsonSerializer.Serialize(user);
-            await _distributedCache.SetStringAsync(cacheKey, jsonData, 
+            await distributedCache.SetStringAsync(cacheKey, jsonData,
                 new DistributedCacheEntryOptions
                 {
                     AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(15)
@@ -394,46 +374,46 @@ public class EnhancedUserService : IUserService
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Failed to cache user");
+            logger.LogWarning(ex, "Failed to cache user");
         }
     }
 
     /// <summary>
-    /// Cache user with multiple cache keys for different lookup patterns
-    /// Cache user với nhiều cache keys cho các pattern lookup khác nhau
+    ///     Cache user with multiple cache keys for different lookup patterns
+    ///     Cache user với nhiều cache keys cho các pattern lookup khác nhau
     /// </summary>
     private async Task CacheUserMultipleKeysAsync(User user, string provider, string providerId)
     {
         await CacheUserAsync($"user_id:{user.Id}", user);
         await CacheUserAsync($"user_provider:{provider}:{providerId}", user);
-        _memoryCache.Set($"user_email:{user.Email.ToLowerInvariant()}", user, TimeSpan.FromMinutes(5));
+        memoryCache.Set($"user_email:{user.Email.ToLowerInvariant()}", user, TimeSpan.FromMinutes(5));
     }
 
     /// <summary>
-    /// Invalidate all cache entries for a user
-    /// Vô hiệu hóa tất cả cache entries cho một user
+    ///     Invalidate all cache entries for a user
+    ///     Vô hiệu hóa tất cả cache entries cho một user
     /// </summary>
     private async Task InvalidateUserCacheAsync(User user)
     {
         try
         {
             // Remove from memory cache
-            _memoryCache.Remove($"user_id:{user.Id}");
-            _memoryCache.Remove($"user_email:{user.Email.ToLowerInvariant()}");
-            
+            memoryCache.Remove($"user_id:{user.Id}");
+            memoryCache.Remove($"user_email:{user.Email.ToLowerInvariant()}");
+
             // Remove provider-specific cache entries
             foreach (var login in user.UserLogins)
             {
-                _memoryCache.Remove($"user_provider:{login.Provider}:{login.ProviderUserId}");
-                await _distributedCache.RemoveAsync($"user_provider:{login.Provider}:{login.ProviderUserId}");
+                memoryCache.Remove($"user_provider:{login.Provider}:{login.ProviderUserId}");
+                await distributedCache.RemoveAsync($"user_provider:{login.Provider}:{login.ProviderUserId}");
             }
-            
+
             // Remove from distributed cache
-            await _distributedCache.RemoveAsync($"user_id:{user.Id}");
+            await distributedCache.RemoveAsync($"user_id:{user.Id}");
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Failed to invalidate user cache");
+            logger.LogWarning(ex, "Failed to invalidate user cache");
         }
     }
 

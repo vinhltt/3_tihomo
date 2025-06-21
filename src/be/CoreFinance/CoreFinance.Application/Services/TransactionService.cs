@@ -2,19 +2,19 @@ using AutoMapper;
 using CoreFinance.Application.DTOs.Transaction;
 using CoreFinance.Application.Interfaces;
 using CoreFinance.Application.Services.Base;
-using Shared.Contracts.BaseEfModels;
-using Shared.Contracts.DTOs;
-using Shared.Contracts.EntityFrameworkUtilities;
 using CoreFinance.Domain.Entities;
 using CoreFinance.Domain.UnitOfWorks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Shared.Contracts.BaseEfModels;
+using Shared.Contracts.DTOs;
+using Shared.Contracts.EntityFrameworkUtilities;
 
 namespace CoreFinance.Application.Services;
 
 /// <summary>
-    /// (EN) Service for managing transactions.<br/>
-    /// (VI) Dịch vụ quản lý giao dịch.
+///     (EN) Service for managing transactions.<br />
+///     (VI) Dịch vụ quản lý giao dịch.
 /// </summary>
 public class TransactionService(
     IMapper mapper,
@@ -27,8 +27,8 @@ public class TransactionService(
     private readonly IUnitOfWork _unitOfWork = unitOfWork;
 
     /// <summary>
-    /// (EN) Gets a paginated list of transactions based on a filter request.<br/>
-    /// (VI) Lấy danh sách giao dịch có phân trang dựa trên yêu cầu lọc.
+    ///     (EN) Gets a paginated list of transactions based on a filter request.<br />
+    ///     (VI) Lấy danh sách giao dịch có phân trang dựa trên yêu cầu lọc.
     /// </summary>
     /// <param name="request">The filter request body.</param>
     /// <returns>A paginated list of transaction view models.</returns>
@@ -48,8 +48,8 @@ public class TransactionService(
     }
 
     /// <summary>
-    /// (EN) Creates a new transaction with automatic balance calculation.<br/>
-    /// (VI) Tạo giao dịch mới với tính toán số dư tự động.
+    ///     (EN) Creates a new transaction with automatic balance calculation.<br />
+    ///     (VI) Tạo giao dịch mới với tính toán số dư tự động.
     /// </summary>
     /// <param name="request">The transaction creation request.</param>
     /// <returns>The created transaction view model.</returns>
@@ -74,8 +74,8 @@ public class TransactionService(
     }
 
     /// <summary>
-    /// (EN) Calculates balance for a transaction based on previous transactions.<br/>
-    /// (VI) Tính toán số dư cho giao dịch dựa trên các giao dịch trước đó.
+    ///     (EN) Calculates balance for a transaction based on previous transactions.<br />
+    ///     (VI) Tính toán số dư cho giao dịch dựa trên các giao dịch trước đó.
     /// </summary>
     /// <param name="accountId">The account ID.</param>
     /// <param name="transactionDate">The transaction date.</param>
@@ -118,8 +118,8 @@ public class TransactionService(
     }
 
     /// <summary>
-    /// (EN) Recalculates balances for all transactions after a given date for an account.<br/>
-    /// (VI) Tính lại số dư cho tất cả giao dịch sau một ngày nhất định của tài khoản.
+    ///     (EN) Recalculates balances for all transactions after a given date for an account.<br />
+    ///     (VI) Tính lại số dư cho tất cả giao dịch sau một ngày nhất định của tài khoản.
     /// </summary>
     /// <param name="accountId">The account ID.</param>
     /// <param name="fromDate">The date from which to recalculate.</param>
@@ -134,9 +134,9 @@ public class TransactionService(
         foreach (var transaction in subsequentTransactions)
         {
             var calculatedBalance = await CalculateBalanceForTransactionAsync(
-                accountId, 
-                transaction.TransactionDate, 
-                transaction.RevenueAmount, 
+                accountId,
+                transaction.TransactionDate,
+                transaction.RevenueAmount,
                 transaction.SpentAmount);
             // Update the transaction entity directly
             var entityToUpdate = await _unitOfWork.Repository<Transaction, Guid>().GetByIdAsync(transaction.Id);

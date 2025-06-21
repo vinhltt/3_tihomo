@@ -1,17 +1,17 @@
-using FluentValidation;
 using CoreFinance.Application.DTOs.ExpectedTransaction;
+using FluentValidation;
 
 namespace CoreFinance.Application.Validators;
 
 /// <summary>
-/// Validates the <see cref="ExpectedTransactionCreateRequest"/>. (EN)<br/>
-/// Thực hiện xác thực cho <see cref="ExpectedTransactionCreateRequest"/>. (VI)
+///     Validates the <see cref="ExpectedTransactionCreateRequest" />. (EN)<br />
+///     Thực hiện xác thực cho <see cref="ExpectedTransactionCreateRequest" />. (VI)
 /// </summary>
 public class ExpectedTransactionCreateRequestValidator : AbstractValidator<ExpectedTransactionCreateRequest>
 {
     /// <summary>
-    /// Initializes a new instance of the <see cref="ExpectedTransactionCreateRequestValidator"/> class. (EN)<br/>
-    /// Khởi tạo một phiên bản mới của lớp <see cref="ExpectedTransactionCreateRequestValidator"/>. (VI)
+    ///     Initializes a new instance of the <see cref="ExpectedTransactionCreateRequestValidator" /> class. (EN)<br />
+    ///     Khởi tạo một phiên bản mới của lớp <see cref="ExpectedTransactionCreateRequestValidator" />. (VI)
     /// </summary>
     public ExpectedTransactionCreateRequestValidator()
     {
@@ -22,4 +22,4 @@ public class ExpectedTransactionCreateRequestValidator : AbstractValidator<Expec
         RuleFor(x => x.TransactionType).IsInEnum();
         RuleFor(x => x.Status).IsInEnum();
     }
-} 
+}

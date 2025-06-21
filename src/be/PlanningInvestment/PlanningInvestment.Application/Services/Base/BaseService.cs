@@ -10,8 +10,8 @@ using Shared.Contracts.Utilities;
 namespace PlanningInvestment.Application.Services.Base;
 
 /// <summary>
-/// Base service class providing common CRUD operations for entities. (EN)<br/>
-/// Lớp dịch vụ cơ bản cung cấp các thao tác CRUD chung cho các thực thể. (VI)
+///     Base service class providing common CRUD operations for entities. (EN)<br />
+///     Lớp dịch vụ cơ bản cung cấp các thao tác CRUD chung cho các thực thể. (VI)
 /// </summary>
 /// <typeparam name="TEntity">The type of the entity.</typeparam>
 /// <typeparam name="TCreateRequest">The type of the create request DTO.</typeparam>
@@ -33,11 +33,14 @@ public abstract class BaseService<TEntity, TCreateRequest, TUpdateRequest, TView
     protected readonly IMapper Mapper = mapper;
 
     /// <summary>
-    /// Deletes an entity permanently by its identifier asynchronously. (EN)<br/>
-    /// Xóa vĩnh viễn một thực thể dựa trên định danh của nó một cách bất đồng bộ. (VI)
+    ///     Deletes an entity permanently by its identifier asynchronously. (EN)<br />
+    ///     Xóa vĩnh viễn một thực thể dựa trên định danh của nó một cách bất đồng bộ. (VI)
     /// </summary>
     /// <param name="id">The identifier of the entity.</param>
-    /// <returns>A task that represents the asynchronous operation. The task result contains the number of state entries written to the database.</returns>
+    /// <returns>
+    ///     A task that represents the asynchronous operation. The task result contains the number of state entries
+    ///     written to the database.
+    /// </returns>
     public async Task<int?> DeleteHardAsync(TKey id)
     {
         logger.LogTrace("{DeleteHardAsync} request: {id}", nameof(DeleteHardAsync), id.TryParseToString());
@@ -45,11 +48,14 @@ public abstract class BaseService<TEntity, TCreateRequest, TUpdateRequest, TView
     }
 
     /// <summary>
-    /// Soft deletes an entity by its identifier asynchronously. (EN)<br/>
-    /// Xóa mềm một thực thể dựa trên định danh của nó một cách bất đồng bộ. (VI)
+    ///     Soft deletes an entity by its identifier asynchronously. (EN)<br />
+    ///     Xóa mềm một thực thể dựa trên định danh của nó một cách bất đồng bộ. (VI)
     /// </summary>
     /// <param name="id">The identifier of the entity.</param>
-    /// <returns>A task that represents the asynchronous operation. The task result contains the number of state entries written to the database.</returns>
+    /// <returns>
+    ///     A task that represents the asynchronous operation. The task result contains the number of state entries
+    ///     written to the database.
+    /// </returns>
     public async Task<int?> DeleteSoftAsync(TKey id)
     {
         logger.LogTrace("{DeleteSoftAsync} request: {id}", nameof(DeleteSoftAsync), id.TryParseToString());
@@ -57,8 +63,8 @@ public abstract class BaseService<TEntity, TCreateRequest, TUpdateRequest, TView
     }
 
     /// <summary>
-    /// Gets all entities as view models asynchronously. (EN)<br/>
-    /// Lấy tất cả các thực thể dưới dạng view model một cách bất đồng bộ. (VI)
+    ///     Gets all entities as view models asynchronously. (EN)<br />
+    ///     Lấy tất cả các thực thể dưới dạng view model một cách bất đồng bộ. (VI)
     /// </summary>
     /// <returns>A task that represents the asynchronous operation. The task result contains the collection of view models.</returns>
     public virtual async Task<IEnumerable<TViewModel>?> GetAllDtoAsync()
@@ -70,11 +76,14 @@ public abstract class BaseService<TEntity, TCreateRequest, TUpdateRequest, TView
     }
 
     /// <summary>
-    /// Gets an entity by its identifier as a view model asynchronously. (EN)<br/>
-    /// Lấy một thực thể dựa trên định danh của nó dưới dạng view model một cách bất đồng bộ. (VI)
+    ///     Gets an entity by its identifier as a view model asynchronously. (EN)<br />
+    ///     Lấy một thực thể dựa trên định danh của nó dưới dạng view model một cách bất đồng bộ. (VI)
     /// </summary>
     /// <param name="id">The identifier of the entity.</param>
-    /// <returns>A task that represents the asynchronous operation. The task result contains the view model, or null if the entity is not found.</returns>
+    /// <returns>
+    ///     A task that represents the asynchronous operation. The task result contains the view model, or null if the
+    ///     entity is not found.
+    /// </returns>
     public virtual async Task<TViewModel?> GetByIdAsync(TKey id)
     {
         logger.LogTrace("{GetByIdAsync} request: {id}", nameof(GetByIdAsync), id.TryParseToString());
@@ -85,12 +94,15 @@ public abstract class BaseService<TEntity, TCreateRequest, TUpdateRequest, TView
     }
 
     /// <summary>
-    /// Updates an entity asynchronously. (EN)<br/>
-    /// Cập nhật một thực thể một cách bất đồng bộ. (VI)
+    ///     Updates an entity asynchronously. (EN)<br />
+    ///     Cập nhật một thực thể một cách bất đồng bộ. (VI)
     /// </summary>
     /// <param name="id">The identifier of the entity to update.</param>
     /// <param name="request">The update request containing the new data.</param>
-    /// <returns>A task that represents the asynchronous operation. The task result contains the updated view model, or null if the update failed.</returns>
+    /// <returns>
+    ///     A task that represents the asynchronous operation. The task result contains the updated view model, or null if
+    ///     the update failed.
+    /// </returns>
     public virtual async Task<TViewModel?> UpdateAsync(TKey id, TUpdateRequest request)
     {
         await using var trans = await unitOfWork.BeginTransactionAsync();
@@ -128,11 +140,14 @@ public abstract class BaseService<TEntity, TCreateRequest, TUpdateRequest, TView
     }
 
     /// <summary>
-    /// Creates a new entity asynchronously. (EN)<br/>
-    /// Tạo một thực thể mới một cách bất đồng bộ. (VI)
+    ///     Creates a new entity asynchronously. (EN)<br />
+    ///     Tạo một thực thể mới một cách bất đồng bộ. (VI)
     /// </summary>
     /// <param name="request">The create request containing the data for the new entity.</param>
-    /// <returns>A task that represents the asynchronous operation. The task result contains the created view model, or null if the creation failed.</returns>
+    /// <returns>
+    ///     A task that represents the asynchronous operation. The task result contains the created view model, or null if
+    ///     the creation failed.
+    /// </returns>
     /// <exception cref="NullReferenceException"></exception>
     public virtual async Task<TViewModel?> CreateAsync(TCreateRequest request)
     {
@@ -161,11 +176,14 @@ public abstract class BaseService<TEntity, TCreateRequest, TUpdateRequest, TView
     }
 
     /// <summary>
-    /// Creates multiple new entities asynchronously. (EN)<br/>
-    /// Tạo nhiều thực thể mới một cách bất đồng bộ. (VI)
+    ///     Creates multiple new entities asynchronously. (EN)<br />
+    ///     Tạo nhiều thực thể mới một cách bất đồng bộ. (VI)
     /// </summary>
     /// <param name="request">The list of create requests containing the data for the new entities.</param>
-    /// <returns>A task that represents the asynchronous operation. The task result contains the collection of created view models, or an empty collection if the creation failed.</returns>
+    /// <returns>
+    ///     A task that represents the asynchronous operation. The task result contains the collection of created view
+    ///     models, or an empty collection if the creation failed.
+    /// </returns>
     /// <exception cref="NullReferenceException"></exception>
     public virtual async Task<IEnumerable<TViewModel>?> CreateAsync(
         List<TCreateRequest> request)

@@ -1,8 +1,8 @@
 using Identity.Application.Common.Interfaces;
-using Identity.Application.Services.Authentication;
-using Identity.Application.Services.Users;
-using Identity.Application.Services.Roles;
 using Identity.Application.Services.ApiKeys;
+using Identity.Application.Services.Authentication;
+using Identity.Application.Services.Roles;
+using Identity.Application.Services.Users;
 using Identity.Domain.Repositories;
 using Identity.Infrastructure.Data;
 using Identity.Infrastructure.Repositories;
@@ -20,16 +20,13 @@ public static class DependencyInjection
         // Database - Use InMemory for development if PostgreSQL is not available
         var connectionString = configuration.GetConnectionString("DefaultConnection");
         var useInMemory = configuration.GetValue("UseInMemoryDatabase", false);
-        
+
         if (useInMemory)
-        {
             services.AddDbContext<IdentityDbContext>(options =>
                 options.UseInMemoryDatabase("IdentityDb"));
-        }
-        else        {
+        else
             services.AddDbContext<IdentityDbContext>(options =>
                 options.UseNpgsql(connectionString));
-        }
 
         // Repositories
         services.AddScoped<IUserRepository, UserRepository>();
@@ -40,7 +37,8 @@ public static class DependencyInjection
 
         // Infrastructure Services
         services.AddScoped<IPasswordHasher, PasswordHasher>();
-        services.AddScoped<IApiKeyHasher, ApiKeyHasher>();        services.AddScoped<IJwtTokenService, JwtTokenService>();
+        services.AddScoped<IApiKeyHasher, ApiKeyHasher>();
+        services.AddScoped<IJwtTokenService, JwtTokenService>();
         services.AddScoped<IGoogleAuthService, GoogleAuthService>();
 
         // Application Services
@@ -56,27 +54,28 @@ public static class DependencyInjection
             {
                 // Configure OpenIddict to use the Entity Framework Core stores and models.
                 options.UseEntityFrameworkCore()
-                       .UseDbContext<IdentityDbContext>();
+                    .UseDbContext<IdentityDbContext>();
             })
-              // Register the OpenIddict server components.
+            // Register the OpenIddict server components.
             .AddServer(options =>
             {
                 // Enable the authorization and token endpoints
                 options.SetAuthorizationEndpointUris("/connect/authorize")
-                       .SetTokenEndpointUris("/connect/token");
+                    .SetTokenEndpointUris("/connect/token");
 
                 // Mark the "email", "profile" and "roles" scopes as supported scopes.
-                options.RegisterScopes("email", "profile", "roles", "offline_access");                // Note: this sample only uses the authorization code flow but you can enable
+                options.RegisterScopes("email", "profile", "roles",
+                    "offline_access"); // Note: this sample only uses the authorization code flow but you can enable
                 // the other flows if you need to support implicit, password or client credentials.
                 options.AllowAuthorizationCodeFlow()
-                       .AllowRefreshTokenFlow();                // Register the signing and encryption credentials.
+                    .AllowRefreshTokenFlow(); // Register the signing and encryption credentials.
                 options.AddDevelopmentEncryptionCertificate()
-                       .AddDevelopmentSigningCertificate();                // Register the ASP.NET Core host and configure the ASP.NET Core-specific options.
+                    .AddDevelopmentSigningCertificate(); // Register the ASP.NET Core host and configure the ASP.NET Core-specific options.
                 options.UseAspNetCore()
-                       .EnableAuthorizationEndpointPassthrough()
-                       .EnableTokenEndpointPassthrough()
-                       .EnableStatusCodePagesIntegration()
-                       .DisableTransportSecurityRequirement(); // Allow HTTP in development
+                    .EnableAuthorizationEndpointPassthrough()
+                    .EnableTokenEndpointPassthrough()
+                    .EnableStatusCodePagesIntegration()
+                    .DisableTransportSecurityRequirement(); // Allow HTTP in development
 
                 // Note: DisableTransportSecurityRequirement allows HTTP for development only
             })

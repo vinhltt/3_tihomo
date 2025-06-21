@@ -1,13 +1,13 @@
 namespace Identity.Application.Services.RefreshTokens;
 
 /// <summary>
-/// Interface for refresh token operations
+///     Interface for refresh token operations
 /// </summary>
 public interface IRefreshTokenService
 {
     /// <summary>
-    /// Generate new refresh token for user
-    /// Tạo refresh token mới cho user
+    ///     Generate new refresh token for user
+    ///     Tạo refresh token mới cho user
     /// </summary>
     /// <param name="userId">User ID</param>
     /// <param name="cancellationToken">Cancellation token</param>
@@ -15,8 +15,8 @@ public interface IRefreshTokenService
     Task<string> GenerateRefreshTokenAsync(Guid userId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Validate and get user from refresh token
-    /// Validate và lấy thông tin user từ refresh token
+    ///     Validate and get user from refresh token
+    ///     Validate và lấy thông tin user từ refresh token
     /// </summary>
     /// <param name="refreshToken">Refresh token to validate</param>
     /// <param name="cancellationToken">Cancellation token</param>
@@ -24,18 +24,19 @@ public interface IRefreshTokenService
     Task<Guid?> ValidateRefreshTokenAsync(string refreshToken, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Revoke refresh token
-    /// Thu hồi refresh token
+    ///     Revoke refresh token
+    ///     Thu hồi refresh token
     /// </summary>
     /// <param name="refreshToken">Token to revoke</param>
     /// <param name="revokedBy">Who revoked the token</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>True if revoked successfully</returns>
-    Task<bool> RevokeRefreshTokenAsync(string refreshToken, string revokedBy, CancellationToken cancellationToken = default);
+    Task<bool> RevokeRefreshTokenAsync(string refreshToken, string revokedBy,
+        CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Rotate refresh token (revoke old and generate new)
-    /// Xoay vòng refresh token (thu hồi cũ và tạo mới)
+    ///     Rotate refresh token (revoke old and generate new)
+    ///     Xoay vòng refresh token (thu hồi cũ và tạo mới)
     /// </summary>
     /// <param name="oldRefreshToken">Old refresh token</param>
     /// <param name="cancellationToken">Cancellation token</param>
@@ -43,8 +44,8 @@ public interface IRefreshTokenService
     Task<string?> RotateRefreshTokenAsync(string oldRefreshToken, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Revoke all refresh tokens for user
-    /// Thu hồi tất cả refresh token của user
+    ///     Revoke all refresh tokens for user
+    ///     Thu hồi tất cả refresh token của user
     /// </summary>
     /// <param name="userId">User ID</param>
     /// <param name="revokedBy">Who revoked the tokens</param>
@@ -53,8 +54,8 @@ public interface IRefreshTokenService
     Task<int> RevokeAllUserTokensAsync(Guid userId, string revokedBy, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Clean up expired refresh tokens
-    /// Dọn dẹp các refresh token đã hết hạn
+    ///     Clean up expired refresh tokens
+    ///     Dọn dẹp các refresh token đã hết hạn
     /// </summary>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Number of tokens cleaned up</returns>

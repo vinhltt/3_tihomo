@@ -1,18 +1,19 @@
+using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.IdentityModel.Tokens;
 using Ocelot.Gateway.Configuration;
 using Ocelot.Gateway.Middleware;
-using System.Text;
 
 namespace Ocelot.Gateway.Extensions;
 
 /// <summary>
-/// Extension methods for configuring authentication services
+///     Extension methods for configuring authentication services
 /// </summary>
 public static class AuthenticationExtensions
 {
     /// <summary>
-    /// Add JWT Bearer authentication
+    ///     Add JWT Bearer authentication
     /// </summary>
     /// <param name="services">Service collection</param>
     /// <param name="jwtSettings">JWT configuration settings</param>
@@ -22,58 +23,58 @@ public static class AuthenticationExtensions
         var key = Encoding.UTF8.GetBytes(jwtSettings.SecretKey);
 
         services.AddAuthentication(options =>
-        {
-            options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-            options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-        })
-        .AddJwtBearer("Bearer", options =>
-        {
-            options.RequireHttpsMetadata = false; // Set to true in production
-            options.SaveToken = true;
-            options.TokenValidationParameters = new TokenValidationParameters
             {
-                ValidateIssuer = jwtSettings.ValidateIssuer,
-                ValidateAudience = jwtSettings.ValidateAudience,
-                ValidateLifetime = jwtSettings.ValidateLifetime,
-                ValidateIssuerSigningKey = jwtSettings.ValidateIssuerSigningKey,
-                ValidIssuer = jwtSettings.Issuer,
-                ValidAudience = jwtSettings.Audience,
-                IssuerSigningKey = new SymmetricSecurityKey(key),
-                ClockSkew = TimeSpan.Zero
-            };
+                options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+                options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+            })
+            .AddJwtBearer("Bearer", options =>
+            {
+                options.RequireHttpsMetadata = false; // Set to true in production
+                options.SaveToken = true;
+                options.TokenValidationParameters = new TokenValidationParameters
+                {
+                    ValidateIssuer = jwtSettings.ValidateIssuer,
+                    ValidateAudience = jwtSettings.ValidateAudience,
+                    ValidateLifetime = jwtSettings.ValidateLifetime,
+                    ValidateIssuerSigningKey = jwtSettings.ValidateIssuerSigningKey,
+                    ValidIssuer = jwtSettings.Issuer,
+                    ValidAudience = jwtSettings.Audience,
+                    IssuerSigningKey = new SymmetricSecurityKey(key),
+                    ClockSkew = TimeSpan.Zero
+                };
 
-            options.Events = new JwtBearerEvents
-            {
-                OnAuthenticationFailed = context =>
+                options.Events = new JwtBearerEvents
                 {
-                    var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<JwtBearerEvents>>();
-                    logger.LogError(context.Exception, "JWT authentication failed");
-                    return Task.CompletedTask;
-                },
-                OnTokenValidated = context =>
-                {
-                    var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<JwtBearerEvents>>();
-                    logger.LogDebug("JWT token validated successfully for user: {User}", 
-                        context.Principal?.Identity?.Name ?? "Unknown");
-                    return Task.CompletedTask;
-                },
-                OnChallenge = context =>
-                {
-                    var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<JwtBearerEvents>>();
-                    logger.LogWarning("JWT authentication challenge triggered: {Error}", context.Error);
-                    return Task.CompletedTask;
-                }
-            };
-        })
-        .AddScheme<ApiKeyAuthenticationSchemeOptions, ApiKeyAuthenticationHandler>(
-            ApiKeyAuthenticationSchemeOptions.DefaultScheme, 
-            options => { });
+                    OnAuthenticationFailed = context =>
+                    {
+                        var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<JwtBearerEvents>>();
+                        logger.LogError(context.Exception, "JWT authentication failed");
+                        return Task.CompletedTask;
+                    },
+                    OnTokenValidated = context =>
+                    {
+                        var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<JwtBearerEvents>>();
+                        logger.LogDebug("JWT token validated successfully for user: {User}",
+                            context.Principal?.Identity?.Name ?? "Unknown");
+                        return Task.CompletedTask;
+                    },
+                    OnChallenge = context =>
+                    {
+                        var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<JwtBearerEvents>>();
+                        logger.LogWarning("JWT authentication challenge triggered: {Error}", context.Error);
+                        return Task.CompletedTask;
+                    }
+                };
+            })
+            .AddScheme<ApiKeyAuthenticationSchemeOptions, ApiKeyAuthenticationHandler>(
+                ApiKeyAuthenticationSchemeOptions.DefaultScheme,
+                options => { });
 
         return services;
     }
 
     /// <summary>
-    /// Add authorization policies
+    ///     Add authorization policies
     /// </summary>
     /// <param name="services">Service collection</param>
     /// <returns>Service collection</returns>
@@ -82,7 +83,7 @@ public static class AuthenticationExtensions
         services.AddAuthorization(options =>
         {
             // Default policy requires authentication
-            options.DefaultPolicy = new Microsoft.AspNetCore.Authorization.AuthorizationPolicyBuilder()
+            options.DefaultPolicy = new AuthorizationPolicyBuilder()
                 .RequireAuthenticatedUser()
                 .Build();
 
@@ -97,12 +98,13 @@ public static class AuthenticationExtensions
             // API Key policy for external services
             options.AddPolicy("ApiKeyPolicy", policy =>
                 policy.RequireAuthenticatedUser()
-                .AddAuthenticationSchemes(ApiKeyAuthenticationSchemeOptions.DefaultScheme));
+                    .AddAuthenticationSchemes(ApiKeyAuthenticationSchemeOptions.DefaultScheme));
 
             // Flexible policy that accepts either JWT or API Key
             options.AddPolicy("FlexiblePolicy", policy =>
                 policy.RequireAuthenticatedUser()
-                .AddAuthenticationSchemes(JwtBearerDefaults.AuthenticationScheme, ApiKeyAuthenticationSchemeOptions.DefaultScheme));
+                    .AddAuthenticationSchemes(JwtBearerDefaults.AuthenticationScheme,
+                        ApiKeyAuthenticationSchemeOptions.DefaultScheme));
         });
 
         return services;

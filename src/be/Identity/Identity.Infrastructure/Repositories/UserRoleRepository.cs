@@ -8,7 +8,8 @@ namespace Identity.Infrastructure.Repositories;
 public class UserRoleRepository(IdentityDbContext context)
     : BaseRepository<UserRole, Guid>(context), IUserRoleRepository
 {
-    public async Task<UserRole?> GetByUserAndRoleAsync(Guid userId, Guid roleId, CancellationToken cancellationToken = default)
+    public async Task<UserRole?> GetByUserAndRoleAsync(Guid userId, Guid roleId,
+        CancellationToken cancellationToken = default)
     {
         return await Context.UserRoles
             .Include(ur => ur.User)
@@ -16,7 +17,8 @@ public class UserRoleRepository(IdentityDbContext context)
             .FirstOrDefaultAsync(ur => ur.UserId == userId && ur.RoleId == roleId, cancellationToken);
     }
 
-    public async Task<IEnumerable<UserRole>> GetByUserIdAsync(Guid userId, CancellationToken cancellationToken = default)
+    public async Task<IEnumerable<UserRole>> GetByUserIdAsync(Guid userId,
+        CancellationToken cancellationToken = default)
     {
         return await Context.UserRoles
             .Include(ur => ur.Role)
@@ -24,7 +26,8 @@ public class UserRoleRepository(IdentityDbContext context)
             .ToListAsync(cancellationToken);
     }
 
-    public async Task<IEnumerable<UserRole>> GetByRoleIdAsync(Guid roleId, CancellationToken cancellationToken = default)
+    public async Task<IEnumerable<UserRole>> GetByRoleIdAsync(Guid roleId,
+        CancellationToken cancellationToken = default)
     {
         return await Context.UserRoles
             .Include(ur => ur.User)

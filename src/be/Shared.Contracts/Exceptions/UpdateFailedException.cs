@@ -1,8 +1,8 @@
 namespace Shared.Contracts.Exceptions;
 
 /// <summary>
-/// Exception thrown when an update operation fails. (EN)<br/>
-/// Ngoại lệ được ném ra khi thao tác cập nhật thất bại. (VI)
+///     Exception thrown when an update operation fails. (EN)<br />
+///     Ngoại lệ được ném ra khi thao tác cập nhật thất bại. (VI)
 /// </summary>
 [Serializable]
 public class UpdateFailedException : Exception

@@ -1,13 +1,13 @@
+using System.Security.Claims;
+using System.Text.Encodings.Web;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.Options;
 using Ocelot.Gateway.Configuration;
-using System.Security.Claims;
-using System.Text.Encodings.Web;
 
 namespace Ocelot.Gateway.Middleware;
 
 /// <summary>
-/// API Key authentication handler for external service access
+///     API Key authentication handler for external service access
 /// </summary>
 public class ApiKeyAuthenticationHandler(
     IOptionsMonitor<ApiKeyAuthenticationSchemeOptions> options,
@@ -70,7 +70,7 @@ public class ApiKeyAuthenticationHandler(
 }
 
 /// <summary>
-/// Options for API Key authentication scheme
+///     Options for API Key authentication scheme
 /// </summary>
 public class ApiKeyAuthenticationSchemeOptions : AuthenticationSchemeOptions
 {

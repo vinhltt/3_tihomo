@@ -3,7 +3,7 @@ using System.Diagnostics;
 namespace Ocelot.Gateway.Middleware;
 
 /// <summary>
-/// Middleware for logging HTTP requests and responses
+///     Middleware for logging HTTP requests and responses
 /// </summary>
 public class RequestLoggingMiddleware(RequestDelegate next, ILogger<RequestLoggingMiddleware> logger)
 {
@@ -11,7 +11,7 @@ public class RequestLoggingMiddleware(RequestDelegate next, ILogger<RequestLoggi
     {
         var stopwatch = Stopwatch.StartNew();
         var requestId = Guid.NewGuid().ToString();
-        
+
         // Add request ID to context for correlation
         context.Items["RequestId"] = requestId;
 
@@ -29,7 +29,7 @@ public class RequestLoggingMiddleware(RequestDelegate next, ILogger<RequestLoggi
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, 
+            logger.LogError(ex,
                 "Request {RequestId} failed: {Method} {Path} - {ErrorMessage}",
                 requestId,
                 context.Request.Method,
@@ -40,7 +40,7 @@ public class RequestLoggingMiddleware(RequestDelegate next, ILogger<RequestLoggi
         finally
         {
             stopwatch.Stop();
-            
+
             // Log completed request
             logger.LogInformation(
                 "Request {RequestId} completed: {Method} {Path} {StatusCode} in {ElapsedMilliseconds}ms",
@@ -54,7 +54,7 @@ public class RequestLoggingMiddleware(RequestDelegate next, ILogger<RequestLoggi
 }
 
 /// <summary>
-/// Extension methods for registering request logging middleware
+///     Extension methods for registering request logging middleware
 /// </summary>
 public static class RequestLoggingMiddlewareExtensions
 {

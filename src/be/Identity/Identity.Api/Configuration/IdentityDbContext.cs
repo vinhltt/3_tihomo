@@ -1,5 +1,5 @@
-using Microsoft.EntityFrameworkCore;
 using Identity.Api.Models;
+using Microsoft.EntityFrameworkCore;
 
 namespace Identity.Api.Configuration;
 
@@ -31,11 +31,11 @@ public class IdentityDbContext(DbContextOptions<IdentityDbContext> options) : Db
             entity.Property(e => e.Provider).IsRequired().HasMaxLength(50);
             entity.Property(e => e.ProviderUserId).IsRequired().HasMaxLength(100);
             entity.Property(e => e.ProviderDisplayName).HasMaxLength(200);
-            
+
             entity.HasOne(e => e.User)
-                  .WithMany(u => u.UserLogins)
-                  .HasForeignKey(e => e.UserId)
-                  .OnDelete(DeleteBehavior.Cascade);
+                .WithMany(u => u.UserLogins)
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         // ApiKey configuration
@@ -48,11 +48,11 @@ public class IdentityDbContext(DbContextOptions<IdentityDbContext> options) : Db
             entity.Property(e => e.KeyPrefix).IsRequired().HasMaxLength(32);
             entity.Property(e => e.Description).HasMaxLength(500);
             entity.Property(e => e.Scopes).HasMaxLength(1000);
-            
+
             entity.HasOne(e => e.User)
-                  .WithMany(u => u.ApiKeys)
-                  .HasForeignKey(e => e.UserId)
-                  .OnDelete(DeleteBehavior.Cascade);
+                .WithMany(u => u.ApiKeys)
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

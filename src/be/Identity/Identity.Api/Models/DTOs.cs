@@ -1,7 +1,7 @@
 namespace Identity.Api.Models;
 
 /// <summary>
-/// User information returned after successful authentication
+///     User information returned after successful authentication
 /// </summary>
 public class UserInfo
 {
@@ -15,7 +15,7 @@ public class UserInfo
 }
 
 /// <summary>
-/// Request model for social login token verification
+///     Request model for social login token verification
 /// </summary>
 public class SocialLoginRequest
 {
@@ -24,7 +24,7 @@ public class SocialLoginRequest
 }
 
 /// <summary>
-/// Response model after successful login
+///     Response model after successful login
 /// </summary>
 public class LoginResponse
 {
@@ -35,7 +35,7 @@ public class LoginResponse
 }
 
 /// <summary>
-/// Request model for API key creation
+///     Request model for API key creation
 /// </summary>
 public class CreateApiKeyRequest
 {
@@ -46,7 +46,7 @@ public class CreateApiKeyRequest
 }
 
 /// <summary>
-/// Response model for API key creation
+///     Response model for API key creation
 /// </summary>
 public class CreateApiKeyResponse
 {
@@ -59,7 +59,7 @@ public class CreateApiKeyResponse
 }
 
 /// <summary>
-/// API key information (without the actual key)
+///     API key information (without the actual key)
 /// </summary>
 public class ApiKeyInfo
 {

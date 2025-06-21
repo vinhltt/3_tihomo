@@ -5,16 +5,16 @@ public record LoginRequest(string UsernameOrEmail, string Password);
 public record GoogleLoginRequest(string IdToken);
 
 public record LoginResponse(
-    string AccessToken, 
-    string RefreshToken, 
-    DateTime ExpiresAt, 
+    string AccessToken,
+    string RefreshToken,
+    DateTime ExpiresAt,
     UserProfile User);
 
 public record RefreshTokenRequest(string RefreshToken);
 
 public record RefreshTokenResponse(
-    string AccessToken, 
-    string RefreshToken, 
+    string AccessToken,
+    string RefreshToken,
     DateTime ExpiresAt);
 
 public record LogoutRequest(string RefreshToken);
@@ -26,11 +26,11 @@ public record ApiKeyVerificationResponse(
     UserProfile? User);
 
 public record UserProfile(
-    Guid Id, 
-    string Email, 
+    Guid Id,
+    string Email,
     string Username,
-    string FullName, 
-    string? AvatarUrl, 
+    string FullName,
+    string? AvatarUrl,
     List<string> Roles);
 
 public record GoogleUserInfo(

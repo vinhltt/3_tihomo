@@ -11,7 +11,7 @@ public class User : BaseEntity<Guid>
     public bool EmailConfirmed { get; set; } = false;
     public string? GoogleId { get; set; }
     public DateTime? LastLoginAt { get; set; }
-    
+
     // Navigation properties
     public virtual ICollection<UserRole> UserRoles { get; set; } = [];
     public virtual ICollection<ApiKey> ApiKeys { get; set; } = [];

@@ -8,6 +8,6 @@ public class RefreshToken : BaseEntity<Guid>
     public bool IsRevoked { get; set; }
     public string? RevokedBy { get; set; }
     public DateTime? RevokedAt { get; set; }
-    
+
     public virtual User User { get; set; } = null!;
 }

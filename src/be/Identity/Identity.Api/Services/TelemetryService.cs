@@ -4,8 +4,8 @@ using System.Diagnostics.Metrics;
 namespace Identity.Api.Services;
 
 /// <summary>
-/// Telemetry and metrics service for Identity API observability
-/// Quản lý telemetry và metrics cho khả năng quan sát của Identity API
+///     Telemetry and metrics service for Identity API observability
+///     Quản lý telemetry và metrics cho khả năng quan sát của Identity API
 /// </summary>
 public class TelemetryService : IDisposable
 {
@@ -16,31 +16,31 @@ public class TelemetryService : IDisposable
     // Meter for custom metrics
     // Meter cho custom metrics
     private readonly Meter _meter;
-
-    // Counters for business metrics
-    // Counters cho business metrics
-    public readonly Counter<long> TokenVerificationAttempts;
-    public readonly Counter<long> TokenVerificationSuccesses; 
-    public readonly Counter<long> TokenVerificationFailures;
-    public readonly Counter<long> CircuitBreakerOpened;
-    public readonly Counter<long> RetryAttempts;
-    public readonly Counter<long> FallbackActivations;
+    public readonly ObservableGauge<long> ActiveRequests;
     public readonly Counter<long> CacheHits;
     public readonly Counter<long> CacheMisses;
-
-    // Histograms for timing metrics
-    // Histograms cho timing metrics
-    public readonly Histogram<double> TokenVerificationDuration;
-    public readonly Histogram<double> ExternalProviderResponseTime;
     public readonly Histogram<double> CacheOperationDuration;
+    public readonly Counter<long> CircuitBreakerOpened;
 
     // Gauges for current state metrics
     // Gauges cho current state metrics
     public readonly ObservableGauge<int> CircuitBreakerState;
-    public readonly ObservableGauge<long> ActiveRequests;
+    public readonly Histogram<double> ExternalProviderResponseTime;
+    public readonly Counter<long> FallbackActivations;
+    public readonly Counter<long> RetryAttempts;
 
-    private long _activeRequestCount = 0;
-    private int _circuitBreakerStateValue = 0; // 0=Closed, 1=Open, 2=HalfOpen
+    // Counters for business metrics
+    // Counters cho business metrics
+    public readonly Counter<long> TokenVerificationAttempts;
+
+    // Histograms for timing metrics
+    // Histograms cho timing metrics
+    public readonly Histogram<double> TokenVerificationDuration;
+    public readonly Counter<long> TokenVerificationFailures;
+    public readonly Counter<long> TokenVerificationSuccesses;
+
+    private long _activeRequestCount;
+    private int _circuitBreakerStateValue; // 0=Closed, 1=Open, 2=HalfOpen
 
     public TelemetryService()
     {
@@ -53,7 +53,7 @@ public class TelemetryService : IDisposable
             description: "Total number of token verification attempts");
 
         TokenVerificationSuccesses = _meter.CreateCounter<long>(
-            "identity_token_verification_successes_total", 
+            "identity_token_verification_successes_total",
             description: "Total number of successful token verifications");
 
         TokenVerificationFailures = _meter.CreateCounter<long>(
@@ -84,35 +84,42 @@ public class TelemetryService : IDisposable
         // Khởi tạo histograms
         TokenVerificationDuration = _meter.CreateHistogram<double>(
             "identity_token_verification_duration_seconds",
-            unit: "s",
-            description: "Duration of token verification operations");
+            "s",
+            "Duration of token verification operations");
 
         ExternalProviderResponseTime = _meter.CreateHistogram<double>(
             "identity_external_provider_response_duration_seconds",
-            unit: "s", 
-            description: "Response time from external authentication providers");
+            "s",
+            "Response time from external authentication providers");
 
         CacheOperationDuration = _meter.CreateHistogram<double>(
             "identity_cache_operation_duration_seconds",
-            unit: "s",
-            description: "Duration of cache operations");
+            "s",
+            "Duration of cache operations");
 
         // Initialize observable gauges
         // Khởi tạo observable gauges
-        CircuitBreakerState = _meter.CreateObservableGauge<int>(
+        CircuitBreakerState = _meter.CreateObservableGauge(
             "identity_circuit_breaker_state",
-            observeValue: () => _circuitBreakerStateValue,
+            () => _circuitBreakerStateValue,
             description: "Current circuit breaker state (0=Closed, 1=Open, 2=HalfOpen)");
 
-        ActiveRequests = _meter.CreateObservableGauge<long>(
+        ActiveRequests = _meter.CreateObservableGauge(
             "identity_active_requests_current",
-            observeValue: () => _activeRequestCount,
+            () => _activeRequestCount,
             description: "Current number of active requests");
     }
 
+    public void Dispose()
+    {
+        _meter?.Dispose();
+        ActivitySource?.Dispose();
+        GC.SuppressFinalize(this);
+    }
+
     /// <summary>
-    /// Increment active request count
-    /// Tăng số lượng request đang active
+    ///     Increment active request count
+    ///     Tăng số lượng request đang active
     /// </summary>
     public void IncrementActiveRequests()
     {
@@ -120,8 +127,8 @@ public class TelemetryService : IDisposable
     }
 
     /// <summary>
-    /// Decrement active request count
-    /// Giảm số lượng request đang active
+    ///     Decrement active request count
+    ///     Giảm số lượng request đang active
     /// </summary>
     public void DecrementActiveRequests()
     {
@@ -129,8 +136,8 @@ public class TelemetryService : IDisposable
     }
 
     /// <summary>
-    /// Update circuit breaker state
-    /// Cập nhật trạng thái circuit breaker
+    ///     Update circuit breaker state
+    ///     Cập nhật trạng thái circuit breaker
     /// </summary>
     /// <param name="state">Circuit breaker state (0=Closed, 1=Open, 2=HalfOpen)</param>
     public void UpdateCircuitBreakerState(int state)
@@ -139,14 +146,15 @@ public class TelemetryService : IDisposable
     }
 
     /// <summary>
-    /// Record token verification attempt with timing
-    /// Ghi lại attempt token verification với timing
+    ///     Record token verification attempt with timing
+    ///     Ghi lại attempt token verification với timing
     /// </summary>
     /// <param name="provider">Authentication provider name</param>
     /// <param name="success">Whether verification was successful</param>
     /// <param name="duration">Duration of the operation</param>
     /// <param name="tags">Additional tags for metrics</param>
-    public void RecordTokenVerification(string provider, bool success, TimeSpan duration, params KeyValuePair<string, object?>[] tags)
+    public void RecordTokenVerification(string provider, bool success, TimeSpan duration,
+        params KeyValuePair<string, object?>[] tags)
     {
         var allTags = new List<KeyValuePair<string, object?>>
         {
@@ -156,22 +164,18 @@ public class TelemetryService : IDisposable
         allTags.AddRange(tags);
 
         TokenVerificationAttempts.Add(1, allTags.ToArray());
-        
+
         if (success)
-        {
             TokenVerificationSuccesses.Add(1, allTags.ToArray());
-        }
         else
-        {
             TokenVerificationFailures.Add(1, allTags.ToArray());
-        }
 
         TokenVerificationDuration.Record(duration.TotalSeconds, allTags.ToArray());
     }
 
     /// <summary>
-    /// Record external provider response time
-    /// Ghi lại response time từ external provider
+    ///     Record external provider response time
+    ///     Ghi lại response time từ external provider
     /// </summary>
     public void RecordExternalProviderResponseTime(string provider, TimeSpan duration, bool success)
     {
@@ -185,8 +189,8 @@ public class TelemetryService : IDisposable
     }
 
     /// <summary>
-    /// Record cache operation
-    /// Ghi lại cache operation
+    ///     Record cache operation
+    ///     Ghi lại cache operation
     /// </summary>
     public void RecordCacheOperation(string operation, bool hit, TimeSpan duration)
     {
@@ -197,20 +201,16 @@ public class TelemetryService : IDisposable
         };
 
         if (hit)
-        {
             CacheHits.Add(1, tags);
-        }
         else
-        {
             CacheMisses.Add(1, tags);
-        }
 
         CacheOperationDuration.Record(duration.TotalSeconds, tags);
     }
 
     /// <summary>
-    /// Record circuit breaker event
-    /// Ghi lại circuit breaker event
+    ///     Record circuit breaker event
+    ///     Ghi lại circuit breaker event
     /// </summary>
     public void RecordCircuitBreakerEvent(string eventType, string provider)
     {
@@ -236,8 +236,8 @@ public class TelemetryService : IDisposable
     }
 
     /// <summary>
-    /// Record retry attempt
-    /// Ghi lại retry attempt
+    ///     Record retry attempt
+    ///     Ghi lại retry attempt
     /// </summary>
     public void RecordRetryAttempt(string provider, int attemptNumber, string reason)
     {
@@ -252,8 +252,8 @@ public class TelemetryService : IDisposable
     }
 
     /// <summary>
-    /// Record fallback activation
-    /// Ghi lại fallback activation
+    ///     Record fallback activation
+    ///     Ghi lại fallback activation
     /// </summary>
     public void RecordFallbackActivation(string provider, string fallbackType, string reason)
     {
@@ -265,12 +265,5 @@ public class TelemetryService : IDisposable
         };
 
         FallbackActivations.Add(1, tags);
-    }
-
-    public void Dispose()
-    {
-        _meter?.Dispose();
-        ActivitySource?.Dispose();
-        GC.SuppressFinalize(this);
     }
 }

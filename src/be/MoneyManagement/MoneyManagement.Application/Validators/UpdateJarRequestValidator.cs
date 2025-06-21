@@ -4,8 +4,8 @@ using MoneyManagement.Application.DTOs.Jar;
 namespace MoneyManagement.Application.Validators;
 
 /// <summary>
-/// Validator for UpdateJarRequest (EN)<br/>
-/// Validator cho UpdateJarRequest (VI)
+///     Validator for UpdateJarRequest (EN)<br />
+///     Validator cho UpdateJarRequest (VI)
 /// </summary>
 public class UpdateJarRequestValidator : AbstractValidator<UpdateJarRequest>
 {
@@ -22,7 +22,8 @@ public class UpdateJarRequestValidator : AbstractValidator<UpdateJarRequest>
             .WithMessage("Target amount must be greater than 0")
             .LessThanOrEqualTo(1000000000)
             .WithMessage("Target amount cannot exceed 1,000,000,000")
-            .When(x => x.TargetAmount.HasValue);        RuleFor(x => x.AllocationPercentage)
+            .When(x => x.TargetAmount.HasValue);
+        RuleFor(x => x.AllocationPercentage)
             .GreaterThan(0)
             .WithMessage("Allocation percentage must be greater than 0")
             .LessThanOrEqualTo(1)

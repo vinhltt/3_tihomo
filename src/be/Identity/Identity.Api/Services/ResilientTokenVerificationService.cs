@@ -1,40 +1,36 @@
-using Google.Apis.Auth;
-using Microsoft.Extensions.Caching.Memory;
-using Microsoft.Extensions.Caching.Distributed;
+using System.Diagnostics;
 using System.IdentityModel.Tokens.Jwt;
-using Microsoft.IdentityModel.Tokens;
-using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
+using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.Caching.Memory;
 using Polly;
 using Polly.CircuitBreaker;
-using Polly.Timeout;
-using Polly.Bulkhead;
-using Polly.Retry;
 using Polly.Contrib.WaitAndRetry;
-using System.Diagnostics;
-using Identity.Api.Models;
+using Polly.Retry;
+using Polly.Timeout;
 
 namespace Identity.Api.Services;
 
 /// <summary>
-/// Resilient token verification service with circuit breaker, retry, timeout, and fallback patterns
-/// Wraps EnhancedTokenVerificationService with Polly resilience policies
-/// Service xác minh token có tính bền vững với circuit breaker, retry, timeout và fallback patterns
+///     Resilient token verification service with circuit breaker, retry, timeout, and fallback patterns
+///     Wraps EnhancedTokenVerificationService with Polly resilience policies
+///     Service xác minh token có tính bền vững với circuit breaker, retry, timeout và fallback patterns
 /// </summary>
 public class ResilientTokenVerificationService : ITokenVerificationService
 {
+    // Circuit breaker state tracking
+    private static readonly ActivitySource ActivitySource = new("Identity.TokenVerification.Resilience");
+    private readonly IConfiguration _configuration;
+    private readonly IDistributedCache _distributedCache;
     private readonly ITokenVerificationService _enhancedService;
     private readonly ILogger<ResilientTokenVerificationService> _logger;
-    private readonly IConfiguration _configuration;
     private readonly IMemoryCache _memoryCache;
-    private readonly IDistributedCache _distributedCache;
-    private readonly TelemetryService _telemetryService;
 
     // Polly policies for resilience
     private readonly ResiliencePipeline<SocialUserInfo?> _providerApiPipeline;
-
-    // Circuit breaker state tracking
-    private static readonly ActivitySource ActivitySource = new("Identity.TokenVerification.Resilience");
+    private readonly TelemetryService _telemetryService;
 
     public ResilientTokenVerificationService(
         ITokenVerificationService enhancedService,
@@ -53,21 +49,23 @@ public class ResilientTokenVerificationService : ITokenVerificationService
 
         // Build resilience pipeline for provider API calls
         _providerApiPipeline = BuildProviderApiPipeline();
-    }    /// <summary>
-    /// Verify token using resilient patterns with fallback to enhanced service
-    /// Xác minh token bằng resilient patterns với fallback về enhanced service
+    }
+
+    /// <summary>
+    ///     Verify token using resilient patterns with fallback to enhanced service
+    ///     Xác minh token bằng resilient patterns với fallback về enhanced service
     /// </summary>
     public async Task<SocialUserInfo?> VerifyTokenAsync(string provider, string token)
     {
         var stopwatch = Stopwatch.StartNew();
-        
+
         try
         {
             using var activity = ActivitySource.StartActivity("VerifyTokenResilient");
             activity?.SetTag("provider", provider);
 
             // Execute with resilience pipeline
-            var result = await _providerApiPipeline.ExecuteAsync(async (cancellationToken) =>
+            var result = await _providerApiPipeline.ExecuteAsync(async cancellationToken =>
             {
                 return await _enhancedService.VerifyTokenAsync(provider, token);
             });
@@ -78,11 +76,11 @@ public class ResilientTokenVerificationService : ITokenVerificationService
             {
                 activity?.SetTag("verification.result", "success");
                 activity?.SetTag("verification.method", "resilient");
-                
+
                 // Record successful verification
                 // Ghi lại xác minh thành công
                 _telemetryService.RecordTokenVerification(provider, true, stopwatch.Elapsed);
-                
+
                 return result;
             }
 
@@ -93,33 +91,33 @@ public class ResilientTokenVerificationService : ITokenVerificationService
         catch (BrokenCircuitException ex)
         {
             stopwatch.Stop();
-            _logger.LogWarning("Provider API circuit breaker is open for {Provider}, using fallback: {Message}", 
+            _logger.LogWarning("Provider API circuit breaker is open for {Provider}, using fallback: {Message}",
                 provider, ex.Message);
-            
+
             // Record circuit breaker activation
             // Ghi lại kích hoạt circuit breaker
             _telemetryService.RecordCircuitBreakerEvent(provider, "opened");
-            _telemetryService.RecordTokenVerification(provider, false, stopwatch.Elapsed, 
+            _telemetryService.RecordTokenVerification(provider, false, stopwatch.Elapsed,
                 new KeyValuePair<string, object?>("fallback_reason", "circuit_breaker"));
-            
+
             return await TryFallbackVerification(provider, token);
         }
         catch (Exception ex)
         {
             stopwatch.Stop();
             _logger.LogError(ex, "Critical error in resilient token verification for provider {Provider}", provider);
-            
+
             // Record verification error
             // Ghi lại lỗi xác minh
             _telemetryService.RecordTokenVerification(provider, false, stopwatch.Elapsed,
                 new KeyValuePair<string, object?>("error_type", ex.GetType().Name));
-            
+
             return await TryFallbackVerification(provider, token);
         }
     }
 
     /// <summary>
-    /// Verify Google token with resilience patterns
+    ///     Verify Google token with resilience patterns
     /// </summary>
     public async Task<SocialUserInfo?> VerifyGoogleTokenAsync(string token)
     {
@@ -127,7 +125,7 @@ public class ResilientTokenVerificationService : ITokenVerificationService
     }
 
     /// <summary>
-    /// Verify Facebook token with resilience patterns
+    ///     Verify Facebook token with resilience patterns
     /// </summary>
     public async Task<SocialUserInfo?> VerifyFacebookTokenAsync(string token)
     {
@@ -135,7 +133,7 @@ public class ResilientTokenVerificationService : ITokenVerificationService
     }
 
     /// <summary>
-    /// Fallback verification when circuit breaker is open or errors occur
+    ///     Fallback verification when circuit breaker is open or errors occur
     /// </summary>
     private async Task<SocialUserInfo?> TryFallbackVerification(string provider, string token)
     {
@@ -144,12 +142,12 @@ public class ResilientTokenVerificationService : ITokenVerificationService
             // Try to get from cache as fallback
             var cacheKey = $"token_fallback:{provider}:{ComputeHash(token)}";
             var cachedResult = await _distributedCache.GetStringAsync(cacheKey);
-            
+
             if (cachedResult != null)
             {
                 _logger.LogInformation("Using cached {Provider} token validation result during fallback", provider);
-                
-                var fallbackResult = System.Text.Json.JsonSerializer.Deserialize<SocialUserInfo>(cachedResult);
+
+                var fallbackResult = JsonSerializer.Deserialize<SocialUserInfo>(cachedResult);
                 if (fallbackResult != null)
                 {
                     // Mark as fallback result
@@ -159,10 +157,7 @@ public class ResilientTokenVerificationService : ITokenVerificationService
             }
 
             // Last resort: try local JWT parsing for basic info
-            if (provider.ToLower() == "google")
-            {
-                return TryLocalGoogleTokenParsing(token);
-            }
+            if (provider.ToLower() == "google") return TryLocalGoogleTokenParsing(token);
 
             _logger.LogWarning("No fallback available for {Provider} token verification", provider);
             return null;
@@ -175,7 +170,7 @@ public class ResilientTokenVerificationService : ITokenVerificationService
     }
 
     /// <summary>
-    /// Try local Google JWT parsing as ultimate fallback
+    ///     Try local Google JWT parsing as ultimate fallback
     /// </summary>
     private SocialUserInfo? TryLocalGoogleTokenParsing(string token)
     {
@@ -183,7 +178,7 @@ public class ResilientTokenVerificationService : ITokenVerificationService
         {
             var handler = new JwtSecurityTokenHandler();
             var jwt = handler.ReadJwtToken(token);
-            
+
             if (jwt.ValidTo < DateTime.UtcNow)
             {
                 _logger.LogWarning("Token expired in local parsing fallback");
@@ -218,19 +213,21 @@ public class ResilientTokenVerificationService : ITokenVerificationService
     }
 
     /// <summary>
-    /// Compute secure hash for cache key from token
+    ///     Compute secure hash for cache key from token
     /// </summary>
     private static string ComputeHash(string input)
     {
-        using var sha256 = System.Security.Cryptography.SHA256.Create();
+        using var sha256 = SHA256.Create();
         var hash = sha256.ComputeHash(Encoding.UTF8.GetBytes(input));
         return Convert.ToBase64String(hash);
-    }    /// <summary>
-    /// Build comprehensive resilience pipeline for provider API calls using Polly v8
+    }
+
+    /// <summary>
+    ///     Build comprehensive resilience pipeline for provider API calls using Polly v8
     /// </summary>
     private ResiliencePipeline<SocialUserInfo?> BuildProviderApiPipeline()
     {
-        var builder = new ResiliencePipelineBuilder<SocialUserInfo?>();        // Add retry strategy with exponential backoff
+        var builder = new ResiliencePipelineBuilder<SocialUserInfo?>(); // Add retry strategy with exponential backoff
         builder.AddRetry(new RetryStrategyOptions<SocialUserInfo?>
         {
             ShouldHandle = new PredicateBuilder<SocialUserInfo?>()
@@ -241,21 +238,21 @@ public class ResilientTokenVerificationService : ITokenVerificationService
             DelayGenerator = args =>
             {
                 var delays = Backoff.DecorrelatedJitterBackoffV2(
-                    medianFirstRetryDelay: TimeSpan.FromMilliseconds(200),
-                    retryCount: 3).ToArray();
-                
-                var delay = args.AttemptNumber < delays.Length 
-                    ? delays[args.AttemptNumber] 
+                    TimeSpan.FromMilliseconds(200),
+                    3).ToArray();
+
+                var delay = args.AttemptNumber < delays.Length
+                    ? delays[args.AttemptNumber]
                     : TimeSpan.FromSeconds(5);
-                    
+
                 return ValueTask.FromResult((TimeSpan?)delay);
             },
             OnRetry = args =>
             {
                 _logger.LogWarning(
                     "Provider API retry {RetryCount}/{MaxRetries} after {Delay}ms. Exception: {Exception}",
-                    args.AttemptNumber + 1, 3, 
-                    args.RetryDelay.TotalMilliseconds, 
+                    args.AttemptNumber + 1, 3,
+                    args.RetryDelay.TotalMilliseconds,
                     args.Outcome.Exception?.Message);
                 return ValueTask.CompletedTask;
             }
@@ -289,13 +286,13 @@ public class ResilientTokenVerificationService : ITokenVerificationService
                 _logger.LogInformation("Provider API circuit breaker half-opened - testing service");
                 return ValueTask.CompletedTask;
             }
-        });        // Add timeout
+        }); // Add timeout
         builder.AddTimeout(new TimeoutStrategyOptions
         {
             Timeout = TimeSpan.FromSeconds(10),
             OnTimeout = args =>
             {
-                _logger.LogWarning("Provider API call timed out after {Timeout}s", 
+                _logger.LogWarning("Provider API call timed out after {Timeout}s",
                     args.Timeout.TotalSeconds);
                 return ValueTask.CompletedTask;
             }

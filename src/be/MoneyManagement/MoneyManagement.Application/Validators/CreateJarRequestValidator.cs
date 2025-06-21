@@ -1,12 +1,11 @@
 using FluentValidation;
 using MoneyManagement.Application.DTOs.Jar;
-using MoneyManagement.Domain.Enums;
 
 namespace MoneyManagement.Application.Validators;
 
 /// <summary>
-/// Validator for CreateJarRequest (EN)<br/>
-/// Validator cho CreateJarRequest (VI)
+///     Validator for CreateJarRequest (EN)<br />
+///     Validator cho CreateJarRequest (VI)
 /// </summary>
 public class CreateJarRequestValidator : AbstractValidator<CreateJarRequest>
 {

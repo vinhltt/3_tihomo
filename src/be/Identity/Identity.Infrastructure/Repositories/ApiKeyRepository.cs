@@ -1,4 +1,5 @@
 using Identity.Domain.Entities;
+using Identity.Domain.Enums;
 using Identity.Domain.Repositories;
 using Identity.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
@@ -26,12 +27,13 @@ public class ApiKeyRepository(IdentityDbContext context) : BaseRepository<ApiKey
     {
         return await DbSet
             .Include(ak => ak.User)
-            .FirstOrDefaultAsync(ak => ak.KeyHash == keyHash && 
-                                      ak.Status == Domain.Enums.ApiKeyStatus.Active,
-                                 cancellationToken);
+            .FirstOrDefaultAsync(ak => ak.KeyHash == keyHash &&
+                                       ak.Status == ApiKeyStatus.Active,
+                cancellationToken);
     }
 
-    public async Task UpdateLastUsedAsync(Guid apiKeyId, DateTime lastUsedAt, CancellationToken cancellationToken = default)
+    public async Task UpdateLastUsedAsync(Guid apiKeyId, DateTime lastUsedAt,
+        CancellationToken cancellationToken = default)
     {
         var apiKey = await DbSet.FindAsync([apiKeyId], cancellationToken);
         if (apiKey != null)

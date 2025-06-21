@@ -7,25 +7,25 @@ namespace Identity.Infrastructure.Services;
 
 public class GoogleAuthService(IConfiguration configuration) : IGoogleAuthService
 {
-    private readonly string _googleClientId = configuration["Google:ClientId"] ?? 
+    private readonly string _googleClientId = configuration["Google:ClientId"] ??
                                               throw new InvalidOperationException("Google Client ID not configured");
 
     public async Task<GoogleUserInfo> VerifyGoogleTokenAsync(string idToken)
     {
         try
         {
-            var payload = await GoogleJsonWebSignature.ValidateAsync(idToken, 
+            var payload = await GoogleJsonWebSignature.ValidateAsync(idToken,
                 new GoogleJsonWebSignature.ValidationSettings
                 {
                     Audience = [_googleClientId]
                 });
 
             return new GoogleUserInfo(
-                GoogleId: payload.Subject,
-                Email: payload.Email,
-                FullName: payload.Name,
-                AvatarUrl: payload.Picture,
-                IsEmailVerified: payload.EmailVerified
+                payload.Subject,
+                payload.Email,
+                payload.Name,
+                payload.Picture,
+                payload.EmailVerified
             );
         }
         catch (Exception ex)

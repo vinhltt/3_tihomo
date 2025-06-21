@@ -1,7 +1,7 @@
 namespace Identity.Domain.Repositories;
 
-public interface IBaseRepository<TEntity, TId> 
-    where TEntity : class 
+public interface IBaseRepository<TEntity, TId>
+    where TEntity : class
     where TId : struct
 {
     Task<TEntity?> GetByIdAsync(TId id, CancellationToken cancellationToken = default);

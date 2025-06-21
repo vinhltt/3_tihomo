@@ -1,7 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using Shared.Contracts.BaseEfModels;
 using CoreFinance.Domain.Enums;
+using Shared.Contracts.BaseEfModels;
 
 namespace CoreFinance.Domain.Entities;
 
@@ -65,20 +65,6 @@ public class Account : BaseEntity<Guid>
     public decimal? AvailableLimit { get; set; }
 
     /// <summary>
-    ///     Date when the account was created (EN)
-    ///     Ngày tài khoản được tạo (VI)
-    /// </summary>
-    [Required]
-    public DateTime CreatedAt { get; set; }
-
-    /// <summary>
-    ///     Date when the account was last updated (EN)
-    ///     Ngày tài khoản được cập nhật gần nhất (VI)
-    /// </summary>
-    [Required]
-    public DateTime UpdatedAt { get; set; }
-
-    /// <summary>
     ///     Whether the account is active (EN)
     ///     Tài khoản có đang hoạt động hay không (VI)
     /// </summary>
@@ -86,6 +72,5 @@ public class Account : BaseEntity<Guid>
     public bool IsActive { get; set; }
 
     // Navigation property
-    [InverseProperty("Account")]
-    public ICollection<Transaction>? Transactions { get; set; }
+    [InverseProperty("Account")] public ICollection<Transaction>? Transactions { get; set; }
 }

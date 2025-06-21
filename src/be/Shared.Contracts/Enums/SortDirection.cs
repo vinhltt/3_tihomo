@@ -1,20 +1,20 @@
 ﻿namespace Shared.Contracts.Enums;
 
 /// <summary>
-/// Defines the sorting direction. (EN)<br/>
-/// Định nghĩa hướng sắp xếp. (VI)
+///     Defines the sorting direction. (EN)<br />
+///     Định nghĩa hướng sắp xếp. (VI)
 /// </summary>
 public enum SortDirection
 {
     /// <summary>
-    /// Ascending order. (EN)<br/>
-    /// Thứ tự tăng dần. (VI)
+    ///     Ascending order. (EN)<br />
+    ///     Thứ tự tăng dần. (VI)
     /// </summary>
     Asc = 0,
 
     /// <summary>
-    /// Descending order. (EN)<br/>
-    /// Thứ tự giảm dần. (VI)
+    ///     Descending order. (EN)<br />
+    ///     Thứ tự giảm dần. (VI)
     /// </summary>
-    Desc = 1,
+    Desc = 1
 }

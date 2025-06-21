@@ -1,34 +1,36 @@
-﻿using CoreFinance.Application.Mapper;
+﻿using System.Text.Json;
+using System.Text.Json.Serialization;
+using CoreFinance.Api.Infrastructures.Swagger.SchemaFilters;
+using CoreFinance.Application.Mapper;
 using CoreFinance.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
-using System.Text.Json.Serialization;
 using Shared.Contracts.ConfigurationOptions;
-using CoreFinance.Api.Infrastructures.Swagger.SchemaFilters;
 
 namespace CoreFinance.Api.Infrastructures.ServicesExtensions;
 
 /// <summary>
-/// Provides extension methods for configuring general services and middleware in the API. (EN)<br/>
-/// Cung cấp các extension methods để cấu hình các dịch vụ và middleware chung trong API. (VI)
+///     Provides extension methods for configuring general services and middleware in the API. (EN)<br />
+///     Cung cấp các extension methods để cấu hình các dịch vụ và middleware chung trong API. (VI)
 /// </summary>
 public static class GeneralServiceExtension
 {
     /// <summary>
-    /// Adds general service configurations, including DbContext, OpenAPI, AutoMapper, JSON options, SwaggerGen, and CORS. (EN)<br/>
-    /// Bổ sung các cấu hình dịch vụ chung, bao gồm DbContext, OpenAPI, AutoMapper, tùy chọn JSON, SwaggerGen và CORS. (VI)
+    ///     Adds general service configurations, including DbContext, OpenAPI, AutoMapper, JSON options, SwaggerGen, and CORS.
+    ///     (EN)<br />
+    ///     Bổ sung các cấu hình dịch vụ chung, bao gồm DbContext, OpenAPI, AutoMapper, tùy chọn JSON, SwaggerGen và CORS. (VI)
     /// </summary>
     /// <param name="builder">
-    /// The WebApplicationBuilder instance. (EN)<br/>
-    /// Instance của WebApplicationBuilder. (VI)
+    ///     The WebApplicationBuilder instance. (EN)<br />
+    ///     Instance của WebApplicationBuilder. (VI)
     /// </param>
     /// <param name="policyName">
-    /// The name of the CORS policy to add. (EN)<br/>
-    /// Tên của chính sách CORS cần thêm. (VI)
+    ///     The name of the CORS policy to add. (EN)<br />
+    ///     Tên của chính sách CORS cần thêm. (VI)
     /// </param>
     /// <param name="corsOption">
-    /// The CORS options configuration. (EN)<br/>
-    /// Cấu hình tùy chọn CORS. (VI)
+    ///     The CORS options configuration. (EN)<br />
+    ///     Cấu hình tùy chọn CORS. (VI)
     /// </param>
     public static void AddGeneralConfigurations(
         this WebApplicationBuilder builder,
@@ -61,7 +63,7 @@ public static class GeneralServiceExtension
             .AddJsonOptions(options =>
                 {
                     // Ví dụ: sử dụng camelCase cho tên thuộc tính
-                    options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+                    options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
 
                     // Ví dụ: bỏ qua các thuộc tính có giá trị null khi serialize
                     options.JsonSerializerOptions.DefaultIgnoreCondition =
@@ -126,16 +128,16 @@ public static class GeneralServiceExtension
     }
 
     /// <summary>
-    /// Checks if the provided collection of strings indicates that all values are allowed (contains "*"). (EN)<br/>
-    /// Kiểm tra xem tập hợp chuỗi được cung cấp có cho biết tất cả các giá trị đều được phép hay không (chứa "*"). (VI)
+    ///     Checks if the provided collection of strings indicates that all values are allowed (contains "*"). (EN)<br />
+    ///     Kiểm tra xem tập hợp chuỗi được cung cấp có cho biết tất cả các giá trị đều được phép hay không (chứa "*"). (VI)
     /// </summary>
     /// <param name="values">
-    /// The collection of strings to check. (EN)<br/>
-    /// Tập hợp chuỗi cần kiểm tra. (VI)
+    ///     The collection of strings to check. (EN)<br />
+    ///     Tập hợp chuỗi cần kiểm tra. (VI)
     /// </param>
     /// <returns>
-    /// True if the collection is null, empty, or contains "*"; otherwise, false. (EN)<br/>
-    /// True nếu tập hợp là null, rỗng hoặc chứa "*"; ngược lại là false. (VI)
+    ///     True if the collection is null, empty, or contains "*"; otherwise, false. (EN)<br />
+    ///     True nếu tập hợp là null, rỗng hoặc chứa "*"; ngược lại là false. (VI)
     /// </returns>
     private static bool IsAllowedAll(this IReadOnlyCollection<string>? values)
     {

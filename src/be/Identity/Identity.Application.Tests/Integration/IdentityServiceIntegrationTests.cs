@@ -1,17 +1,18 @@
+using Identity.Application.Common.Interfaces;
 using Identity.Application.Services.Users;
 using Identity.Contracts.Users;
 using Identity.Domain.Entities;
 using Identity.Domain.Repositories;
-using Identity.Application.Common.Interfaces;
 using Moq;
 
 namespace Identity.Application.Tests.Integration;
 
 /// <summary>
-/// Integration tests to validate the complete Identity service functionality
+///     Integration tests to validate the complete Identity service functionality
 /// </summary>
 public class IdentityServiceIntegrationTests
-{    [Fact]
+{
+    [Fact]
     public void UserService_ServiceInstantiation_ShouldSucceed()
     {
         // Arrange
@@ -24,9 +25,11 @@ public class IdentityServiceIntegrationTests
             mockUserRepository.Object,
             mockPasswordHasher.Object,
             mockRoleRepository.Object);
-        
+
         Assert.NotNull(userService);
-    }    [Fact]
+    }
+
+    [Fact]
     public async Task UserService_CreateUser_ShouldReturnUserResponse()
     {
         // Arrange
@@ -35,13 +38,13 @@ public class IdentityServiceIntegrationTests
         var mockRoleRepository = new Mock<IRoleRepository>();
 
         var createRequest = new CreateUserRequest(
-            Email: "test@example.com",
-            Username: "testuser",
-            FullName: "Test User",
-            FirstName: "Test",
-            LastName: "User",
-            PhoneNumber: null,
-            Password: "TestPassword123!"
+            "test@example.com",
+            "testuser",
+            "Test User",
+            "Test",
+            "User",
+            null,
+            "TestPassword123!"
         );
 
         // Setup mocks
@@ -70,13 +73,17 @@ public class IdentityServiceIntegrationTests
         Assert.Equal(createRequest.Username, result.Username);
         Assert.Equal(createRequest.FullName, result.FullName);
         Assert.NotEqual(Guid.Empty, result.Id);
-        
+
         // Verify repository calls
-        mockUserRepository.Verify(x => x.IsEmailExistsAsync(createRequest.Email, It.IsAny<CancellationToken>()), Times.Once);
-        mockUserRepository.Verify(x => x.IsUsernameExistsAsync(createRequest.Username, It.IsAny<CancellationToken>()), Times.Once);
+        mockUserRepository.Verify(x => x.IsEmailExistsAsync(createRequest.Email, It.IsAny<CancellationToken>()),
+            Times.Once);
+        mockUserRepository.Verify(x => x.IsUsernameExistsAsync(createRequest.Username, It.IsAny<CancellationToken>()),
+            Times.Once);
         mockUserRepository.Verify(x => x.AddAsync(It.IsAny<User>(), It.IsAny<CancellationToken>()), Times.Once);
         mockPasswordHasher.Verify(x => x.HashPassword(createRequest.Password), Times.Once);
-    }    [Fact]
+    }
+
+    [Fact]
     public async Task UserService_CreateDuplicateUser_ShouldThrowException()
     {
         // Arrange
@@ -84,13 +91,13 @@ public class IdentityServiceIntegrationTests
         var mockPasswordHasher = new Mock<IPasswordHasher>();
 
         var createRequest = new CreateUserRequest(
-            Email: "existing@example.com",
-            Username: "existinguser",
-            FullName: "Existing User",
-            FirstName: "Existing",
-            LastName: "User",
-            PhoneNumber: null,
-            Password: "TestPassword123!"
+            "existing@example.com",
+            "existinguser",
+            "Existing User",
+            "Existing",
+            "User",
+            null,
+            "TestPassword123!"
         );
 
         // Setup mock to return that email already exists

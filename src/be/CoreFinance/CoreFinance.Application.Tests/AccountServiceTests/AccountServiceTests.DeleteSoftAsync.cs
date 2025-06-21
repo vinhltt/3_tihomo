@@ -9,14 +9,14 @@ using Moq;
 namespace CoreFinance.Application.Tests.AccountServiceTests;
 
 /// <summary>
-/// Contains test cases for the soft and hard deletion methods of AccountService. (EN)<br/>
-/// Chứa các trường hợp kiểm thử cho các phương thức xóa mềm và xóa cứng của AccountService. (VI)
+///     Contains test cases for the soft and hard deletion methods of AccountService. (EN)<br />
+///     Chứa các trường hợp kiểm thử cho các phương thức xóa mềm và xóa cứng của AccountService. (VI)
 /// </summary>
 public partial class AccountServiceTests
 {
     /// <summary>
-    /// Verifies that DeleteSoftAsync returns the correct affected count when soft deletion is successful. (EN)<br/>
-    /// Xác minh rằng DeleteSoftAsync trả về số bản ghi bị ảnh hưởng chính xác khi xóa mềm thành công. (VI)
+    ///     Verifies that DeleteSoftAsync returns the correct affected count when soft deletion is successful. (EN)<br />
+    ///     Xác minh rằng DeleteSoftAsync trả về số bản ghi bị ảnh hưởng chính xác khi xóa mềm thành công. (VI)
     /// </summary>
     [Fact]
     public async Task DeleteSoftAsync_ShouldReturnAffectedCount_WhenDeletionIsSuccessful()
@@ -47,8 +47,8 @@ public partial class AccountServiceTests
     }
 
     /// <summary>
-    /// Verifies that DeleteSoftAsync returns zero when the entity to soft delete does not exist. (EN)<br/>
-    /// Xác minh rằng DeleteSoftAsync trả về không khi thực thể cần xóa mềm không tồn tại. (VI)
+    ///     Verifies that DeleteSoftAsync returns zero when the entity to soft delete does not exist. (EN)<br />
+    ///     Xác minh rằng DeleteSoftAsync trả về không khi thực thể cần xóa mềm không tồn tại. (VI)
     /// </summary>
     [Fact]
     public async Task DeleteSoftAsync_ShouldReturnZero_WhenEntityDoesNotExist()
@@ -78,8 +78,9 @@ public partial class AccountServiceTests
     }
 
     /// <summary>
-    /// Verifies that DeleteSoftAsync throws an exception when the repository's soft delete operation throws an exception. (EN)<br/>
-    /// Xác minh rằng DeleteSoftAsync ném ra một ngoại lệ khi thao tác xóa mềm của repository ném ra một ngoại lệ. (VI)
+    ///     Verifies that DeleteSoftAsync throws an exception when the repository's soft delete operation throws an exception.
+    ///     (EN)<br />
+    ///     Xác minh rằng DeleteSoftAsync ném ra một ngoại lệ khi thao tác xóa mềm của repository ném ra một ngoại lệ. (VI)
     /// </summary>
     [Fact]
     public async Task DeleteSoftAsync_ShouldThrowException_WhenRepositoryThrowsException()
@@ -109,8 +110,8 @@ public partial class AccountServiceTests
     }
 
     /// <summary>
-    /// Verifies that DeleteHardAsync handles different affected counts returned by the repository. (EN)<br/>
-    /// Xác minh rằng DeleteHardAsync xử lý các số lượng bản ghi bị ảnh hưởng khác nhau được trả về bởi repository. (VI)
+    ///     Verifies that DeleteHardAsync handles different affected counts returned by the repository. (EN)<br />
+    ///     Xác minh rằng DeleteHardAsync xử lý các số lượng bản ghi bị ảnh hưởng khác nhau được trả về bởi repository. (VI)
     /// </summary>
     [Theory]
     [InlineData(1)]
@@ -141,8 +142,8 @@ public partial class AccountServiceTests
     }
 
     /// <summary>
-    /// Verifies that DeleteSoftAsync handles different affected counts returned by the repository. (EN)<br/>
-    /// Xác minh rằng DeleteSoftAsync xử lý các số lượng bản ghi bị ảnh hưởng khác nhau được trả về bởi repository. (VI)
+    ///     Verifies that DeleteSoftAsync handles different affected counts returned by the repository. (EN)<br />
+    ///     Xác minh rằng DeleteSoftAsync xử lý các số lượng bản ghi bị ảnh hưởng khác nhau được trả về bởi repository. (VI)
     /// </summary>
     [Theory]
     [InlineData(1)]

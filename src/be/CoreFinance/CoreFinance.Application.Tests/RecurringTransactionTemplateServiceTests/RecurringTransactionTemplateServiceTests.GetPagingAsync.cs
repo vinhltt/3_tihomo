@@ -1,12 +1,12 @@
 using CoreFinance.Application.Services;
-using Shared.Contracts.BaseEfModels;
 using CoreFinance.Domain.BaseRepositories;
 using CoreFinance.Domain.Entities;
+using CoreFinance.Domain.UnitOfWorks;
+using FluentAssertions;
 using Microsoft.Extensions.Logging;
 using MockQueryable;
 using Moq;
-using FluentAssertions;
-using CoreFinance.Domain.UnitOfWorks;
+using Shared.Contracts.BaseEfModels;
 
 namespace CoreFinance.Application.Tests.RecurringTransactionTemplateServiceTests;
 
@@ -14,9 +14,9 @@ namespace CoreFinance.Application.Tests.RecurringTransactionTemplateServiceTests
 public partial class RecurringTransactionTemplateServiceTests
 {
     /// <summary>
-    /// Verifies that GetPagingAsync returns a paged result correctly.<br/>
-    /// (EN) Verifies that GetPagingAsync returns a paged result correctly.<br/>
-    /// (VI) Xác minh rằng GetPagingAsync trả về kết quả phân trang một cách chính xác.
+    ///     Verifies that GetPagingAsync returns a paged result correctly.<br />
+    ///     (EN) Verifies that GetPagingAsync returns a paged result correctly.<br />
+    ///     (VI) Xác minh rằng GetPagingAsync trả về kết quả phân trang một cách chính xác.
     /// </summary>
     [Fact]
     public async Task GetPagingAsync_ShouldReturnPagedResult()
@@ -66,9 +66,9 @@ public partial class RecurringTransactionTemplateServiceTests
     }
 
     /// <summary>
-    /// Verifies that GetPagingAsync filters results by name.<br/>
-    /// (EN) Verifies that GetPagingAsync filters results by name.<br/>
-    /// (VI) Xác minh rằng GetPagingAsync lọc kết quả theo tên.
+    ///     Verifies that GetPagingAsync filters results by name.<br />
+    ///     (EN) Verifies that GetPagingAsync filters results by name.<br />
+    ///     (VI) Xác minh rằng GetPagingAsync lọc kết quả theo tên.
     /// </summary>
     [Fact]
     public async Task GetPagingAsync_ShouldFilterByName()
@@ -120,9 +120,9 @@ public partial class RecurringTransactionTemplateServiceTests
     }
 
     /// <summary>
-    /// Verifies that GetPagingAsync filters results by description.<br/>
-    /// (EN) Verifies that GetPagingAsync filters results by description.<br/>
-    /// (VI) Xác minh rằng GetPagingAsync lọc kết quả theo mô tả.
+    ///     Verifies that GetPagingAsync filters results by description.<br />
+    ///     (EN) Verifies that GetPagingAsync filters results by description.<br />
+    ///     (VI) Xác minh rằng GetPagingAsync lọc kết quả theo mô tả.
     /// </summary>
     [Fact]
     public async Task GetPagingAsync_ShouldFilterByDescription()
@@ -171,9 +171,9 @@ public partial class RecurringTransactionTemplateServiceTests
     }
 
     /// <summary>
-    /// Verifies that GetPagingAsync filters results by category.<br/>
-    /// (EN) Verifies that GetPagingAsync filters results by category.<br/>
-    /// (VI) Xác minh rằng GetPagingAsync lọc kết quả theo danh mục.
+    ///     Verifies that GetPagingAsync filters results by category.<br />
+    ///     (EN) Verifies that GetPagingAsync filters results by category.<br />
+    ///     (VI) Xác minh rằng GetPagingAsync lọc kết quả theo danh mục.
     /// </summary>
     [Fact]
     public async Task GetPagingAsync_ShouldFilterByCategory()
@@ -221,9 +221,9 @@ public partial class RecurringTransactionTemplateServiceTests
     }
 
     /// <summary>
-    /// Verifies that GetPagingAsync filters results by search value in a case-insensitive manner.<br/>
-    /// (EN) Verifies that GetPagingAsync filters results by search value in a case-insensitive manner.<br/>
-    /// (VI) Xác minh rằng GetPagingAsync lọc kết quả theo giá trị tìm kiếm mà không phân biệt chữ hoa chữ thường.
+    ///     Verifies that GetPagingAsync filters results by search value in a case-insensitive manner.<br />
+    ///     (EN) Verifies that GetPagingAsync filters results by search value in a case-insensitive manner.<br />
+    ///     (VI) Xác minh rằng GetPagingAsync lọc kết quả theo giá trị tìm kiếm mà không phân biệt chữ hoa chữ thường.
     /// </summary>
     [Fact]
     public async Task GetPagingAsync_ShouldFilterBySearchValue_CaseInsensitive()
@@ -272,9 +272,9 @@ public partial class RecurringTransactionTemplateServiceTests
     }
 
     /// <summary>
-    /// Verifies that GetPagingAsync returns an empty result when the search value has no match.<br/>
-    /// (EN) Verifies that GetPagingAsync returns an empty result when the search value has no match.<br/>
-    /// (VI) Xác minh rằng GetPagingAsync trả về kết quả rỗng khi giá trị tìm kiếm không có kết quả khớp.
+    ///     Verifies that GetPagingAsync returns an empty result when the search value has no match.<br />
+    ///     (EN) Verifies that GetPagingAsync returns an empty result when the search value has no match.<br />
+    ///     (VI) Xác minh rằng GetPagingAsync trả về kết quả rỗng khi giá trị tìm kiếm không có kết quả khớp.
     /// </summary>
     [Fact]
     public async Task GetPagingAsync_ShouldReturnEmpty_WhenSearchValueHasNoMatch()
@@ -316,9 +316,9 @@ public partial class RecurringTransactionTemplateServiceTests
     }
 
     /// <summary>
-    /// Verifies that GetPagingAsync handles the case where the repository returns no data.<br/>
-    /// (EN) Verifies that GetPagingAsync handles the case where the repository returns no data.<br/>
-    /// (VI) Xác minh rằng GetPagingAsync xử lý trường hợp repository không trả về dữ liệu.
+    ///     Verifies that GetPagingAsync handles the case where the repository returns no data.<br />
+    ///     (EN) Verifies that GetPagingAsync handles the case where the repository returns no data.<br />
+    ///     (VI) Xác minh rằng GetPagingAsync xử lý trường hợp repository không trả về dữ liệu.
     /// </summary>
     [Fact]
     public async Task GetPagingAsync_ShouldHandleRepositoryReturningNoData()
@@ -354,9 +354,9 @@ public partial class RecurringTransactionTemplateServiceTests
     }
 
     /// <summary>
-    /// Verifies that GetPagingAsync handles null search value correctly.<br/>
-    /// (EN) Verifies that GetPagingAsync handles null search value correctly.<br/>
-    /// (VI) Xác minh rằng GetPagingAsync xử lý đúng giá trị tìm kiếm null.
+    ///     Verifies that GetPagingAsync handles null search value correctly.<br />
+    ///     (EN) Verifies that GetPagingAsync handles null search value correctly.<br />
+    ///     (VI) Xác minh rằng GetPagingAsync xử lý đúng giá trị tìm kiếm null.
     /// </summary>
     [Fact]
     public async Task GetPagingAsync_ShouldHandleNullSearchValue()
@@ -399,9 +399,9 @@ public partial class RecurringTransactionTemplateServiceTests
     }
 
     /// <summary>
-    /// Verifies that GetPagingAsync handles empty string search value correctly.<br/>
-    /// (EN) Verifies that GetPagingAsync handles empty string search value correctly.<br/>
-    /// (VI) Xác minh rằng GetPagingAsync xử lý đúng giá trị tìm kiếm là chuỗi rỗng.
+    ///     Verifies that GetPagingAsync handles empty string search value correctly.<br />
+    ///     (EN) Verifies that GetPagingAsync handles empty string search value correctly.<br />
+    ///     (VI) Xác minh rằng GetPagingAsync xử lý đúng giá trị tìm kiếm là chuỗi rỗng.
     /// </summary>
     [Fact]
     public async Task GetPagingAsync_ShouldHandleEmptyStringSearchValue()

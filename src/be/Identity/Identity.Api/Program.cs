@@ -1,20 +1,22 @@
-using Microsoft.EntityFrameworkCore;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using System.Text.Json;
 using Identity.Api.Configuration;
-using Identity.Api.Services;
 using Identity.Api.HealthChecks;
 using Identity.Api.Middleware;
+using Identity.Api.Services;
 using Identity.Application.Services.RefreshTokens;
 using Identity.Infrastructure.Services;
-using Identity.Infrastructure.Data;
-using OpenTelemetry;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
+using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
-using OpenTelemetry.Metrics;
 using Serilog;
-using Serilog.Context;
+using Serilog.Events;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -22,11 +24,12 @@ var builder = WebApplication.CreateBuilder(args);
 // Cấu hình Serilog cho structured logging với hỗ trợ correlation ID
 Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Information()
-    .MinimumLevel.Override("Microsoft", Serilog.Events.LogEventLevel.Warning)
-    .MinimumLevel.Override("Microsoft.Hosting.Lifetime", Serilog.Events.LogEventLevel.Information)
+    .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
+    .MinimumLevel.Override("Microsoft.Hosting.Lifetime", LogEventLevel.Information)
     .Enrich.FromLogContext()
     .Enrich.WithProperty("Application", "TiHoMo.Identity")
-    .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {CorrelationId} {Message:lj}{NewLine}{Exception}")
+    .WriteTo.Console(
+        outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {CorrelationId} {Message:lj}{NewLine}{Exception}")
     .CreateLogger();
 
 builder.Host.UseSerilog();
@@ -38,21 +41,22 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
-    c.SwaggerDoc("v1", new() { Title = "TiHoMo Identity API", Version = "v1" });
-    c.AddSecurityDefinition("Bearer", new()
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "TiHoMo Identity API", Version = "v1" });
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
-        Description = "JWT Authorization header using the Bearer scheme. Enter 'Bearer' [space] and then your token in the text input below.",
+        Description =
+            "JWT Authorization header using the Bearer scheme. Enter 'Bearer' [space] and then your token in the text input below.",
         Name = "Authorization",
-        In = Microsoft.OpenApi.Models.ParameterLocation.Header,
-        Type = Microsoft.OpenApi.Models.SecuritySchemeType.ApiKey,
+        In = ParameterLocation.Header,
+        Type = SecuritySchemeType.ApiKey,
         Scheme = "Bearer"
     });
-    c.AddSecurityDefinition("ApiKey", new()
+    c.AddSecurityDefinition("ApiKey", new OpenApiSecurityScheme
     {
         Description = "API Key Authorization header. Enter your API key in the text input below.",
         Name = "X-API-Key",
-        In = Microsoft.OpenApi.Models.ParameterLocation.Header,
-        Type = Microsoft.OpenApi.Models.SecuritySchemeType.ApiKey
+        In = ParameterLocation.Header,
+        Type = SecuritySchemeType.ApiKey
     });
 });
 
@@ -62,14 +66,14 @@ builder.Services.AddCors(options =>
     options.AddDefaultPolicy(builder =>
     {
         builder.AllowAnyOrigin()
-               .AllowAnyMethod()
-               .AllowAnyHeader();
+            .AllowAnyMethod()
+            .AllowAnyHeader();
     });
 });
 
 // Add Entity Framework - register both contexts for different layers
 // Thêm Entity Framework - đăng ký cả hai contexts cho các layer khác nhau
-builder.Services.AddDbContext<Identity.Api.Configuration.IdentityDbContext>(options =>
+builder.Services.AddDbContext<IdentityDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 builder.Services.AddDbContext<Identity.Infrastructure.Data.IdentityDbContext>(options =>
@@ -86,26 +90,19 @@ builder.Services.AddMemoryCache(options =>
 // Thêm Redis distributed cache (nếu được cấu hình)
 var redisConnectionString = builder.Configuration.GetConnectionString("Redis");
 if (!string.IsNullOrEmpty(redisConnectionString))
-{
     builder.Services.AddStackExchangeRedisCache(options =>
     {
         options.Configuration = redisConnectionString;
         options.InstanceName = "TiHoMo.Identity";
     });
-}
 else
-{
     // Fallback to in-memory distributed cache for development
     // Fallback về in-memory distributed cache cho development
     builder.Services.AddDistributedMemoryCache();
-}
 
 // Add JWT Authentication
 var jwtSecretKey = builder.Configuration["JWT:SecretKey"];
-if (string.IsNullOrEmpty(jwtSecretKey))
-{
-    throw new InvalidOperationException("JWT SecretKey not configured");
-}
+if (string.IsNullOrEmpty(jwtSecretKey)) throw new InvalidOperationException("JWT SecretKey not configured");
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -150,10 +147,7 @@ builder.Services.AddOpenTelemetry()
             options.SetDbStatementForText = true;
             options.SetDbStatementForStoredProcedure = true;
         })
-        .AddHttpClientInstrumentation(options =>
-        {
-            options.RecordException = true;
-        })
+        .AddHttpClientInstrumentation(options => { options.RecordException = true; })
         .AddSource("TiHoMo.Identity.Telemetry")
         .AddConsoleExporter()
         .AddJaegerExporter())
@@ -175,10 +169,10 @@ builder.Services.AddScoped<ITokenVerificationService>(provider =>
 {
     // Register the enhanced service first
     var enhancedService = ActivatorUtilities.CreateInstance<EnhancedTokenVerificationService>(provider);
-    
+
     // Then wrap it with resilience patterns
     return ActivatorUtilities.CreateInstance<ResilientTokenVerificationService>(
-        provider, 
+        provider,
         enhancedService);
 });
 builder.Services.AddScoped<IUserService, EnhancedUserService>();
@@ -196,8 +190,8 @@ builder.Services.AddHostedService<RefreshTokenCleanupService>();
 // Add health checks for monitoring (including resilience patterns)
 // Thêm health checks để monitoring (bao gồm resilience patterns)
 builder.Services.AddHealthChecks()
-    .AddDbContextCheck<Identity.Api.Configuration.IdentityDbContext>("database")
-    .AddCheck("memory_cache", () => Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Healthy("Memory cache is healthy"))
+    .AddDbContextCheck<IdentityDbContext>("database")
+    .AddCheck("memory_cache", () => HealthCheckResult.Healthy("Memory cache is healthy"))
     .AddCheck<CircuitBreakerHealthCheck>("circuit_breaker")
     .AddCheck<TelemetryHealthCheck>("telemetry");
 
@@ -216,10 +210,7 @@ var app = builder.Build();
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
-    app.UseSwaggerUI(c =>
-    {
-        c.SwaggerEndpoint("/swagger/v1/swagger.json", "TiHoMo Identity API v1");
-    });
+    app.UseSwaggerUI(c => { c.SwaggerEndpoint("/swagger/v1/swagger.json", "TiHoMo Identity API v1"); });
 }
 
 app.UseHttpsRedirection();
@@ -244,7 +235,7 @@ app.MapPrometheusScrapingEndpoint("/metrics");
 
 // Health check endpoint with detailed information
 // Health check endpoint với thông tin chi tiết
-app.MapHealthChecks("/health", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+app.MapHealthChecks("/health", new HealthCheckOptions
 {
     ResponseWriter = async (context, report) =>
     {
@@ -257,14 +248,14 @@ app.MapHealthChecks("/health", new Microsoft.AspNetCore.Diagnostics.HealthChecks
             {
                 Service = e.Key,
                 Status = e.Value.Status.ToString(),
-                Duration = e.Value.Duration,
-                Description = e.Value.Description,
+                e.Value.Duration,
+                e.Value.Description,
                 Data = e.Value.Data.Count > 0 ? e.Value.Data : null
             })
         };
-        
+
         context.Response.ContentType = "application/json";
-        await context.Response.WriteAsync(System.Text.Json.JsonSerializer.Serialize(result));
+        await context.Response.WriteAsync(JsonSerializer.Serialize(result));
     }
 });
 

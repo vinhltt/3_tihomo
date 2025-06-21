@@ -1,17 +1,19 @@
-using FluentValidation;
 using CoreFinance.Application.DTOs.RecurringTransactionTemplate;
+using FluentValidation;
 
 namespace CoreFinance.Application.Validators;
 
 /// <summary>
-/// Validates the <see cref="RecurringTransactionTemplateUpdateRequest"/>. (EN)<br/>
-/// Thực hiện xác thực cho <see cref="RecurringTransactionTemplateUpdateRequest"/>. (VI)
+///     Validates the <see cref="RecurringTransactionTemplateUpdateRequest" />. (EN)<br />
+///     Thực hiện xác thực cho <see cref="RecurringTransactionTemplateUpdateRequest" />. (VI)
 /// </summary>
-public class RecurringTransactionTemplateUpdateRequestValidator : AbstractValidator<RecurringTransactionTemplateUpdateRequest>
+public class
+    RecurringTransactionTemplateUpdateRequestValidator : AbstractValidator<RecurringTransactionTemplateUpdateRequest>
 {
     /// <summary>
-    /// Initializes a new instance of the <see cref="RecurringTransactionTemplateUpdateRequestValidator"/> class. (EN)<br/>
-    /// Khởi tạo một phiên bản mới của lớp <see cref="RecurringTransactionTemplateUpdateRequestValidator"/>. (VI)
+    ///     Initializes a new instance of the <see cref="RecurringTransactionTemplateUpdateRequestValidator" /> class. (EN)
+    ///     <br />
+    ///     Khởi tạo một phiên bản mới của lớp <see cref="RecurringTransactionTemplateUpdateRequestValidator" />. (VI)
     /// </summary>
     public RecurringTransactionTemplateUpdateRequestValidator()
     {
@@ -22,4 +24,4 @@ public class RecurringTransactionTemplateUpdateRequestValidator : AbstractValida
         RuleFor(x => x.Frequency).IsInEnum().When(x => x.Frequency.HasValue);
         RuleFor(x => x.TransactionType).IsInEnum().When(x => x.TransactionType.HasValue);
     }
-} 
+}

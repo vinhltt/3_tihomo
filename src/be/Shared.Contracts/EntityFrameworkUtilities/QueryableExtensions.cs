@@ -1,10 +1,10 @@
 ﻿using System.Linq.Expressions;
+using Microsoft.EntityFrameworkCore;
 using Shared.Contracts.BaseEfModels;
 using Shared.Contracts.Constants;
 using Shared.Contracts.DTOs;
 using Shared.Contracts.Enums;
 using Shared.Contracts.Extensions;
-using Microsoft.EntityFrameworkCore;
 
 // ReSharper disable All
 #pragma warning disable CS8602 // Dereference of a possibly null reference.
@@ -15,12 +15,15 @@ namespace Shared.Contracts.EntityFrameworkUtilities
     public static class QueryableExtensions
     {
         /// <summary>
-    /// (EN) Filters a queryable source based on a FilterRequest object.<br/>
-    /// (VI) Lọc nguồn có thể truy vấn dựa trên đối tượng FilterRequest.
+        ///     (EN) Filters a queryable source based on a FilterRequest object.<br />
+        ///     (VI) Lọc nguồn có thể truy vấn dựa trên đối tượng FilterRequest.
         /// </summary>
-        /// <typeparam name="T">The type of the elements in the source. (EN)<br/>Kiểu của các phần tử trong nguồn. (VI)</typeparam>
-        /// <param name="source">The queryable source to filter. (EN)<br/>Nguồn có thể truy vấn cần lọc. (VI)</param>
-        /// <param name="filter">The FilterRequest containing filter details. (EN)<br/>FilterRequest chứa thông tin chi tiết về lọc. (VI)</param>
+        /// <typeparam name="T">The type of the elements in the source. (EN)<br />Kiểu của các phần tử trong nguồn. (VI)</typeparam>
+        /// <param name="source">The queryable source to filter. (EN)<br />Nguồn có thể truy vấn cần lọc. (VI)</param>
+        /// <param name="filter">
+        ///     The FilterRequest containing filter details. (EN)<br />FilterRequest chứa thông tin chi tiết về
+        ///     lọc. (VI)
+        /// </param>
         /// <returns>A new queryable source with the filter applied, or the original source if no filter is provided.</returns>
         public static IQueryable<T> Filter<T>(this IQueryable<T> source, FilterRequest? filter) where T : class
         {
@@ -43,14 +46,14 @@ namespace Shared.Contracts.EntityFrameworkUtilities
         }
 
         /// <summary>
-    /// (EN) Determines whether a queryable source is already ordered.<br/>
-    /// (VI) Xác định xem nguồn có thể truy vấn đã được sắp xếp hay chưa.
+        ///     (EN) Determines whether a queryable source is already ordered.<br />
+        ///     (VI) Xác định xem nguồn có thể truy vấn đã được sắp xếp hay chưa.
         /// </summary>
-        /// <typeparam name="T">The type of the elements in the source. (EN)<br/>Kiểu của các phần tử trong nguồn. (VI)</typeparam>
-        /// <param name="source">The queryable source to check. (EN)<br/>Nguồn có thể truy vấn cần kiểm tra. (VI)</param>
+        /// <typeparam name="T">The type of the elements in the source. (EN)<br />Kiểu của các phần tử trong nguồn. (VI)</typeparam>
+        /// <param name="source">The queryable source to check. (EN)<br />Nguồn có thể truy vấn cần kiểm tra. (VI)</param>
         /// <returns>
-    /// (EN) <c>true</c> nếu nguồn có thể truy vấn được sắp xếp; ngược lại, <c>false</c>.<br/>
-    /// (VI) <c>true</c> nếu nguồn có thể truy vấn đã được sắp xếp; ngược lại, <c>false</c>.
+        ///     (EN) <c>true</c> nếu nguồn có thể truy vấn được sắp xếp; ngược lại, <c>false</c>.<br />
+        ///     (VI) <c>true</c> nếu nguồn có thể truy vấn đã được sắp xếp; ngược lại, <c>false</c>.
         /// </returns>
         /// <exception cref="ArgumentNullException">Thrown if source is null.</exception>
         public static bool IsOrdered<T>(this IQueryable<T> source)
@@ -62,13 +65,16 @@ namespace Shared.Contracts.EntityFrameworkUtilities
         #region Where
 
         /// <summary>
-    /// (EN) Filters data in the given source using a single filter descriptor.<br/>
-    /// (VI) Lọc dữ liệu trong nguồn đã cho sử dụng một mô tả lọc duy nhất.
+        ///     (EN) Filters data in the given source using a single filter descriptor.<br />
+        ///     (VI) Lọc dữ liệu trong nguồn đã cho sử dụng một mô tả lọc duy nhất.
         /// </summary>
-        /// <typeparam name="T">The type of the elements in the source. (EN)<br/>Kiểu của các phần tử trong nguồn. (VI)</typeparam>
-        /// <param name="source">The queryable source to filter. (EN)<br/>Nguồn có thể truy vấn cần lọc. (VI)</param>
-        /// <param name="filter">The filter descriptor. (EN)<br/>Mô tả lọc. (VI)</param>
-        /// <param name="parameterName">The name of the parameter in the lambda expression. (EN)<br/>Tên của tham số trong biểu thức lambda. (VI)</param>
+        /// <typeparam name="T">The type of the elements in the source. (EN)<br />Kiểu của các phần tử trong nguồn. (VI)</typeparam>
+        /// <param name="source">The queryable source to filter. (EN)<br />Nguồn có thể truy vấn cần lọc. (VI)</param>
+        /// <param name="filter">The filter descriptor. (EN)<br />Mô tả lọc. (VI)</param>
+        /// <param name="parameterName">
+        ///     The name of the parameter in the lambda expression. (EN)<br />Tên của tham số trong biểu
+        ///     thức lambda. (VI)
+        /// </param>
         /// <returns>A new queryable source with the filter applied.</returns>
         public static IQueryable<T> Where<T>(this IQueryable<T> source, FilterDescriptor filter,
             string parameterName = "x")
@@ -84,13 +90,16 @@ namespace Shared.Contracts.EntityFrameworkUtilities
         }
 
         /// <summary>
-    /// (EN) Filters data in the given source using a collection of filter descriptors.<br/>
-    /// (VI) Lọc dữ liệu trong nguồn đã cho sử dụng một tập hợp các mô tả lọc.
+        ///     (EN) Filters data in the given source using a collection of filter descriptors.<br />
+        ///     (VI) Lọc dữ liệu trong nguồn đã cho sử dụng một tập hợp các mô tả lọc.
         /// </summary>
-        /// <typeparam name="T">The type of the elements in the source. (EN)<br/>Kiểu của các phần tử trong nguồn. (VI)</typeparam>
-        /// <param name="source">The queryable source to filter. (EN)<br/>Nguồn có thể truy vấn cần lọc. (VI)</param>
-        /// <param name="filters">The collection of filter descriptors. (EN)<br/>Tập hợp các mô tả lọc. (VI)</param>
-        /// <param name="parameterName">The name of the parameter in the lambda expression. (EN)<br/>Tên của tham số trong biểu thức lambda. (VI)</param>
+        /// <typeparam name="T">The type of the elements in the source. (EN)<br />Kiểu của các phần tử trong nguồn. (VI)</typeparam>
+        /// <param name="source">The queryable source to filter. (EN)<br />Nguồn có thể truy vấn cần lọc. (VI)</param>
+        /// <param name="filters">The collection of filter descriptors. (EN)<br />Tập hợp các mô tả lọc. (VI)</param>
+        /// <param name="parameterName">
+        ///     The name of the parameter in the lambda expression. (EN)<br />Tên của tham số trong biểu
+        ///     thức lambda. (VI)
+        /// </param>
         /// <returns>A new queryable source with the filters applied.</returns>
         public static IQueryable<T> Where<T>(this IQueryable<T> source, IEnumerable<FilterDescriptor> filters,
             string parameterName = "x")
@@ -110,13 +119,17 @@ namespace Shared.Contracts.EntityFrameworkUtilities
         #region OrderBy
 
         /// <summary>
-    /// (EN) Orders data in the given source using a single sort descriptor.<br/>
-    /// (VI) Sắp xếp dữ liệu trong nguồn đã cho sử dụng một mô tả sắp xếp duy nhất.
+        ///     (EN) Orders data in the given source using a single sort descriptor.<br />
+        ///     (VI) Sắp xếp dữ liệu trong nguồn đã cho sử dụng một mô tả sắp xếp duy nhất.
         /// </summary>
-        /// <typeparam name="T">The type of the elements in the source. (EN)<br/>Kiểu của các phần tử trong nguồn. (VI)</typeparam>
-        /// <param name="source">The queryable source to order. (EN)<br/>Nguồn có thể truy vấn cần sắp xếp. (VI)</param>
-        /// <param name="sort">The sort descriptor. (EN)<br/>Mô tả sắp xếp. (VI)</param>
-        /// <param name="replaceOrder">if set to <c>true</c>, replaces the current order in the source; otherwise, appends to the current order. (EN)<br/>nếu đặt là <c>true</c>, thay thế thứ tự hiện tại trong nguồn; ngược lại, thêm vào thứ tự hiện tại. (VI)</param>
+        /// <typeparam name="T">The type of the elements in the source. (EN)<br />Kiểu của các phần tử trong nguồn. (VI)</typeparam>
+        /// <param name="source">The queryable source to order. (EN)<br />Nguồn có thể truy vấn cần sắp xếp. (VI)</param>
+        /// <param name="sort">The sort descriptor. (EN)<br />Mô tả sắp xếp. (VI)</param>
+        /// <param name="replaceOrder">
+        ///     if set to <c>true</c>, replaces the current order in the source; otherwise, appends to the
+        ///     current order. (EN)<br />nếu đặt là <c>true</c>, thay thế thứ tự hiện tại trong nguồn; ngược lại, thêm vào thứ tự
+        ///     hiện tại. (VI)
+        /// </param>
         /// <returns>A new queryable source with the sort applied, or the original source if no sort is provided.</returns>
         public static IQueryable<T>? OrderBy<T>(this IQueryable<T>? source, SortDescriptor? sort,
             bool replaceOrder = true)
@@ -130,13 +143,18 @@ namespace Shared.Contracts.EntityFrameworkUtilities
         }
 
         /// <summary>
-    /// (EN) Orders data in the given source using a collection of sort descriptors.<br/>
-    /// (VI) Sắp xếp dữ liệu trong nguồn đã cho sử dụng một tập hợp các mô tả sắp xếp.
+        ///     (EN) Orders data in the given source using a collection of sort descriptors.<br />
+        ///     (VI) Sắp xếp dữ liệu trong nguồn đã cho sử dụng một tập hợp các mô tả sắp xếp.
         /// </summary>
-        /// <typeparam name="T">The type of the elements in the source. (EN)<br/>Kiểu của các phần tử trong nguồn. (VI)</typeparam>
-        /// <param name="source">The queryable source to order. (EN)<br/>Nguồn có thể truy vấn cần sắp xếp. (VI)</param>
-        /// <param name="sorts">The collection of sort descriptors. (EN)<br/>Tập hợp các mô tả sắp xếp. (VI)</param>
-        /// <param name="replaceOrder">if set to <c>true</c>, replaces the current order in the source for the first sort descriptor; otherwise, appends to the current order for all sort descriptors. (EN)<br/>nếu đặt là <c>true</c>, thay thế thứ tự hiện tại trong nguồn cho mô tả sắp xếp đầu tiên; ngược lại, thêm vào thứ tự hiện tại cho tất cả các mô tả sắp xếp. (VI)</param>
+        /// <typeparam name="T">The type of the elements in the source. (EN)<br />Kiểu của các phần tử trong nguồn. (VI)</typeparam>
+        /// <param name="source">The queryable source to order. (EN)<br />Nguồn có thể truy vấn cần sắp xếp. (VI)</param>
+        /// <param name="sorts">The collection of sort descriptors. (EN)<br />Tập hợp các mô tả sắp xếp. (VI)</param>
+        /// <param name="replaceOrder">
+        ///     if set to <c>true</c>, replaces the current order in the source for the first sort
+        ///     descriptor; otherwise, appends to the current order for all sort descriptors. (EN)<br />nếu đặt là <c>true</c>,
+        ///     thay thế thứ tự hiện tại trong nguồn cho mô tả sắp xếp đầu tiên; ngược lại, thêm vào thứ tự hiện tại cho tất cả các
+        ///     mô tả sắp xếp. (VI)
+        /// </param>
         /// <returns>A new queryable source with the sorts applied, or the original source if no sorts are provided.</returns>
         public static IQueryable<T> OrderBy<T>(this IQueryable<T> source, IEnumerable<SortDescriptor>? sorts,
             bool replaceOrder = true)
@@ -159,15 +177,25 @@ namespace Shared.Contracts.EntityFrameworkUtilities
         }
 
         /// <summary>
-    /// (EN) Orders data in the given source by a specific property.<br/>
-    /// (VI) Sắp xếp dữ liệu trong nguồn đã cho theo một thuộc tính cụ thể.
+        ///     (EN) Orders data in the given source by a specific property.<br />
+        ///     (VI) Sắp xếp dữ liệu trong nguồn đã cho theo một thuộc tính cụ thể.
         /// </summary>
-        /// <typeparam name="T">The type of the elements in the source. (EN)<br/>Kiểu của các phần tử trong nguồn. (VI)</typeparam>
-        /// <param name="source">The queryable source to order. (EN)<br/>Nguồn có thể truy vấn cần sắp xếp. (VI)</param>
-        /// <param name="property">The MemberExpression representing the property to order by. (EN)<br/>MemberExpression biểu thị thuộc tính để sắp xếp. (VI)</param>
-        /// <param name="parameter">The parameter expression. (EN)<br/>Biểu thức tham số. (VI)</param>
-        /// <param name="direction">The sort direction (ascending or descending). (EN)<br/>Hướng sắp xếp (tăng dần hoặc giảm dần). (VI)</param>
-        /// <param name="replaceOrder">if set to <c>true</c>, replaces the current order in the source; otherwise, appends to the current order. (EN)<br/>nếu đặt là <c>true</c>, thay thế thứ tự hiện tại trong nguồn; ngược lại, thêm vào thứ tự hiện tại. (VI)</param>
+        /// <typeparam name="T">The type of the elements in the source. (EN)<br />Kiểu của các phần tử trong nguồn. (VI)</typeparam>
+        /// <param name="source">The queryable source to order. (EN)<br />Nguồn có thể truy vấn cần sắp xếp. (VI)</param>
+        /// <param name="property">
+        ///     The MemberExpression representing the property to order by. (EN)<br />MemberExpression biểu thị
+        ///     thuộc tính để sắp xếp. (VI)
+        /// </param>
+        /// <param name="parameter">The parameter expression. (EN)<br />Biểu thức tham số. (VI)</param>
+        /// <param name="direction">
+        ///     The sort direction (ascending or descending). (EN)<br />Hướng sắp xếp (tăng dần hoặc giảm dần).
+        ///     (VI)
+        /// </param>
+        /// <param name="replaceOrder">
+        ///     if set to <c>true</c>, replaces the current order in the source; otherwise, appends to the
+        ///     current order. (EN)<br />nếu đặt là <c>true</c>, thay thế thứ tự hiện tại trong nguồn; ngược lại, thêm vào thứ tự
+        ///     hiện tại. (VI)
+        /// </param>
         /// <returns>A new queryable source with the sort applied.</returns>
         private static IQueryable<T> OrderBy<T>(this IQueryable<T> source, MemberExpression property,
             ParameterExpression parameter, SortDirection direction, bool replaceOrder = true)
@@ -262,16 +290,26 @@ namespace Shared.Contracts.EntityFrameworkUtilities
         }
 
         /// <summary>
-    /// (EN) Orders data in the given source by a specific property of a specified type.<br/>
-    /// (VI) Sắp xếp dữ liệu trong nguồn đã cho theo một thuộc tính cụ thể thuộc kiểu được chỉ định.
+        ///     (EN) Orders data in the given source by a specific property of a specified type.<br />
+        ///     (VI) Sắp xếp dữ liệu trong nguồn đã cho theo một thuộc tính cụ thể thuộc kiểu được chỉ định.
         /// </summary>
-        /// <typeparam name="T">The type of the elements in the source. (EN)<br/>Kiểu của các phần tử trong nguồn. (VI)</typeparam>
-        /// <typeparam name="TProperty">The type of the property to order by. (EN)<br/>Kiểu của thuộc tính để sắp xếp. (VI)</typeparam>
-        /// <param name="source">The queryable source to order. (EN)<br/>Nguồn có thể truy vấn cần sắp xếp. (VI)</param>
-        /// <param name="property">The MemberExpression representing the property to order by. (EN)<br/>MemberExpression biểu thị thuộc tính để sắp xếp. (VI)</param>
-        /// <param name="parameter">The parameter expression. (EN)<br/>Biểu thức tham số. (VI)</param>
-        /// <param name="direction">The sort direction (ascending or descending). (EN)<br/>Hướng sắp xếp (tăng dần hoặc giảm dần). (VI)</param>
-        /// <param name="replaceOrder">if set to <c>true</c>, replaces the current order in the source; otherwise, appends to the current order. (EN)<br/>nếu đặt là <c>true</c>, thay thế thứ tự hiện tại trong nguồn; ngược lại, thêm vào thứ tự hiện tại. (VI)</param>
+        /// <typeparam name="T">The type of the elements in the source. (EN)<br />Kiểu của các phần tử trong nguồn. (VI)</typeparam>
+        /// <typeparam name="TProperty">The type of the property to order by. (EN)<br />Kiểu của thuộc tính để sắp xếp. (VI)</typeparam>
+        /// <param name="source">The queryable source to order. (EN)<br />Nguồn có thể truy vấn cần sắp xếp. (VI)</param>
+        /// <param name="property">
+        ///     The MemberExpression representing the property to order by. (EN)<br />MemberExpression biểu thị
+        ///     thuộc tính để sắp xếp. (VI)
+        /// </param>
+        /// <param name="parameter">The parameter expression. (EN)<br />Biểu thức tham số. (VI)</param>
+        /// <param name="direction">
+        ///     The sort direction (ascending or descending). (EN)<br />Hướng sắp xếp (tăng dần hoặc giảm dần).
+        ///     (VI)
+        /// </param>
+        /// <param name="replaceOrder">
+        ///     if set to <c>true</c>, replaces the current order in the source; otherwise, appends to the
+        ///     current order. (EN)<br />nếu đặt là <c>true</c>, thay thế thứ tự hiện tại trong nguồn; ngược lại, thêm vào thứ tự
+        ///     hiện tại. (VI)
+        /// </param>
         /// <returns>A new queryable source with the sort applied.</returns>
         private static IOrderedQueryable<T> OrderBy<T, TProperty>(this IQueryable<T> source, MemberExpression property,
             ParameterExpression parameter, SortDirection direction, bool replaceOrder = true)
@@ -292,15 +330,18 @@ namespace Shared.Contracts.EntityFrameworkUtilities
         #region Paging
 
         /// <summary>
-    /// (EN) Converts a queryable source to a paginated result asynchronously.<br/>
-    /// (VI) Chuyển đổi nguồn có thể truy vấn thành kết quả phân trang một cách bất đồng bộ.
+        ///     (EN) Converts a queryable source to a paginated result asynchronously.<br />
+        ///     (VI) Chuyển đổi nguồn có thể truy vấn thành kết quả phân trang một cách bất đồng bộ.
         /// </summary>
-        /// <typeparam name="TSource">The type of the elements in the source. (EN)<br/>Kiểu của các phần tử trong nguồn. (VI)</typeparam>
-        /// <param name="queryable">The queryable source to paginate. (EN)<br/>Nguồn có thể truy vấn cần phân trang. (VI)</param>
-        /// <param name="pagination">The pagination details. (EN)<br/>Thông tin chi tiết về phân trang. (VI)</param>
+        /// <typeparam name="TSource">The type of the elements in the source. (EN)<br />Kiểu của các phần tử trong nguồn. (VI)</typeparam>
+        /// <param name="queryable">The queryable source to paginate. (EN)<br />Nguồn có thể truy vấn cần phân trang. (VI)</param>
+        /// <param name="pagination">The pagination details. (EN)<br />Thông tin chi tiết về phân trang. (VI)</param>
         /// <returns>A task representing the asynchronous operation, containing the paginated result.</returns>
         /// <exception cref="ArgumentNullException">Thrown if queryable or pagination is null.</exception>
-        /// <exception cref="ArgumentOutOfRangeException">Thrown if pageIndex or pageSize is less than 1, or if pageIndex is out of range.</exception>
+        /// <exception cref="ArgumentOutOfRangeException">
+        ///     Thrown if pageIndex or pageSize is less than 1, or if pageIndex is out of
+        ///     range.
+        /// </exception>
         public static async Task<IBasePaging<TSource>> ToPagingAsync<TSource>(this IQueryable<TSource> queryable,
             Pagination pagination)
         {
@@ -355,12 +396,15 @@ namespace Shared.Contracts.EntityFrameworkUtilities
         }
 
         /// <summary>
-    /// (EN) Filters, orders, and paginates a queryable source based on a FilterBodyRequest asynchronously.<br/>
-    /// (VI) Lọc, sắp xếp và phân trang nguồn có thể truy vấn dựa trên FilterBodyRequest một cách bất đồng bộ.
+        ///     (EN) Filters, orders, and paginates a queryable source based on a FilterBodyRequest asynchronously.<br />
+        ///     (VI) Lọc, sắp xếp và phân trang nguồn có thể truy vấn dựa trên FilterBodyRequest một cách bất đồng bộ.
         /// </summary>
-        /// <typeparam name="TSource">The type of the elements in the source. (EN)<br/>Kiểu của các phần tử trong nguồn. (VI)</typeparam>
-        /// <param name="queryable">The queryable source. (EN)<br/>Nguồn có thể truy vấn. (VI)</param>
-        /// <param name="request">The FilterBodyRequest containing filtering, sorting, and pagination details. (EN)<br/>FilterBodyRequest chứa thông tin chi tiết về lọc, sắp xếp và phân trang. (VI)</param>
+        /// <typeparam name="TSource">The type of the elements in the source. (EN)<br />Kiểu của các phần tử trong nguồn. (VI)</typeparam>
+        /// <param name="queryable">The queryable source. (EN)<br />Nguồn có thể truy vấn. (VI)</param>
+        /// <param name="request">
+        ///     The FilterBodyRequest containing filtering, sorting, and pagination details. (EN)<br />
+        ///     FilterBodyRequest chứa thông tin chi tiết về lọc, sắp xếp và phân trang. (VI)
+        /// </param>
         /// <returns>A task representing the asynchronous operation, containing the paginated result.</returns>
         public static async Task<IBasePaging<TSource>> ToPagingAsync<TSource>(this IQueryable<TSource> queryable,
             IFilterBodyRequest request)
@@ -383,14 +427,22 @@ namespace Shared.Contracts.EntityFrameworkUtilities
         }
 
         /// <summary>
-    /// (EN) Filters, orders, and paginates a queryable source and selects a result type based on a FilterBodyRequest and a selector asynchronously.<br/>
-    /// (VI) Lọc, sắp xếp và phân trang nguồn có thể truy vấn, đồng thời chọn kiểu kết quả dựa trên FilterBodyRequest và selector một cách bất đồng bộ.
+        ///     (EN) Filters, orders, and paginates a queryable source and selects a result type based on a FilterBodyRequest and a
+        ///     selector asynchronously.<br />
+        ///     (VI) Lọc, sắp xếp và phân trang nguồn có thể truy vấn, đồng thời chọn kiểu kết quả dựa trên FilterBodyRequest và
+        ///     selector một cách bất đồng bộ.
         /// </summary>
-        /// <typeparam name="TResult">The type of the elements in the result. (EN)<br/>Kiểu của các phần tử trong kết quả. (VI)</typeparam>
-        /// <typeparam name="TSource">The type of the elements in the source. (EN)<br/>Kiểu của các phần tử trong nguồn. (VI)</typeparam>
-        /// <param name="queryable">The queryable source. (EN)<br/>Nguồn có thể truy vấn. (VI)</param>
-        /// <param name="request">The FilterBodyRequest containing filtering, sorting, and pagination details. (EN)<br/>FilterBodyRequest chứa thông tin chi tiết về lọc, sắp xếp và phân trang. (VI)</param>
-        /// <param name="selector">The selector expression to transform the source elements into the result type. (EN)<br/>Biểu thức selector để chuyển đổi các phần tử nguồn thành kiểu kết quả. (VI)</param>
+        /// <typeparam name="TResult">The type of the elements in the result. (EN)<br />Kiểu của các phần tử trong kết quả. (VI)</typeparam>
+        /// <typeparam name="TSource">The type of the elements in the source. (EN)<br />Kiểu của các phần tử trong nguồn. (VI)</typeparam>
+        /// <param name="queryable">The queryable source. (EN)<br />Nguồn có thể truy vấn. (VI)</param>
+        /// <param name="request">
+        ///     The FilterBodyRequest containing filtering, sorting, and pagination details. (EN)<br />
+        ///     FilterBodyRequest chứa thông tin chi tiết về lọc, sắp xếp và phân trang. (VI)
+        /// </param>
+        /// <param name="selector">
+        ///     The selector expression to transform the source elements into the result type. (EN)<br />Biểu
+        ///     thức selector để chuyển đổi các phần tử nguồn thành kiểu kết quả. (VI)
+        /// </param>
         /// <returns>A task representing the asynchronous operation, containing the paginated result of the specified result type.</returns>
         /// <exception cref="ArgumentNullException">Thrown if request, request.Pagination, or selector is null.</exception>
         public static async Task<IBasePaging<TResult>> ToPagingAsync<TResult, TSource>(

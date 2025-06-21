@@ -4,8 +4,8 @@ using MoneyManagement.Application.DTOs.Jar;
 namespace MoneyManagement.Application.Validators;
 
 /// <summary>
-/// Validator for AllocateIncomeRequest (EN)<br/>
-/// Validator cho AllocateIncomeRequest (VI)
+///     Validator for AllocateIncomeRequest (EN)<br />
+///     Validator cho AllocateIncomeRequest (VI)
 /// </summary>
 public class AllocateIncomeRequestValidator : AbstractValidator<AllocateIncomeRequest>
 {

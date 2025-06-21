@@ -1,0 +1,15 @@
+# Grafana Dashboard Provisioning Configuration
+# Auto-loads TiHoMo message queue monitoring dashboards
+
+apiVersion: 1
+
+providers:
+  - name: 'tihomo-dashboards'
+    orgId: 1
+    folder: 'TiHoMo'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 10
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards

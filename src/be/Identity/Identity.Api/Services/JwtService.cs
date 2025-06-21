@@ -1,8 +1,9 @@
-using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text;
 using Identity.Api.Models;
+using Microsoft.IdentityModel.Tokens;
 
 namespace Identity.Api.Services;
 
@@ -16,20 +17,21 @@ public interface IJwtService
 
 public class JwtService : IJwtService
 {
-    private readonly IConfiguration _configuration;
-    private readonly ILogger<JwtService> _logger;
-    private readonly string _secretKey;
-    private readonly string _issuer;
-    private readonly string _audience;
     private readonly int _accessTokenExpirationMinutes;
+    private readonly string _audience;
+    private readonly IConfiguration _configuration;
+    private readonly string _issuer;
+    private readonly ILogger<JwtService> _logger;
     private readonly int _refreshTokenExpirationDays;
+    private readonly string _secretKey;
 
     public JwtService(IConfiguration configuration, ILogger<JwtService> logger)
     {
         _configuration = configuration;
         _logger = logger;
-        
-        _secretKey = _configuration["JWT:SecretKey"] ?? throw new InvalidOperationException("JWT SecretKey not configured");
+
+        _secretKey = _configuration["JWT:SecretKey"] ??
+                     throw new InvalidOperationException("JWT SecretKey not configured");
         _issuer = _configuration["JWT:Issuer"] ?? "TiHoMo.Identity";
         _audience = _configuration["JWT:Audience"] ?? "TiHoMo.Clients";
         _accessTokenExpirationMinutes = int.Parse(_configuration["JWT:AccessTokenExpirationMinutes"] ?? "60");
@@ -40,7 +42,7 @@ public class JwtService : IJwtService
     {
         var tokenHandler = new JwtSecurityTokenHandler();
         var key = Encoding.ASCII.GetBytes(_secretKey);
-        
+
         var claims = new List<Claim>
         {
             new(ClaimTypes.NameIdentifier, user.Id.ToString()),
@@ -50,22 +52,20 @@ public class JwtService : IJwtService
             new("email", user.Email),
             new("name", user.Name)
         };
-        
+
         // Add provider claims
-        foreach (var login in user.UserLogins)
-        {
-            claims.Add(new Claim("provider", login.Provider));
-        }
-        
+        foreach (var login in user.UserLogins) claims.Add(new Claim("provider", login.Provider));
+
         var tokenDescriptor = new SecurityTokenDescriptor
         {
             Subject = new ClaimsIdentity(claims),
             Expires = DateTime.UtcNow.AddMinutes(_accessTokenExpirationMinutes),
             Issuer = _issuer,
             Audience = _audience,
-            SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
+            SigningCredentials =
+                new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
         };
-        
+
         var token = tokenHandler.CreateToken(tokenDescriptor);
         return tokenHandler.WriteToken(token);
     }
@@ -73,7 +73,7 @@ public class JwtService : IJwtService
     public string GenerateRefreshToken()
     {
         var randomBytes = new byte[32];
-        using var rng = System.Security.Cryptography.RandomNumberGenerator.Create();
+        using var rng = RandomNumberGenerator.Create();
         rng.GetBytes(randomBytes);
         return Convert.ToBase64String(randomBytes);
     }
@@ -84,7 +84,7 @@ public class JwtService : IJwtService
         {
             var tokenHandler = new JwtSecurityTokenHandler();
             var key = Encoding.ASCII.GetBytes(_secretKey);
-            
+
             var validationParameters = new TokenValidationParameters
             {
                 ValidateIssuerSigningKey = true,
@@ -96,8 +96,8 @@ public class JwtService : IJwtService
                 ValidateLifetime = validateLifetime,
                 ClockSkew = TimeSpan.Zero
             };
-            
-            var principal = tokenHandler.ValidateToken(token, validationParameters, out SecurityToken validatedToken);
+
+            var principal = tokenHandler.ValidateToken(token, validationParameters, out var validatedToken);
             return principal;
         }
         catch (Exception ex)

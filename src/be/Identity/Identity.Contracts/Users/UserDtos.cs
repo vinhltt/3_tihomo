@@ -4,13 +4,13 @@ using Identity.Contracts.Roles;
 namespace Identity.Contracts.Users;
 
 public record UserDetailResponse(
-    Guid Id, 
-    string Email, 
+    Guid Id,
+    string Email,
     string Username,
-    string FullName, 
-    string? AvatarUrl, 
+    string FullName,
+    string? AvatarUrl,
     bool IsActive,
-    DateTime CreatedAt, 
+    DateTime CreatedAt,
     DateTime? LastLoginAt,
     List<RoleResponse> Roles);
 

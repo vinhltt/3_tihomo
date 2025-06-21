@@ -1,3 +1,4 @@
+using System.Linq.Expressions;
 using CoreFinance.Application.Services;
 using CoreFinance.Domain.BaseRepositories;
 using CoreFinance.Domain.Entities;
@@ -9,14 +10,14 @@ using Moq;
 namespace CoreFinance.Application.Tests.TransactionServiceTests;
 
 /// <summary>
-/// Contains test cases for the GetByIdAsync method of TransactionService. (EN)<br/>
-/// Chứa các trường hợp kiểm thử cho phương thức GetByIdAsync của TransactionService. (VI)
+///     Contains test cases for the GetByIdAsync method of TransactionService. (EN)<br />
+///     Chứa các trường hợp kiểm thử cho phương thức GetByIdAsync của TransactionService. (VI)
 /// </summary>
 public partial class TransactionServiceTests
 {
     /// <summary>
-    /// Verifies that GetByIdAsync returns the correct transaction ViewModel when the transaction exists. (EN)<br/>
-    /// Xác minh rằng GetByIdAsync trả về đúng ViewModel của giao dịch khi giao dịch tồn tại. (VI)
+    ///     Verifies that GetByIdAsync returns the correct transaction ViewModel when the transaction exists. (EN)<br />
+    ///     Xác minh rằng GetByIdAsync trả về đúng ViewModel của giao dịch khi giao dịch tồn tại. (VI)
     /// </summary>
     [Fact]
     public async Task GetByIdAsync_ShouldReturnTransaction_WhenTransactionExists()
@@ -31,7 +32,7 @@ public partial class TransactionServiceTests
 
         unitOfWorkMock.Setup(uow => uow.Repository<Transaction, Guid>()).Returns(repositoryMock.Object);
         repositoryMock.Setup(repo => repo.GetByIdNoTrackingAsync(transactionId,
-            It.IsAny<System.Linq.Expressions.Expression<Func<Transaction, object>>[]>())).ReturnsAsync(transaction);
+            It.IsAny<Expression<Func<Transaction, object>>[]>())).ReturnsAsync(transaction);
 
         var service = new TransactionService(_mapper, unitOfWorkMock.Object, loggerMock.Object);
 
@@ -45,8 +46,8 @@ public partial class TransactionServiceTests
     }
 
     /// <summary>
-    /// Verifies that GetByIdAsync returns null when the transaction does not exist in the repository. (EN)<br/>
-    /// Xác minh rằng GetByIdAsync trả về null khi giao dịch không tồn tại trong repository. (VI)
+    ///     Verifies that GetByIdAsync returns null when the transaction does not exist in the repository. (EN)<br />
+    ///     Xác minh rằng GetByIdAsync trả về null khi giao dịch không tồn tại trong repository. (VI)
     /// </summary>
     [Fact]
     public async Task GetByIdAsync_ShouldReturnNull_WhenTransactionDoesNotExist()
@@ -61,7 +62,7 @@ public partial class TransactionServiceTests
         unitOfWorkMock.Setup(uow => uow.Repository<Transaction, Guid>()).Returns(repositoryMock.Object);
         repositoryMock
             .Setup(repo => repo.GetByIdNoTrackingAsync(transactionId,
-                It.IsAny<System.Linq.Expressions.Expression<Func<Transaction, object>>[]>()))
+                It.IsAny<Expression<Func<Transaction, object>>[]>()))
             .ReturnsAsync((Transaction?)null);
 
         var service = new TransactionService(_mapper, unitOfWorkMock.Object, loggerMock.Object);

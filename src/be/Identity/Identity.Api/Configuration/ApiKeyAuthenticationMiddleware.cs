@@ -1,5 +1,5 @@
-using Identity.Api.Services;
 using System.Security.Claims;
+using Identity.Api.Services;
 
 namespace Identity.Api.Configuration;
 
@@ -9,11 +9,11 @@ public class ApiKeyAuthenticationMiddleware(RequestDelegate next, ILogger<ApiKey
     {
         // Check if API key is provided in the request
         var apiKey = ExtractApiKey(context.Request);
-        
+
         if (!string.IsNullOrEmpty(apiKey))
         {
             var user = await apiKeyService.ValidateApiKeyAsync(apiKey);
-            
+
             if (user != null)
             {
                 // Create claims for the user
@@ -30,9 +30,9 @@ public class ApiKeyAuthenticationMiddleware(RequestDelegate next, ILogger<ApiKey
 
                 var identity = new ClaimsIdentity(claims, "ApiKey");
                 var principal = new ClaimsPrincipal(identity);
-                
+
                 context.User = principal;
-                
+
                 logger.LogDebug("API key authentication successful for user {UserId}", user.Id);
             }
             else
@@ -51,26 +51,17 @@ public class ApiKeyAuthenticationMiddleware(RequestDelegate next, ILogger<ApiKey
         {
             var authValue = authHeader.ToString();
             if (authValue.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
-            {
                 return authValue["Bearer ".Length..].Trim();
-            }
-            else if (authValue.StartsWith("ApiKey ", StringComparison.OrdinalIgnoreCase))
-            {
+
+            if (authValue.StartsWith("ApiKey ", StringComparison.OrdinalIgnoreCase))
                 return authValue["ApiKey ".Length..].Trim();
-            }
         }
 
         // Check X-API-Key header
-        if (request.Headers.TryGetValue("X-API-Key", out var apiKeyHeader))
-        {
-            return apiKeyHeader.ToString();
-        }
+        if (request.Headers.TryGetValue("X-API-Key", out var apiKeyHeader)) return apiKeyHeader.ToString();
 
         // Check query parameter
-        if (request.Query.TryGetValue("api_key", out var apiKeyQuery))
-        {
-            return apiKeyQuery.ToString();
-        }
+        if (request.Query.TryGetValue("api_key", out var apiKeyQuery)) return apiKeyQuery.ToString();
 
         return null;
     }

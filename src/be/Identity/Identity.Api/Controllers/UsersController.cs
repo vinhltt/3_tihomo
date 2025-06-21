@@ -1,8 +1,7 @@
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
 using Identity.Api.Models;
 using Identity.Api.Services;
-using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 
 namespace Identity.Api.Controllers;
 
@@ -12,7 +11,7 @@ namespace Identity.Api.Controllers;
 public class UsersController(IUserService userService, ILogger<UsersController> logger) : ControllerBase
 {
     /// <summary>
-    /// Get current user profile
+    ///     Get current user profile
     /// </summary>
     [HttpGet("me")]
     public async Task<ActionResult<UserInfo>> GetCurrentUser()
@@ -20,18 +19,13 @@ public class UsersController(IUserService userService, ILogger<UsersController> 
         try
         {
             var userIdClaim = User.FindFirst("user_id")?.Value;
-            
+
             if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
-            {
                 return BadRequest("Invalid user ID");
-            }
 
             var user = await userService.GetUserByIdAsync(userId);
-            
-            if (user == null)
-            {
-                return NotFound("User not found");
-            }
+
+            if (user == null) return NotFound("User not found");
 
             var userInfo = await userService.MapToUserInfoAsync(user);
             return Ok(userInfo);
@@ -44,7 +38,7 @@ public class UsersController(IUserService userService, ILogger<UsersController> 
     }
 
     /// <summary>
-    /// Get user by ID (admin only)
+    ///     Get user by ID (admin only)
     /// </summary>
     [HttpGet("{userId:guid}")]
     public async Task<ActionResult<UserInfo>> GetUser(Guid userId)
@@ -53,11 +47,8 @@ public class UsersController(IUserService userService, ILogger<UsersController> 
         {
             // In a real implementation, you would check admin permissions here
             var user = await userService.GetUserByIdAsync(userId);
-            
-            if (user == null)
-            {
-                return NotFound("User not found");
-            }
+
+            if (user == null) return NotFound("User not found");
 
             var userInfo = await userService.MapToUserInfoAsync(user);
             return Ok(userInfo);
@@ -70,7 +61,7 @@ public class UsersController(IUserService userService, ILogger<UsersController> 
     }
 
     /// <summary>
-    /// Update current user profile
+    ///     Update current user profile
     /// </summary>
     [HttpPut("me")]
     public async Task<ActionResult<UserInfo>> UpdateCurrentUser([FromBody] UpdateUserRequest request)
@@ -78,36 +69,22 @@ public class UsersController(IUserService userService, ILogger<UsersController> 
         try
         {
             var userIdClaim = User.FindFirst("user_id")?.Value;
-            
+
             if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
-            {
                 return BadRequest("Invalid user ID");
-            }
 
             var user = await userService.GetUserByIdAsync(userId);
-            
-            if (user == null)
-            {
-                return NotFound("User not found");
-            }
+
+            if (user == null) return NotFound("User not found");
 
             // Update allowed fields
-            if (!string.IsNullOrEmpty(request.Name))
-            {
-                user.Name = request.Name;
-            }
+            if (!string.IsNullOrEmpty(request.Name)) user.Name = request.Name;
 
-            if (request.PictureUrl != null)
-            {
-                user.PictureUrl = request.PictureUrl;
-            }
+            if (request.PictureUrl != null) user.PictureUrl = request.PictureUrl;
 
             var success = await userService.UpdateUserAsync(user);
-            
-            if (!success)
-            {
-                return StatusCode(500, "Failed to update user");
-            }
+
+            if (!success) return StatusCode(500, "Failed to update user");
 
             var userInfo = await userService.MapToUserInfoAsync(user);
             return Ok(userInfo);
@@ -120,7 +97,7 @@ public class UsersController(IUserService userService, ILogger<UsersController> 
     }
 
     /// <summary>
-    /// Deactivate current user account
+    ///     Deactivate current user account
     /// </summary>
     [HttpDelete("me")]
     public async Task<ActionResult> DeactivateCurrentUser()
@@ -128,18 +105,13 @@ public class UsersController(IUserService userService, ILogger<UsersController> 
         try
         {
             var userIdClaim = User.FindFirst("user_id")?.Value;
-            
+
             if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
-            {
                 return BadRequest("Invalid user ID");
-            }
 
             var success = await userService.DeactivateUserAsync(userId);
-            
-            if (!success)
-            {
-                return StatusCode(500, "Failed to deactivate user");
-            }
+
+            if (!success) return StatusCode(500, "Failed to deactivate user");
 
             return Ok(new { Message = "User account deactivated successfully" });
         }
@@ -152,7 +124,7 @@ public class UsersController(IUserService userService, ILogger<UsersController> 
 }
 
 /// <summary>
-/// Request model for updating user information
+///     Request model for updating user information
 /// </summary>
 public class UpdateUserRequest
 {

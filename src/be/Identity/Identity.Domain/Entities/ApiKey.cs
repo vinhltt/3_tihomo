@@ -12,6 +12,6 @@ public class ApiKey : BaseEntity<Guid>
     public DateTime? ExpiresAt { get; set; }
     public DateTime? LastUsedAt { get; set; }
     public int UsageCount { get; set; } = 0;
-    
+
     public virtual User User { get; set; } = null!;
 }

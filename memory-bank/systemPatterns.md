@@ -111,4 +111,33 @@
 - CI/CD cho workflow và cấu hình.
 - Health check, logging, monitoring, alerting tự động.
 - **Background job scheduling cho việc sinh giao dịch dự kiến từ các mẫu định kỳ.**
-- **Event publishing khi có thay đổi trong expected transactions để đồng bộ với reporting và notification services.** 
+- **Event publishing khi có thay đổi trong expected transactions để đồng bộ với reporting và notification services.**
+
+## Identity Service Architecture Evolution
+
+### Resilience Patterns (Phase 3 - June 2025)
+- **Circuit Breaker Pattern:** Sử dụng Polly v8 ResiliencePipeline cho fault tolerance
+- **Multi-layer Fallback Strategy:** External API → Cache → Local validation → Graceful degradation
+- **Retry Strategy:** Decorrelated jitter backoff để avoid thundering herd problem
+- **Timeout Management:** Configurable timeouts để prevent resource exhaustion
+- **Health Monitoring:** Real-time circuit breaker state tracking cho operational visibility
+
+### Observability Architecture (Phase 4 - June 2025)  
+- **Triple Monitoring Strategy:** Metrics (Prometheus) + Tracing (OpenTelemetry) + Logging (Serilog)
+- **Correlation Context:** Request correlation IDs propagated across all layers
+- **Custom Metrics Design:** Business logic metrics integrated với infrastructure metrics
+- **Structured Logging:** JSON format với correlation context cho log aggregation
+- **Health Check Hierarchy:** Multi-level health checks từ infrastructure đến business logic
+
+### Service Integration Patterns
+- **Resilient Service Wrapper:** ResilientTokenVerificationService wraps enhanced services
+- **Telemetry Integration:** TelemetryService injected vào business logic services
+- **Middleware Pipeline:** ObservabilityMiddleware → ApiKeyAuthenticationMiddleware → Application
+- **Dependency Injection Strategy:** Multiple DbContext registration để support different layers
+
+### Production Operational Patterns
+- **Correlation ID Propagation:** Unique request tracking across all services và log entries
+- **Metrics Collection Strategy:** Runtime metrics (GC, memory) + Business metrics (token verification, cache performance)
+- **Circuit Breaker States:** Automatic open/close/half-open state management với health monitoring
+- **Error Recovery Workflows:** Multi-level fallback → Cache → Local parsing → Graceful degradation
+- **Performance Monitoring:** Request timing, external provider response time, cache hit rates tracking

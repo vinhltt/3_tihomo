@@ -4,10 +4,11 @@ using MoneyManagement.Application.DTOs.SharedExpenseParticipant;
 namespace MoneyManagement.Application.Validators;
 
 /// <summary>
-/// Validator for CreateSharedExpenseParticipantRequestDto (EN)<br/>
-/// Validator cho CreateSharedExpenseParticipantRequestDto (VI)
+///     Validator for CreateSharedExpenseParticipantRequestDto (EN)<br />
+///     Validator cho CreateSharedExpenseParticipantRequestDto (VI)
 /// </summary>
-public class CreateSharedExpenseParticipantRequestValidator : AbstractValidator<CreateSharedExpenseParticipantRequestDto>
+public class
+    CreateSharedExpenseParticipantRequestValidator : AbstractValidator<CreateSharedExpenseParticipantRequestDto>
 {
     public CreateSharedExpenseParticipantRequestValidator()
     {

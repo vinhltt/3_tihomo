@@ -13,4 +13,6 @@
     <PackageReference Include="System.Text.Json" Version="9.0.5" />
   </ItemGroup>
 
+  <Import Project="..\..\Shared.Contracts\Shared.Contracts.projitems" Label="Shared" />
+
 </Project>

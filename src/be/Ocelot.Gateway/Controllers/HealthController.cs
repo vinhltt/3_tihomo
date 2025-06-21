@@ -1,11 +1,11 @@
+using System.Net;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
-using System.Net;
 
 namespace Ocelot.Gateway.Controllers;
 
 /// <summary>
-/// Health check controller for monitoring gateway and downstream services
+///     Health check controller for monitoring gateway and downstream services
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
@@ -13,7 +13,7 @@ public class HealthController(HealthCheckService healthCheckService, ILogger<Hea
     : ControllerBase
 {
     /// <summary>
-    /// Get overall health status of the gateway and all downstream services
+    ///     Get overall health status of the gateway and all downstream services
     /// </summary>
     /// <returns>Health check report</returns>
     [HttpGet]
@@ -22,7 +22,7 @@ public class HealthController(HealthCheckService healthCheckService, ILogger<Hea
         try
         {
             var healthReport = await healthCheckService.CheckHealthAsync();
-            
+
             var response = new
             {
                 Status = healthReport.Status.ToString(),
@@ -31,9 +31,9 @@ public class HealthController(HealthCheckService healthCheckService, ILogger<Hea
                 {
                     Name = entry.Key,
                     Status = entry.Value.Status.ToString(),
-                    Description = entry.Value.Description,
+                    entry.Value.Description,
                     Duration = entry.Value.Duration.TotalMilliseconds,
-                    Data = entry.Value.Data,
+                    entry.Value.Data,
                     Exception = entry.Value.Exception?.Message
                 }),
                 Timestamp = DateTime.UtcNow
@@ -52,12 +52,12 @@ public class HealthController(HealthCheckService healthCheckService, ILogger<Hea
         catch (Exception ex)
         {
             logger.LogError(ex, "Error occurred while checking health");
-            return StatusCode(500, new { Error = "Health check failed", Message = ex.Message });
+            return StatusCode(500, new { Error = "Health check failed", ex.Message });
         }
     }
 
     /// <summary>
-    /// Get simplified health status (ready/not ready)
+    ///     Get simplified health status (ready/not ready)
     /// </summary>
     /// <returns>Simple health status</returns>
     [HttpGet("ready")]
@@ -66,11 +66,9 @@ public class HealthController(HealthCheckService healthCheckService, ILogger<Hea
         try
         {
             var healthReport = await healthCheckService.CheckHealthAsync();
-            
+
             if (healthReport.Status == HealthStatus.Healthy)
-            {
                 return Ok(new { Status = "Ready", Timestamp = DateTime.UtcNow });
-            }
 
             return ServiceUnavailable(new { Status = "Not Ready", Timestamp = DateTime.UtcNow });
         }
@@ -82,7 +80,7 @@ public class HealthController(HealthCheckService healthCheckService, ILogger<Hea
     }
 
     /// <summary>
-    /// Get liveness status (alive/dead)
+    ///     Get liveness status (alive/dead)
     /// </summary>
     /// <returns>Simple liveness status</returns>
     [HttpGet("live")]
@@ -93,7 +91,7 @@ public class HealthController(HealthCheckService healthCheckService, ILogger<Hea
     }
 
     /// <summary>
-    /// Get health status of a specific downstream service
+    ///     Get health status of a specific downstream service
     /// </summary>
     /// <param name="serviceName">Name of the service to check</param>
     /// <returns>Service-specific health status</returns>
@@ -103,22 +101,19 @@ public class HealthController(HealthCheckService healthCheckService, ILogger<Hea
         try
         {
             var healthReport = await healthCheckService.CheckHealthAsync();
-            
-            var serviceEntry = healthReport.Entries.FirstOrDefault(e => 
+
+            var serviceEntry = healthReport.Entries.FirstOrDefault(e =>
                 e.Key.Equals(serviceName, StringComparison.OrdinalIgnoreCase));
 
-            if (serviceEntry.Key == null)
-            {
-                return NotFound(new { Error = $"Service '{serviceName}' not found" });
-            }
+            if (serviceEntry.Key == null) return NotFound(new { Error = $"Service '{serviceName}' not found" });
 
             var response = new
             {
                 Name = serviceEntry.Key,
                 Status = serviceEntry.Value.Status.ToString(),
-                Description = serviceEntry.Value.Description,
+                serviceEntry.Value.Description,
                 Duration = serviceEntry.Value.Duration.TotalMilliseconds,
-                Data = serviceEntry.Value.Data,
+                serviceEntry.Value.Data,
                 Exception = serviceEntry.Value.Exception?.Message,
                 Timestamp = DateTime.UtcNow
             };
@@ -136,7 +131,7 @@ public class HealthController(HealthCheckService healthCheckService, ILogger<Hea
         catch (Exception ex)
         {
             logger.LogError(ex, "Error occurred while checking health for service {ServiceName}", serviceName);
-            return StatusCode(500, new { Error = "Service health check failed", Message = ex.Message });
+            return StatusCode(500, new { Error = "Service health check failed", ex.Message });
         }
     }
 

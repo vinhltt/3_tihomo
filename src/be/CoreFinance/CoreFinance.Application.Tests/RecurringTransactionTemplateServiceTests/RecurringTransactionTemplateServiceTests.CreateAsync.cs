@@ -13,14 +13,15 @@ using Moq;
 namespace CoreFinance.Application.Tests.RecurringTransactionTemplateServiceTests;
 
 /// <summary>
-/// Contains test cases for the CreateAsync method of RecurringTransactionTemplateService. (EN)<br/>
-/// Chứa các trường hợp kiểm thử cho phương thức CreateAsync của RecurringTransactionTemplateService. (VI)
+///     Contains test cases for the CreateAsync method of RecurringTransactionTemplateService. (EN)<br />
+///     Chứa các trường hợp kiểm thử cho phương thức CreateAsync của RecurringTransactionTemplateService. (VI)
 /// </summary>
 public partial class RecurringTransactionTemplateServiceTests
 {
     /// <summary>
-    /// Verifies that CreateAsync returns a ViewModel when the creation of a recurring transaction template is successful. (EN)<br/>
-    /// Xác minh rằng CreateAsync trả về ViewModel khi việc tạo một mẫu giao dịch định kỳ thành công. (VI)
+    ///     Verifies that CreateAsync returns a ViewModel when the creation of a recurring transaction template is successful.
+    ///     (EN)<br />
+    ///     Xác minh rằng CreateAsync trả về ViewModel khi việc tạo một mẫu giao dịch định kỳ thành công. (VI)
     /// </summary>
     [Fact]
     public async Task CreateAsync_ShouldReturnViewModel_WhenCreationIsSuccessful()
@@ -82,8 +83,10 @@ public partial class RecurringTransactionTemplateServiceTests
     }
 
     /// <summary>
-    /// Verifies that CreateAsync sets the NextExecutionDate to the StartDate when NextExecutionDate is not explicitly provided. (EN)<br/>
-    /// Xác minh rằng CreateAsync đặt NextExecutionDate thành StartDate khi NextExecutionDate không được cung cấp rõ ràng. (VI)
+    ///     Verifies that CreateAsync sets the NextExecutionDate to the StartDate when NextExecutionDate is not explicitly
+    ///     provided. (EN)<br />
+    ///     Xác minh rằng CreateAsync đặt NextExecutionDate thành StartDate khi NextExecutionDate không được cung cấp rõ ràng.
+    ///     (VI)
     /// </summary>
     [Fact]
     public async Task CreateAsync_ShouldSetNextExecutionDateToStartDate_WhenNextExecutionDateIsDefault()
@@ -124,8 +127,8 @@ public partial class RecurringTransactionTemplateServiceTests
     }
 
     /// <summary>
-    /// Verifies that CreateAsync generates expected transactions when AutoGenerate is true. (EN)<br/>
-    /// Xác minh rằng CreateAsync tạo các giao dịch dự kiến khi AutoGenerate là true. (VI)
+    ///     Verifies that CreateAsync generates expected transactions when AutoGenerate is true. (EN)<br />
+    ///     Xác minh rằng CreateAsync tạo các giao dịch dự kiến khi AutoGenerate là true. (VI)
     /// </summary>
     [Fact]
     public async Task CreateAsync_ShouldGenerateExpectedTransactions_WhenAutoGenerateIsTrue()
@@ -196,8 +199,10 @@ public partial class RecurringTransactionTemplateServiceTests
     }
 
     /// <summary>
-    /// Verifies that CreateAsync throws a CreateFailedException when the repository's create operation returns zero affected count. (EN)<br/>
-    /// Xác minh rằng CreateAsync ném ra CreateFailedException khi thao tác tạo của repository trả về số bản ghi bị ảnh hưởng bằng không. (VI)
+    ///     Verifies that CreateAsync throws a CreateFailedException when the repository's create operation returns zero
+    ///     affected count. (EN)<br />
+    ///     Xác minh rằng CreateAsync ném ra CreateFailedException khi thao tác tạo của repository trả về số bản ghi bị ảnh
+    ///     hưởng bằng không. (VI)
     /// </summary>
     [Fact]
     public async Task CreateAsync_ShouldThrowCreateFailedException_WhenRepositoryReturnsZeroAffectedCount()

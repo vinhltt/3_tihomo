@@ -1,12 +1,13 @@
 using AutoMapper;
 using MoneyManagement.Application.DTOs.Budget;
 using MoneyManagement.Domain.Entities;
+using MoneyManagement.Domain.Enums;
 
 namespace MoneyManagement.Application.Mapper;
 
 /// <summary>
-/// AutoMapper profile for Budget entity mappings (EN)<br/>
-/// Profile AutoMapper cho ánh xạ entity Budget (VI)
+///     AutoMapper profile for Budget entity mappings (EN)<br />
+///     Profile AutoMapper cho ánh xạ entity Budget (VI)
 /// </summary>
 public class BudgetMappingProfile : Profile
 {
@@ -24,7 +25,7 @@ public class BudgetMappingProfile : Profile
             .ForMember(dest => dest.Id, opt => opt.Ignore())
             .ForMember(dest => dest.UserId, opt => opt.Ignore())
             .ForMember(dest => dest.SpentAmount, opt => opt.MapFrom(src => 0))
-            .ForMember(dest => dest.Status, opt => opt.MapFrom(src => Domain.Enums.BudgetStatus.Active))
+            .ForMember(dest => dest.Status, opt => opt.MapFrom(src => BudgetStatus.Active))
             .ForMember(dest => dest.CreateAt, opt => opt.Ignore())
             .ForMember(dest => dest.UpdateAt, opt => opt.Ignore())
             .ForMember(dest => dest.CreateBy, opt => opt.Ignore())
@@ -41,4 +42,4 @@ public class BudgetMappingProfile : Profile
             .ForMember(dest => dest.UpdateBy, opt => opt.Ignore())
             .ForMember(dest => dest.Deleted, opt => opt.Ignore());
     }
-} 
+}

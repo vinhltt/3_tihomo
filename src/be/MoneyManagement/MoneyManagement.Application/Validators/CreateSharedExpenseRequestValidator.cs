@@ -1,13 +1,12 @@
 using FluentValidation;
 using MoneyManagement.Application.DTOs.SharedExpense;
 using MoneyManagement.Application.DTOs.SharedExpenseParticipant;
-using MoneyManagement.Domain.Enums;
 
 namespace MoneyManagement.Application.Validators;
 
 /// <summary>
-/// Validator for CreateSharedExpenseRequestDto (EN)<br/>
-/// Validator cho CreateSharedExpenseRequestDto (VI)
+///     Validator for CreateSharedExpenseRequestDto (EN)<br />
+///     Validator cho CreateSharedExpenseRequestDto (VI)
 /// </summary>
 public class CreateSharedExpenseRequestValidator : AbstractValidator<CreateSharedExpenseRequestDto>
 {
@@ -28,7 +27,8 @@ public class CreateSharedExpenseRequestValidator : AbstractValidator<CreateShare
             .GreaterThan(0)
             .WithMessage("Total amount must be greater than 0")
             .LessThanOrEqualTo(1000000000)
-            .WithMessage("Total amount cannot exceed 1,000,000,000");        RuleFor(x => x.Category)
+            .WithMessage("Total amount cannot exceed 1,000,000,000");
+        RuleFor(x => x.Category)
             .MaximumLength(100)
             .WithMessage("Category cannot exceed 100 characters")
             .When(x => !string.IsNullOrEmpty(x.Category));
@@ -54,7 +54,8 @@ public class CreateSharedExpenseRequestValidator : AbstractValidator<CreateShare
             .NotEmpty()
             .WithMessage("At least one participant is required")
             .Must(HaveUniqueParticipants)
-            .WithMessage("Participants must be unique");        RuleForEach(x => x.Participants)
+            .WithMessage("Participants must be unique");
+        RuleForEach(x => x.Participants)
             .NotNull()
             .WithMessage("Participant cannot be null")
             .ChildRules(participant =>

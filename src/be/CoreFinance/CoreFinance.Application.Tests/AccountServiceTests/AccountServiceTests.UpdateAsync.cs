@@ -14,14 +14,15 @@ using Moq;
 namespace CoreFinance.Application.Tests.AccountServiceTests;
 
 /// <summary>
-/// Contains test cases for the UpdateAsync method of AccountService. (EN)<br/>
-/// Chứa các trường hợp kiểm thử cho phương thức UpdateAsync của AccountService. (VI)
+///     Contains test cases for the UpdateAsync method of AccountService. (EN)<br />
+///     Chứa các trường hợp kiểm thử cho phương thức UpdateAsync của AccountService. (VI)
 /// </summary>
 public partial class AccountServiceTests
 {
     /// <summary>
-    /// Verifies that UpdateAsync returns the updated ViewModel when the update is successful with a valid request. (EN)<br/>
-    /// Xác minh rằng UpdateAsync trả về ViewModel đã cập nhật khi việc cập nhật thành công với yêu cầu hợp lệ. (VI)
+    ///     Verifies that UpdateAsync returns the updated ViewModel when the update is successful with a valid request. (EN)
+    ///     <br />
+    ///     Xác minh rằng UpdateAsync trả về ViewModel đã cập nhật khi việc cập nhật thành công với yêu cầu hợp lệ. (VI)
     /// </summary>
     [Fact]
     public async Task UpdateAsync_ValidRequest_ReturnsUpdatedViewModel()
@@ -82,8 +83,10 @@ public partial class AccountServiceTests
     }
 
     /// <summary>
-    /// Verifies that UpdateAsync throws a KeyNotFoundException when the provided ID in the request mismatches the entity ID. (EN)<br/>
-    /// Xác minh rằng UpdateAsync ném ra KeyNotFoundException khi ID được cung cấp trong yêu cầu không khớp với ID thực thể. (VI)
+    ///     Verifies that UpdateAsync throws a KeyNotFoundException when the provided ID in the request mismatches the entity
+    ///     ID. (EN)<br />
+    ///     Xác minh rằng UpdateAsync ném ra KeyNotFoundException khi ID được cung cấp trong yêu cầu không khớp với ID thực
+    ///     thể. (VI)
     /// </summary>
     [Fact]
     public async Task UpdateAsync_IdMismatch_ThrowsKeyNotFoundException()
@@ -119,8 +122,10 @@ public partial class AccountServiceTests
     }
 
     /// <summary>
-    /// Verifies that UpdateAsync throws a NullReferenceException when the entity to update is not found in the repository. (EN)<br/>
-    /// Xác minh rằng UpdateAsync ném ra NullReferenceException khi không tìm thấy thực thể cần cập nhật trong repository. (VI)
+    ///     Verifies that UpdateAsync throws a NullReferenceException when the entity to update is not found in the repository.
+    ///     (EN)<br />
+    ///     Xác minh rằng UpdateAsync ném ra NullReferenceException khi không tìm thấy thực thể cần cập nhật trong repository.
+    ///     (VI)
     /// </summary>
     [Fact]
     public async Task UpdateAsync_EntityNotFound_ThrowsNullReferenceException()
@@ -151,8 +156,10 @@ public partial class AccountServiceTests
     }
 
     /// <summary>
-    /// Verifies that UpdateAsync throws an UpdateFailedException when the repository's update operation returns a zero affected count. (EN)<br/>
-    /// Xác minh rằng UpdateAsync ném ra UpdateFailedException khi thao tác cập nhật của repository trả về số bản ghi bị ảnh hưởng bằng không. (VI)
+    ///     Verifies that UpdateAsync throws an UpdateFailedException when the repository's update operation returns a zero
+    ///     affected count. (EN)<br />
+    ///     Xác minh rằng UpdateAsync ném ra UpdateFailedException khi thao tác cập nhật của repository trả về số bản ghi bị
+    ///     ảnh hưởng bằng không. (VI)
     /// </summary>
     [Fact]
     public async Task UpdateAsync_UpdateFails_ThrowsUpdateFailedException()

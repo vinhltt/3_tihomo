@@ -1,7 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using Shared.Contracts.BaseEfModels;
 using CoreFinance.Domain.Enums;
+using Shared.Contracts.BaseEfModels;
 
 namespace CoreFinance.Domain.Entities;
 

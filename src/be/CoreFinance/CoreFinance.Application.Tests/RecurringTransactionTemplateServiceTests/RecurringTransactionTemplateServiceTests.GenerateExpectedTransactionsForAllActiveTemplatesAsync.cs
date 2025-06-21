@@ -2,11 +2,11 @@ using CoreFinance.Application.Services;
 using CoreFinance.Domain.BaseRepositories;
 using CoreFinance.Domain.Entities;
 using CoreFinance.Domain.UnitOfWorks;
+using FluentAssertions;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Logging;
 using MockQueryable;
 using Moq;
-using FluentAssertions;
-using Microsoft.EntityFrameworkCore.Storage;
 
 namespace CoreFinance.Application.Tests.RecurringTransactionTemplateServiceTests;
 
@@ -14,8 +14,10 @@ namespace CoreFinance.Application.Tests.RecurringTransactionTemplateServiceTests
 public partial class RecurringTransactionTemplateServiceTests
 {
     /// <summary>
-    /// (EN) Verifies that GenerateExpectedTransactionsForAllActiveTemplatesAsync processes only active templates with auto-generate enabled.<br/>
-    /// (VI) Xác minh rằng GenerateExpectedTransactionsForAllActiveTemplatesAsync chỉ xử lý các mẫu đang hoạt động có bật tự động tạo.
+    ///     (EN) Verifies that GenerateExpectedTransactionsForAllActiveTemplatesAsync processes only active templates with
+    ///     auto-generate enabled.<br />
+    ///     (VI) Xác minh rằng GenerateExpectedTransactionsForAllActiveTemplatesAsync chỉ xử lý các mẫu đang hoạt động có bật
+    ///     tự động tạo.
     /// </summary>
     [Fact]
     public async Task
@@ -83,8 +85,10 @@ public partial class RecurringTransactionTemplateServiceTests
     }
 
     /// <summary>
-    /// (EN) Verifies that GenerateExpectedTransactionsForAllActiveTemplatesAsync handles an empty template list correctly.<br/>
-    /// (VI) Xác minh rằng GenerateExpectedTransactionsForAllActiveTemplatesAsync xử lý danh sách mẫu rỗng một cách chính xác.
+    ///     (EN) Verifies that GenerateExpectedTransactionsForAllActiveTemplatesAsync handles an empty template list correctly.
+    ///     <br />
+    ///     (VI) Xác minh rằng GenerateExpectedTransactionsForAllActiveTemplatesAsync xử lý danh sách mẫu rỗng một cách chính
+    ///     xác.
     /// </summary>
     [Fact]
     public async Task GenerateExpectedTransactionsForAllActiveTemplatesAsync_ShouldHandleEmptyTemplateList()
@@ -117,8 +121,10 @@ public partial class RecurringTransactionTemplateServiceTests
     }
 
     /// <summary>
-    /// (EN) Verifies that GenerateExpectedTransactionsForAllActiveTemplatesAsync rolls back the transaction on exception.<br/>
-    /// (VI) Xác minh rằng GenerateExpectedTransactionsForAllActiveTemplatesAsync thực hiện rollback giao dịch khi có ngoại lệ.
+    ///     (EN) Verifies that GenerateExpectedTransactionsForAllActiveTemplatesAsync rolls back the transaction on exception.
+    ///     <br />
+    ///     (VI) Xác minh rằng GenerateExpectedTransactionsForAllActiveTemplatesAsync thực hiện rollback giao dịch khi có ngoại
+    ///     lệ.
     /// </summary>
     [Fact]
     public async Task GenerateExpectedTransactionsForAllActiveTemplatesAsync_ShouldRollbackOnException()
@@ -169,8 +175,8 @@ public partial class RecurringTransactionTemplateServiceTests
     }
 
     /// <summary>
-    /// (EN) Verifies that GenerateExpectedTransactionsForAllActiveTemplatesAsync filters templates correctly.<br/>
-    /// (VI) Xác minh rằng GenerateExpectedTransactionsForAllActiveTemplatesAsync lọc các mẫu một cách chính xác.
+    ///     (EN) Verifies that GenerateExpectedTransactionsForAllActiveTemplatesAsync filters templates correctly.<br />
+    ///     (VI) Xác minh rằng GenerateExpectedTransactionsForAllActiveTemplatesAsync lọc các mẫu một cách chính xác.
     /// </summary>
     [Fact]
     public async Task GenerateExpectedTransactionsForAllActiveTemplatesAsync_ShouldFilterCorrectly()
@@ -245,8 +251,8 @@ public partial class RecurringTransactionTemplateServiceTests
     }
 
     /// <summary>
-    /// (EN) Verifies that GenerateExpectedTransactionsForAllActiveTemplatesAsync logs an error on exception.<br/>
-    /// (VI) Xác minh rằng GenerateExpectedTransactionsForAllActiveTemplatesAsync ghi nhật ký lỗi khi có ngoại lệ.
+    ///     (EN) Verifies that GenerateExpectedTransactionsForAllActiveTemplatesAsync logs an error on exception.<br />
+    ///     (VI) Xác minh rằng GenerateExpectedTransactionsForAllActiveTemplatesAsync ghi nhật ký lỗi khi có ngoại lệ.
     /// </summary>
     [Fact]
     public async Task GenerateExpectedTransactionsForAllActiveTemplatesAsync_ShouldLogErrorOnException()

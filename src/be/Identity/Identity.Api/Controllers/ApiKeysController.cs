@@ -1,7 +1,7 @@
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
 using Identity.Api.Models;
 using Identity.Api.Services;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 
 namespace Identity.Api.Controllers;
 
@@ -12,7 +12,7 @@ public class ApiKeysController(IApiKeyService apiKeyService, ILogger<ApiKeysCont
     : ControllerBase
 {
     /// <summary>
-    /// Create a new API key for the current user
+    ///     Create a new API key for the current user
     /// </summary>
     [HttpPost]
     public async Task<ActionResult<CreateApiKeyResponse>> CreateApiKey([FromBody] CreateApiKeyRequest request)
@@ -20,26 +20,18 @@ public class ApiKeysController(IApiKeyService apiKeyService, ILogger<ApiKeysCont
         try
         {
             var userIdClaim = User.FindFirst("user_id")?.Value;
-            
-            if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
-            {
-                return BadRequest("Invalid user ID");
-            }
 
-            if (string.IsNullOrEmpty(request.Name))
-            {
-                return BadRequest("API key name is required");
-            }
+            if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
+                return BadRequest("Invalid user ID");
+
+            if (string.IsNullOrEmpty(request.Name)) return BadRequest("API key name is required");
 
             var response = await apiKeyService.CreateApiKeyAsync(userId, request);
-            
-            if (response == null)
-            {
-                return StatusCode(500, "Failed to create API key");
-            }
+
+            if (response == null) return StatusCode(500, "Failed to create API key");
 
             logger.LogInformation("API key {KeyId} created for user {UserId}", response.Id, userId);
-            
+
             return Ok(response);
         }
         catch (Exception ex)
@@ -50,7 +42,7 @@ public class ApiKeysController(IApiKeyService apiKeyService, ILogger<ApiKeysCont
     }
 
     /// <summary>
-    /// Get all API keys for the current user
+    ///     Get all API keys for the current user
     /// </summary>
     [HttpGet]
     public async Task<ActionResult<List<ApiKeyInfo>>> GetApiKeys()
@@ -58,11 +50,9 @@ public class ApiKeysController(IApiKeyService apiKeyService, ILogger<ApiKeysCont
         try
         {
             var userIdClaim = User.FindFirst("user_id")?.Value;
-            
+
             if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
-            {
                 return BadRequest("Invalid user ID");
-            }
 
             var apiKeys = await apiKeyService.GetUserApiKeysAsync(userId);
             return Ok(apiKeys);
@@ -75,7 +65,7 @@ public class ApiKeysController(IApiKeyService apiKeyService, ILogger<ApiKeysCont
     }
 
     /// <summary>
-    /// Get specific API key information
+    ///     Get specific API key information
     /// </summary>
     [HttpGet("{keyId:guid}")]
     public async Task<ActionResult<ApiKeyInfo>> GetApiKey(Guid keyId)
@@ -83,18 +73,13 @@ public class ApiKeysController(IApiKeyService apiKeyService, ILogger<ApiKeysCont
         try
         {
             var userIdClaim = User.FindFirst("user_id")?.Value;
-            
+
             if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
-            {
                 return BadRequest("Invalid user ID");
-            }
 
             var apiKey = await apiKeyService.GetApiKeyInfoAsync(keyId, userId);
-            
-            if (apiKey == null)
-            {
-                return NotFound("API key not found");
-            }
+
+            if (apiKey == null) return NotFound("API key not found");
 
             return Ok(apiKey);
         }
@@ -106,7 +91,7 @@ public class ApiKeysController(IApiKeyService apiKeyService, ILogger<ApiKeysCont
     }
 
     /// <summary>
-    /// Revoke an API key
+    ///     Revoke an API key
     /// </summary>
     [HttpDelete("{keyId:guid}")]
     public async Task<ActionResult> RevokeApiKey(Guid keyId)
@@ -114,21 +99,16 @@ public class ApiKeysController(IApiKeyService apiKeyService, ILogger<ApiKeysCont
         try
         {
             var userIdClaim = User.FindFirst("user_id")?.Value;
-            
+
             if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
-            {
                 return BadRequest("Invalid user ID");
-            }
 
             var success = await apiKeyService.RevokeApiKeyAsync(keyId, userId);
-            
-            if (!success)
-            {
-                return NotFound("API key not found");
-            }
+
+            if (!success) return NotFound("API key not found");
 
             logger.LogInformation("API key {KeyId} revoked by user {UserId}", keyId, userId);
-            
+
             return Ok(new { Message = "API key revoked successfully" });
         }
         catch (Exception ex)
@@ -139,7 +119,7 @@ public class ApiKeysController(IApiKeyService apiKeyService, ILogger<ApiKeysCont
     }
 
     /// <summary>
-    /// Validate an API key (for internal use by other services)
+    ///     Validate an API key (for internal use by other services)
     /// </summary>
     [HttpPost("validate")]
     [AllowAnonymous]
@@ -147,24 +127,18 @@ public class ApiKeysController(IApiKeyService apiKeyService, ILogger<ApiKeysCont
     {
         try
         {
-            if (string.IsNullOrEmpty(apiKey))
-            {
-                return BadRequest("API key is required");
-            }
+            if (string.IsNullOrEmpty(apiKey)) return BadRequest("API key is required");
 
             var user = await apiKeyService.ValidateApiKeyAsync(apiKey);
-            
-            if (user == null)
-            {
-                return Unauthorized("Invalid API key");
-            }
+
+            if (user == null) return Unauthorized("Invalid API key");
 
             return Ok(new
             {
                 Valid = true,
                 UserId = user.Id,
-                Email = user.Email,
-                Name = user.Name
+                user.Email,
+                user.Name
             });
         }
         catch (Exception ex)

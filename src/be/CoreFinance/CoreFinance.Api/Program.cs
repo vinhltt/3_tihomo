@@ -1,12 +1,14 @@
+using CoreFinance.Api.Consumers;
 using CoreFinance.Api.Infrastructures.Middlewares;
 using CoreFinance.Api.Infrastructures.Modules;
 using CoreFinance.Api.Infrastructures.ServicesExtensions;
-using Shared.Contracts.ConfigurationOptions;
-using Shared.Contracts.Utilities;
 using CoreFinance.Infrastructure;
+using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Serilog;
+using Shared.Contracts.ConfigurationOptions;
+using Shared.Contracts.Utilities;
 
 async Task CreateDbIfNotExistsAsync(IHost host)
 {
@@ -51,9 +53,48 @@ builder.AddConfigurationSettings();
 builder.AddGeneralConfigurations(policyName, corsOption);
 builder.Services.AddInjectedServices();
 
+// Add MassTransit for message consumption
+builder.Services.AddMassTransit(x =>
+{    // Add consumers
+    x.AddConsumer<TransactionDataConsumer>();
+    x.AddConsumer<TransactionBatchConsumer>();
+
+    x.SetKebabCaseEndpointNameFormatter();
+
+    x.UsingRabbitMq((context, cfg) =>
+    {
+        var rabbitMqSettings = builder.Configuration.GetSection("RabbitMQ");
+        var host = rabbitMqSettings["Host"] ?? "localhost";
+        var username = rabbitMqSettings["Username"] ?? "tihomo";
+        var password = rabbitMqSettings["Password"] ?? "tihomo123";
+
+        cfg.Host(host, "/", h =>
+        {
+            h.Username(username);
+            h.Password(password);
+        });
+
+        // Configure retry policy
+        cfg.UseMessageRetry(r =>
+            r.Exponential(5, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(60), TimeSpan.FromSeconds(5)));
+
+        // Configure circuit breaker
+        cfg.UseCircuitBreaker(cb =>
+        {
+            cb.TrackingPeriod = TimeSpan.FromMinutes(1);
+            cb.TripThreshold = 15;
+            cb.ActiveThreshold = 10;
+            cb.ResetInterval = TimeSpan.FromMinutes(5);
+        });
+
+        cfg.ConfigureEndpoints(context);
+    });
+});
+
 // Add health checks
 builder.Services.AddHealthChecks()
-    .AddDbContextCheck<CoreFinanceDbContext>();
+    .AddDbContextCheck<CoreFinanceDbContext>()
+    .AddCheck("rabbitmq", () => HealthCheckResult.Healthy("RabbitMQ health check placeholder"));
 builder.Host.UseSerilog((hostingContext, loggerConfiguration) =>
 {
     loggerConfiguration
