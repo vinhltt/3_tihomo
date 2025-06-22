@@ -82,6 +82,9 @@ export default defineNuxtConfig({
         public: {
             apiBase: process.env.NUXT_PUBLIC_API_BASE || 'https://localhost:5000', // API Gateway port
             appBase: process.env.NUXT_PUBLIC_APP_BASE || 'http://localhost:3333', // Frontend port
+            identityApiBase: process.env.NUXT_PUBLIC_IDENTITY_API_BASE || 'https://localhost:5228',
+            googleClientId: process.env.NUXT_PUBLIC_GOOGLE_CLIENT_ID,
+            facebookAppId: process.env.NUXT_PUBLIC_FACEBOOK_APP_ID,
         },
     },
 });

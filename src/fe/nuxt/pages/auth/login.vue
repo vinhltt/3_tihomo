@@ -12,19 +12,43 @@
                     <img src="/assets/images/logo.svg" alt="Logo" class="mx-auto w-16" />
                 </NuxtLink>
 
-                <!-- Redirect Message -->
-                <div class="text-center">
-                    <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
-                    <h2 class="text-xl font-semibold text-primary mb-2">Redirecting to SSO</h2>
-                    <p class="text-white-dark mb-4">You will be redirected to the secure SSO server for authentication.</p>
-                    <p class="text-sm text-white-dark">If you are not redirected automatically, click the button below:</p>
+                <!-- Login Section -->
+                <div class="w-full text-center">
+                    <h2 class="text-2xl font-semibold text-primary mb-2">Welcome to TiHoMo</h2>
+                    <p class="text-white-dark mb-6">Sign in to your account to continue</p>
                     
+                    <!-- Google Login Button -->
                     <button
-                        @click="redirectToSso"
-                        class="btn btn-primary mt-4"
+                        @click="handleGoogleLogin"
+                        :disabled="socialLoading"
+                        class="flex w-full items-center justify-center gap-3 rounded-lg border border-white-dark/30 bg-white px-4 py-3 text-black hover:bg-gray-50 hover:border-primary focus:border-primary focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed dark:bg-black dark:text-white dark:hover:bg-gray-800 transition-all duration-200"
                     >
-                        Login with SSO
+                        <span v-if="socialLoading" class="mr-2">
+                            <svg class="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                        </span>
+                        <icon-google class="h-5 w-5" />
+                        <span class="font-medium">
+                            {{ socialLoading ? 'Signing in with Google...' : 'Continue with Google' }}
+                        </span>
                     </button>
+
+                    <!-- Error Message -->
+                    <div v-if="socialError" class="mt-4 rounded-md bg-red-50 p-3 dark:bg-red-900/10">
+                        <div class="text-sm text-red-800 dark:text-red-200">
+                            <p>{{ socialError }}</p>
+                        </div>
+                    </div>
+
+                    <!-- Alternative Login -->
+                    <div class="mt-6 text-center text-sm text-white-dark">
+                        Need help? 
+                        <NuxtLink to="/auth/cover-login" class="text-primary hover:underline">
+                            Try alternative login
+                        </NuxtLink>
+                    </div>
                 </div>
             </div>
         </div>
@@ -32,30 +56,39 @@
 </template>
 
 <script setup lang="ts">
-const router = useRouter()
-const route = useRoute()
+import { ref, onMounted } from 'vue'
+import { useSocialAuth } from '@/composables/useSocialAuth'
+
+// Composables
+const { loginWith, isLoading: socialLoading, error: socialError, initializeProviders } = useSocialAuth()
 
 /**
- * Redirect to SSO login
- * Chuyển hướng đến SSO login
+ * Handle Google login
+ * Xử lý đăng nhập Google
  */
-const redirectToSso = async (): Promise<void> => {
-    const returnUrl = route.query.returnUrl as string
-    const ssoUrl = `/auth/sso/login${returnUrl ? `?returnUrl=${encodeURIComponent(returnUrl)}` : ''}`
-    await router.push(ssoUrl)
+const handleGoogleLogin = async (): Promise<void> => {
+    try {
+        await loginWith('Google')
+        console.log('Google login successful')
+        // Navigation will be handled by the auth store
+    } catch (err) {
+        console.error('Google login error:', err)
+    }
 }
 
-// Auto redirect on mount
-onMounted(() => {
-    // Short delay to show the redirect message
-    setTimeout(() => {
-        redirectToSso()
-    }, 1500)
+// Initialize social providers on mount
+onMounted(async () => {
+    try {
+        await initializeProviders()
+    } catch (error) {
+        console.warn('Failed to initialize social providers:', error)
+    }
 })
 
 // Page metadata
 definePageMeta({
     layout: 'auth-layout',
-    title: 'Redirecting to SSO'
+    title: 'Login with Google',
+    auth: false // Disable auth middleware for this page
 })
 </script>

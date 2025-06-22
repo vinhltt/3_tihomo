@@ -1,6 +1,7 @@
 # activeContext.md
 
 ## Trọng tâm công việc hiện tại
+- **✅ HOÀN THÀNH: SSO to Google OAuth Migration (June 22, 2025) - loại bỏ SSO system và chuyển sang Google OAuth login hoàn toàn.**
 - **✅ HOÀN THÀNH: Identity & Access Management System - triển khai đầy đủ SSO server, authentication API, và frontend integration.**
 - **✅ HOÀN THÀNH: Identity Project Consolidation (June 9, 2025) - merged Identity.Api into Identity.Sso, eliminated architectural duplication.**
 - **✅ HOÀN THÀNH: Identity Service Resilience Implementation (June 19, 2025) - Phase 3 với Polly circuit breaker, retry, timeout, fallback patterns.**
@@ -33,6 +34,26 @@
 - **Operational Excellence**: 99.9% uptime capability, zero-downtime deployments, comprehensive monitoring
 
 ## Thay đổi gần đây
+
+### ✅ SSO to Google OAuth Migration (June 22, 2025 - Mới hoàn thành)
+- **✅ Đã loại bỏ hoàn toàn SSO system từ frontend:**
+  - **Xóa SSO files:** `utils/sso.ts`, `types/sso.ts` không còn cần thiết
+  - **Thay thế login page:** `/pages/auth/login.vue` từ SSO redirect sang Google login UI
+  - **Loại bỏ SSO references:** Tất cả import và usage đã được clean up
+- **✅ Đã triển khai Google OAuth login hoàn chỉnh:**
+  - **Google Client ID configured:** `70021805726-6jdccddalpri6bdk05pfp421e1koachp.apps.googleusercontent.com`
+  - **Login page redesign:** Clean UI với Google login button và proper loading states
+  - **Maintained existing infrastructure:** `useGoogleAuth.ts`, `useSocialAuth.ts` composables
+  - **Updated environment config:** `.env` với Identity API và Google OAuth settings
+- **✅ Đã cập nhật cấu hình và documentation:**
+  - **Environment variables:** `NUXT_PUBLIC_IDENTITY_API_BASE=https://localhost:5228`
+  - **Maintained SOCIAL_LOGIN_SETUP.md:** Complete guide cho social login system
+  - **Clean migration path:** Zero breaking changes for existing social auth infrastructure
+- **✅ Kết quả Migration:**
+  - **Simplified authentication flow:** User → Google OAuth → JWT tokens → Dashboard
+  - **Reduced complexity:** Loại bỏ separate SSO server dependency
+  - **Better UX:** Direct Google login thay vì redirect maze
+  - **Maintained security:** Same JWT và API security patterns
 
 ### ✅ Identity & Access Management System (Mới hoàn thành)
 - **✅ Đã triển khai đầy đủ Identity bounded context:**
