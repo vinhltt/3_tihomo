@@ -17,6 +17,4 @@
     <ProjectReference Include="..\CoreFinance.Contracts\CoreFinance.Contracts.csproj" />
   </ItemGroup>
 
-  <Import Project="..\..\Shared.Contracts\Shared.Contracts.projitems" Label="Shared" />
-
 </Project>

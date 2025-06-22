@@ -2,7 +2,7 @@ using System.Runtime.CompilerServices;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.DependencyInjection;
-using MoneyManagement.Contracts.BaseEfModels;
+using Shared.EntityFramework.BaseEfModels;
 using MoneyManagement.Domain.BaseRepositories;
 using MoneyManagement.Domain.UnitOfWorks;
 

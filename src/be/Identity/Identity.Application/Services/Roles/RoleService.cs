@@ -1,4 +1,4 @@
-using Identity.Contracts.Roles;
+using Identity.Domain.Dtos.Roles;
 using Identity.Domain.Entities;
 using Identity.Domain.Repositories;
 

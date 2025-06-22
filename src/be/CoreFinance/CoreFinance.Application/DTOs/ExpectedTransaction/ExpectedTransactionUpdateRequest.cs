@@ -1,5 +1,5 @@
+using Shared.EntityFramework.DTOs;
 using CoreFinance.Domain.Enums;
-using Shared.Contracts.DTOs;
 
 namespace CoreFinance.Application.DTOs.ExpectedTransaction;
 

@@ -1,4 +1,4 @@
-using Identity.Contracts.ApiKeys;
+using Identity.Domain.Dtos.ApiKeys;
 
 namespace Identity.Application.Services.ApiKeys;
 

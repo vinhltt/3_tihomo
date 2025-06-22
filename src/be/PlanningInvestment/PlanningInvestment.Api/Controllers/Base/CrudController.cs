@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using PlanningInvestment.Application.Services.Base;
-using Shared.Contracts.BaseEfModels;
-using Shared.Contracts.DTOs;
+using Shared.EntityFramework.DTOs;
+using Shared.EntityFramework.BaseEfModels;
 
 namespace PlanningInvestment.Api.Controllers.Base;
 

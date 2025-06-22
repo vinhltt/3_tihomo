@@ -1,7 +1,7 @@
 ﻿using System.Runtime.CompilerServices;
 using CoreFinance.Domain.BaseRepositories;
 using Microsoft.EntityFrameworkCore.Storage;
-using Shared.Contracts.BaseEfModels;
+using Shared.EntityFramework.BaseEfModels;
 
 namespace CoreFinance.Domain.UnitOfWorks;
 

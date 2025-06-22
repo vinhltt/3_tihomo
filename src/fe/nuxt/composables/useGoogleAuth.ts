@@ -137,19 +137,16 @@ export const useGoogleAuth = () => {
   /**
    * Send Google token to our Identity API (EN)
    * Gửi token Google đến Identity API của chúng ta (VI)
-   */
-  const authenticateWithAPI = async (googleToken: string): Promise<SocialLoginResponse> => {
-    const apiBase = config.public.apiBase
-    
-    console.log('🔐 Authenticating with API (ID token):', {
-      apiBase,
+   */  const authenticateWithAPI = async (googleToken: string): Promise<SocialLoginResponse> => {
+    console.log('🔐 Authenticating with API via Gateway (ID token):', {
       provider: 'Google',
       tokenLength: googleToken?.length || 0,
       tokenPreview: googleToken?.substring(0, 50) + '...'
     })
     
     try {
-      const response = await $fetch<SocialLoginResponse>(`${apiBase}/api/auth/social-login`, {
+      // Call through API Gateway instead of direct service call
+      const response = await $fetch<SocialLoginResponse>('/api/auth/social-login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -172,7 +169,7 @@ export const useGoogleAuth = () => {
         status: error.status || error.statusCode,
         message: error.message,
         data: error.data,
-        url: `${apiBase}/api/auth/social-login`
+        url: '/api/auth/social-login (via Gateway)'
       })
       throw error
     }

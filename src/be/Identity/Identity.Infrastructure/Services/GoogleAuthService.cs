@@ -1,6 +1,6 @@
 using Google.Apis.Auth;
 using Identity.Application.Common.Interfaces;
-using Identity.Contracts.Authentication;
+using Identity.Domain.Dtos.Authentication;
 using Microsoft.Extensions.Configuration;
 
 namespace Identity.Infrastructure.Services;

@@ -1,5 +1,5 @@
 using System.Linq.Expressions;
-using MoneyManagement.Contracts.BaseEfModels;
+using Shared.EntityFramework.BaseEfModels;
 
 namespace MoneyManagement.Domain.BaseRepositories;
 

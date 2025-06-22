@@ -6,7 +6,7 @@ using FluentAssertions;
 using Microsoft.Extensions.Logging;
 using MockQueryable;
 using Moq;
-using Shared.Contracts.BaseEfModels;
+using Shared.EntityFramework.BaseEfModels;
 
 namespace CoreFinance.Application.Tests.ExpectedTransactionServiceTests;
 

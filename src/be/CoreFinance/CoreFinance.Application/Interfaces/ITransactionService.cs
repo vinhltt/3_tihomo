@@ -1,8 +1,8 @@
 using CoreFinance.Application.DTOs.Transaction;
 using CoreFinance.Application.Services.Base;
+using Shared.EntityFramework.DTOs;
 using CoreFinance.Domain.Entities;
-using Shared.Contracts.BaseEfModels;
-using Shared.Contracts.DTOs;
+using Shared.EntityFramework.BaseEfModels;
 
 namespace CoreFinance.Application.Interfaces;
 

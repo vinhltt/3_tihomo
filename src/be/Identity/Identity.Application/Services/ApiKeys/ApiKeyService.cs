@@ -1,6 +1,6 @@
 using System.Security.Cryptography;
 using Identity.Application.Common.Interfaces;
-using Identity.Contracts.ApiKeys;
+using Identity.Domain.Dtos.ApiKeys;
 using Identity.Domain.Entities;
 using Identity.Domain.Enums;
 using Identity.Domain.Repositories;
@@ -207,7 +207,7 @@ public class ApiKeyService(
             LastUsedAt = apiKey.LastUsedAt,
             UsageCount = apiKey.UsageCount,
             CreatedAt = apiKey.CreatedAt,
-            UpdatedAt = apiKey.UpdatedAt
+            UpdatedAt = apiKey.CreatedAt
             // Note: RawKey is only set during creation and not persisted
         };
     }

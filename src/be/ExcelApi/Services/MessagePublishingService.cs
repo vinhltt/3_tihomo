@@ -1,5 +1,5 @@
 using MassTransit;
-using CoreFinance.Contracts.Messages;
+using ExcelApi.Messages;
 
 namespace ExcelApi.Services
 {
@@ -10,7 +10,8 @@ namespace ExcelApi.Services
     {
         private readonly IPublishEndpoint _publishEndpoint;
         private readonly LocalCorrelationContextService _correlationContext;
-        private readonly ILogger<MessagePublishingService> _logger;        public MessagePublishingService(
+        private readonly ILogger<MessagePublishingService> _logger;        
+        public MessagePublishingService(
             IPublishEndpoint publishEndpoint,
             LocalCorrelationContextService correlationContext,
             ILogger<MessagePublishingService> logger)

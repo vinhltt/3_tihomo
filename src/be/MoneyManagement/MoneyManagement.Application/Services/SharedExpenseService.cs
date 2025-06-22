@@ -356,8 +356,8 @@ public class SharedExpenseService(IUnitOfWork unitOfWork) : ISharedExpenseServic
             ReceiptImageUrl = sharedExpense.ReceiptImageUrl,
             Notes = sharedExpense.Notes,
             IsFullySettled = sharedExpense.IsFullySettled, SettlementPercentage = sharedExpense.SettlementPercentage,
-            CreatedAt = sharedExpense.CreateAt ?? DateTime.UtcNow,
-            UpdatedAt = sharedExpense.UpdateAt ?? DateTime.UtcNow
+            CreatedAt = sharedExpense.CreatedAt ?? DateTime.UtcNow,
+            UpdatedAt = sharedExpense.UpdatedAt ?? DateTime.UtcNow
         };
     }
 
@@ -378,8 +378,8 @@ public class SharedExpenseService(IUnitOfWork unitOfWork) : ISharedExpenseServic
             SettledDate = participant.SettledDate,
             PaymentMethod = participant.PaymentMethod,
             Notes = participant.Notes, PaymentPercentage = participant.PaymentPercentage,
-            CreatedAt = participant.CreateAt ?? DateTime.UtcNow,
-            UpdatedAt = participant.UpdateAt
+            CreatedAt = participant.CreatedAt ?? DateTime.UtcNow,
+            UpdatedAt = participant.UpdatedAt
         };
     }
 

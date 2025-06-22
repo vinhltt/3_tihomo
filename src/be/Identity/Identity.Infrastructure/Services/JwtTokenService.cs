@@ -3,7 +3,7 @@ using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 using Identity.Application.Common.Interfaces;
-using Identity.Contracts.Authentication;
+using Identity.Domain.Dtos.Authentication;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 

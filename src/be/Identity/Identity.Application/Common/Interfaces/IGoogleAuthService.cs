@@ -1,4 +1,4 @@
-using Identity.Contracts.Authentication;
+using Identity.Domain.Dtos.Authentication;
 
 namespace Identity.Application.Common.Interfaces;
 

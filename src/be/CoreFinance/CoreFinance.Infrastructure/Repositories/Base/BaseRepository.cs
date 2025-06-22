@@ -3,7 +3,7 @@ using System.Security.Claims;
 using CoreFinance.Domain.BaseRepositories;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
-using Shared.Contracts.BaseEfModels;
+using Shared.EntityFramework.BaseEfModels;
 
 namespace CoreFinance.Infrastructure.Repositories.Base;
 
@@ -285,7 +285,7 @@ public class BaseRepository<TEntity, TKey>(
     {
         var entity = await context.Set<TEntity>().FindAsync(keyValues);
         ValidateAndThrow(entity);
-        entity!.Deleted = DateTime.Now.ToString("yyyyMMddHHmmss");
+        entity!.IsDeleted = DateTime.Now.ToString("yyyyMMddHHmmss");
         return await UpdateAsync(entity);
     }
 
@@ -301,7 +301,7 @@ public class BaseRepository<TEntity, TKey>(
     public virtual async Task<int> DeleteSoftAsync(TEntity entity)
     {
         ValidateAndThrow(entity);
-        entity.Deleted = DateTime.Now.ToString("yyyyMMddHHmmss");
+        entity.IsDeleted = DateTime.Now.ToString("yyyyMMddHHmmss");
         return await UpdateAsync(entity);
     }
 

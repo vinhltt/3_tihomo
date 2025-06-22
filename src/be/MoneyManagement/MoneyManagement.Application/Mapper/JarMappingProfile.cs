@@ -21,21 +21,21 @@ public class JarMappingProfile : Profile
         CreateMap<CreateJarRequest, Jar>()
             .ForMember(dest => dest.Id, opt => opt.Ignore())
             .ForMember(dest => dest.Balance, opt => opt.MapFrom(src => 0))
-            .ForMember(dest => dest.CreateAt, opt => opt.Ignore())
-            .ForMember(dest => dest.UpdateAt, opt => opt.Ignore())
+            .ForMember(dest => dest.CreatedAt, opt => opt.Ignore())
+            .ForMember(dest => dest.UpdatedAt, opt => opt.Ignore())
             .ForMember(dest => dest.CreateBy, opt => opt.Ignore())
             .ForMember(dest => dest.UpdateBy, opt => opt.Ignore())
-            .ForMember(dest => dest.Deleted, opt => opt.Ignore());
+            .ForMember(dest => dest.IsDeleted, opt => opt.Ignore());
 
         // UpdateJarRequest to Jar entity mapping
         CreateMap<UpdateJarRequest, Jar>()
             .ForMember(dest => dest.Id, opt => opt.Ignore())
             .ForMember(dest => dest.JarType, opt => opt.Ignore()) // JarType should not be changed after creation
             .ForMember(dest => dest.Balance, opt => opt.Ignore()) // Balance is managed through add/withdraw operations
-            .ForMember(dest => dest.CreateAt, opt => opt.Ignore())
-            .ForMember(dest => dest.UpdateAt, opt => opt.Ignore())
+            .ForMember(dest => dest.CreatedAt, opt => opt.Ignore())
+            .ForMember(dest => dest.UpdatedAt, opt => opt.Ignore())
             .ForMember(dest => dest.CreateBy, opt => opt.Ignore())
             .ForMember(dest => dest.UpdateBy, opt => opt.Ignore())
-            .ForMember(dest => dest.Deleted, opt => opt.Ignore());
+            .ForMember(dest => dest.IsDeleted, opt => opt.Ignore());
     }
 }

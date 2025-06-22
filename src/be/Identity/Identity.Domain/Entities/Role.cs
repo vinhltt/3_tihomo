@@ -1,3 +1,5 @@
+using Shared.EntityFramework.BaseEfModels;
+
 namespace Identity.Domain.Entities;
 
 public class Role : BaseEntity<Guid>

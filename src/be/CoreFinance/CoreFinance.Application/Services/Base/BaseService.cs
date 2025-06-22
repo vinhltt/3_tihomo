@@ -1,11 +1,13 @@
 using AutoMapper;
 using CoreFinance.Application.Utilities;
-using CoreFinance.Domain.Exceptions;
 using CoreFinance.Domain.UnitOfWorks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using Shared.Contracts.BaseEfModels;
-using Shared.Contracts.DTOs;
+using Shared.Contracts.Exceptions;
+using Shared.EntityFramework.BaseEfModels;
+using Shared.EntityFramework.DTOs;
+using CreateFailedException = CoreFinance.Domain.Exceptions.CreateFailedException;
+using UpdateFailedException = CoreFinance.Domain.Exceptions.UpdateFailedException;
 
 namespace CoreFinance.Application.Services.Base;
 
@@ -124,10 +126,14 @@ public abstract class BaseService<TEntity, TCreateRequest, TUpdateRequest, TView
 
             entity = Mapper.Map(request, entity);
             logger.LogTrace("{UpdateAsync} new entity: {entity}", nameof(UpdateAsync), entity.TryParseToString());
-            var updatedEntity = await unitOfWork.Repository<TEntity, TKey>().UpdateAsync(entity);
-            logger.LogTrace("{UpdateAsync} updated entity: {entity}", nameof(UpdateAsync),
-                updatedEntity.TryParseToString());
-            var result = Mapper.Map<TViewModel>(updatedEntity);
+            var countAffect = await unitOfWork.Repository<TEntity, TKey>().UpdateAsync(entity);
+            logger.LogTrace("{UpdateAsync} updated entity count: {countAffect}", nameof(UpdateAsync),
+                countAffect.TryParseToString());
+            if (countAffect == 0)
+            {
+                throw new UpdateFailedException("Failed to update the entity");
+            }
+            var result = Mapper.Map<TViewModel>(entity);
             logger.LogTrace("{UpdateAsync} result: {result}", nameof(UpdateAsync), result.TryParseToString());
             await trans.CommitAsync();
             return result;
@@ -159,11 +165,19 @@ public abstract class BaseService<TEntity, TCreateRequest, TUpdateRequest, TView
             Mapper.Map(request, entityNew);
             logger.LogTrace("{CreateAsync} entitiesNew: {entityNew}", nameof(CreateAsync),
                 entityNew.TryParseToString());
-            var createdEntity =
+            var countAffect =
                 await unitOfWork.Repository<TEntity, TKey>().CreateAsync(entityNew);
-            logger.LogTrace("{CreateAsync} created entity: {entity}", nameof(CreateAsync),
-                createdEntity.TryParseToString());
-            var result = Mapper.Map<TViewModel>(createdEntity);
+            logger.LogTrace("{CreateAsync} created entity count: {countAffect}", nameof(CreateAsync),
+                countAffect.TryParseToString());
+
+            // Kiểm tra xem có tạo thành công hay không
+            if (countAffect == 0)
+            {
+                logger.LogError("{CreateAsync} No entities were created", nameof(CreateAsync));
+                throw new CreateFailedException("Failed to create the entity");
+            }
+
+            var result = Mapper.Map<TViewModel>(entityNew);
             logger.LogTrace("{CreateAsync} result: {result}", nameof(CreateAsync), result.TryParseToString());
             await trans.CommitAsync();
             return result;
@@ -196,21 +210,27 @@ public abstract class BaseService<TEntity, TCreateRequest, TUpdateRequest, TView
 
         await using var trans = await unitOfWork.BeginTransactionAsync();
         try
-        {
-            var baseCreateRequests = request as TCreateRequest[] ?? request.ToArray();
+        {            var baseCreateRequests = request as TCreateRequest[] ?? request.ToArray();
             logger.LogTrace("{CreateAsync} request: {baseCreateRequests}", nameof(CreateAsync),
                 baseCreateRequests.TryParseToString());
 
-            var entitiesNew = new List<TEntity>();
-            Mapper.Map(baseCreateRequests, entitiesNew);
+            var entitiesNew = Mapper.Map<List<TEntity>>(baseCreateRequests);
             logger.LogTrace("{CreateAsync} entitiesNew: {entitiesNew}", nameof(CreateAsync),
                 entitiesNew.TryParseToString());
             var effectedCount =
                 await unitOfWork.Repository<TEntity, TKey>().CreateAsync(entitiesNew);
-            logger.LogTrace("{CreateAsync} created entities: {entities}", nameof(CreateAsync),
+            logger.LogTrace("{CreateAsync} effected count: {effectedCount}", nameof(CreateAsync),
                 effectedCount.TryParseToString());
 
-            var result = Mapper.Map<IEnumerable<TViewModel>>(effectedCount);
+            // Kiểm tra xem có tạo thành công hay không
+            if (effectedCount == 0)
+            {
+                logger.LogError("{CreateAsync} No entities were created", nameof(CreateAsync));
+                throw new CreateFailedException("Failed to create entities");
+            }
+
+            // Map các entities đã được tạo thành ViewModels
+            var result = Mapper.Map<IEnumerable<TViewModel>>(entitiesNew);
             var baseViewModels = result as TViewModel[] ?? result.ToArray();
             logger.LogTrace("{CreateAsync} result: {baseViewModels}", nameof(CreateAsync),
                 baseViewModels.TryParseToString());
@@ -220,7 +240,7 @@ public abstract class BaseService<TEntity, TCreateRequest, TUpdateRequest, TView
         }
         catch
         {
-            await trans.CommitAsync();
+            await trans.RollbackAsync();
             throw;
         }
     }

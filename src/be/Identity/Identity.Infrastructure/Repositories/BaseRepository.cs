@@ -2,6 +2,7 @@ using Identity.Domain.Entities;
 using Identity.Domain.Repositories;
 using Identity.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
+using Shared.EntityFramework.BaseEfModels;
 
 namespace Identity.Infrastructure.Repositories;
 

@@ -1,4 +1,5 @@
 using Identity.Domain.Enums;
+using Shared.EntityFramework.BaseEfModels;
 
 namespace Identity.Domain.Entities;
 

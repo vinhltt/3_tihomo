@@ -164,7 +164,7 @@ public class JarService(IUnitOfWork unitOfWork, IMapper mapper, ILogger<JarServi
 
                 var previousBalance = jar.Balance;
                 jar.Balance += allocationAmount;
-                jar.UpdateAt = DateTime.UtcNow;
+                jar.UpdatedAt = DateTime.UtcNow;
 
                 totalAllocated += allocationAmount;
                 jarsToUpdate.Add(jar);
@@ -225,8 +225,8 @@ public class JarService(IUnitOfWork unitOfWork, IMapper mapper, ILogger<JarServi
             fromJar.Balance -= request.Amount;
             toJar.Balance += request.Amount;
 
-            fromJar.UpdateAt = DateTime.UtcNow;
-            toJar.UpdateAt = DateTime.UtcNow;
+            fromJar.UpdatedAt = DateTime.UtcNow;
+            toJar.UpdatedAt = DateTime.UtcNow;
 
             // Update the result with new jar states
             result.FromJar = mapper.Map<JarViewModel>(fromJar);
@@ -257,7 +257,7 @@ public class JarService(IUnitOfWork unitOfWork, IMapper mapper, ILogger<JarServi
                 throw new InvalidOperationException("Insufficient balance in jar.");
 
             jar.Balance -= request.Amount;
-            jar.UpdateAt = DateTime.UtcNow;
+            jar.UpdatedAt = DateTime.UtcNow;
 
             await unitOfWork.Repository<Jar, Guid>().UpdateAsync(jar);
 
@@ -298,7 +298,7 @@ public class JarService(IUnitOfWork unitOfWork, IMapper mapper, ILogger<JarServi
                     ? Math.Min(jar.Balance / jar.TargetAmount.Value * 100, 100)
                     : 0,
                 Status = GetJarStatus(jar),
-                LastUpdated = jar.UpdateAt ?? DateTime.UtcNow,
+                LastUpdated = jar.UpdatedAt ?? DateTime.UtcNow,
                 MonthlyContribution = 0 // This would be calculated based on historical data
             }).ToList();
 
@@ -340,8 +340,8 @@ public class JarService(IUnitOfWork unitOfWork, IMapper mapper, ILogger<JarServi
                     AllocationPercentage = _defaultAllocationPercentages[jarType],
                     Balance = 0,
                     IsActive = true,
-                    CreateAt = DateTime.UtcNow,
-                    UpdateAt = DateTime.UtcNow
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
                 };
 
                 defaultJars.Add(jar);
@@ -368,7 +368,7 @@ public class JarService(IUnitOfWork unitOfWork, IMapper mapper, ILogger<JarServi
             if (jar == null)
                 throw new InvalidOperationException("Jar not found or access denied.");
             jar.IsActive = isActive;
-            jar.UpdateAt = DateTime.UtcNow;
+            jar.UpdatedAt = DateTime.UtcNow;
 
             await unitOfWork.Repository<Jar, Guid>().UpdateAsync(jar);
 
@@ -518,8 +518,8 @@ public class JarService(IUnitOfWork unitOfWork, IMapper mapper, ILogger<JarServi
                                        _defaultAllocationPercentages.GetValueOrDefault(request.JarType, 10m),
                 Balance = 0,
                 IsActive = true,
-                CreateAt = DateTime.UtcNow,
-                UpdateAt = DateTime.UtcNow
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
             };
 
             await unitOfWork.Repository<Jar, Guid>().CreateAsync(jar);
@@ -545,7 +545,7 @@ public class JarService(IUnitOfWork unitOfWork, IMapper mapper, ILogger<JarServi
             jar.Name = request.Name;
             jar.TargetAmount = request.TargetAmount;
             jar.AllocationPercentage = request.AllocationPercentage;
-            jar.UpdateAt = DateTime.UtcNow;
+            jar.UpdatedAt = DateTime.UtcNow;
 
             await unitOfWork.Repository<Jar, Guid>().UpdateAsync(jar);
 
@@ -606,8 +606,8 @@ public class JarService(IUnitOfWork unitOfWork, IMapper mapper, ILogger<JarServi
                     AllocationPercentage = _defaultAllocationPercentages[jarType],
                     Balance = 0,
                     IsActive = true,
-                    CreateAt = DateTime.UtcNow,
-                    UpdateAt = DateTime.UtcNow
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
                 };
 
                 defaultJars.Add(jar);
@@ -635,7 +635,7 @@ public class JarService(IUnitOfWork unitOfWork, IMapper mapper, ILogger<JarServi
                 throw new InvalidOperationException("Jar not found.");
 
             jar.Balance += request.Amount;
-            jar.UpdateAt = DateTime.UtcNow;
+            jar.UpdatedAt = DateTime.UtcNow;
 
             await unitOfWork.Repository<Jar, Guid>().UpdateAsync(jar);
 
@@ -662,7 +662,7 @@ public class JarService(IUnitOfWork unitOfWork, IMapper mapper, ILogger<JarServi
                 throw new InvalidOperationException("Insufficient balance in jar.");
 
             jar.Balance -= request.Amount;
-            jar.UpdateAt = DateTime.UtcNow;
+            jar.UpdatedAt = DateTime.UtcNow;
 
             await unitOfWork.Repository<Jar, Guid>().UpdateAsync(jar);
 
@@ -697,8 +697,8 @@ public class JarService(IUnitOfWork unitOfWork, IMapper mapper, ILogger<JarServi
             fromJar.Balance -= request.Amount;
             toJar.Balance += request.Amount;
 
-            fromJar.UpdateAt = DateTime.UtcNow;
-            toJar.UpdateAt = DateTime.UtcNow;
+            fromJar.UpdatedAt = DateTime.UtcNow;
+            toJar.UpdatedAt = DateTime.UtcNow;
 
             await unitOfWork.Repository<Jar, Guid>().UpdateAsync([fromJar, toJar]);
 
@@ -745,7 +745,7 @@ public class JarService(IUnitOfWork unitOfWork, IMapper mapper, ILogger<JarServi
 
                 var previousBalance = jar.Balance;
                 jar.Balance += allocationAmount;
-                jar.UpdateAt = DateTime.UtcNow;
+                jar.UpdatedAt = DateTime.UtcNow;
 
                 totalAllocated += allocationAmount;
                 jarsToUpdate.Add(jar);

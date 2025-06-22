@@ -1,6 +1,5 @@
 import { defineStore } from 'pinia'
 import type { LoginRequest, LoginResponse, User, ApiResponse } from '@/types/auth'
-import { useSso } from '@/composables/useSso'
 
 type AuthState = {
   user: User | null
@@ -9,7 +8,6 @@ type AuthState = {
   isLoading: boolean
   error: string | null
   isAuthenticated: boolean
-  authMode: 'traditional' | 'sso'
 }
 
 type LoginCredentials = {
@@ -28,63 +26,30 @@ export const useAuthStore = defineStore('auth', {
     refreshToken: null,
     isLoading: false,
     error: null,
-    isAuthenticated: false,
-    authMode: 'sso' // Default to SSO mode
+    isAuthenticated: false
   }),
 
   actions: {
     /**
-     * Set authentication mode
-     * Đặt chế độ xác thực
-     */
-    setAuthMode(mode: 'traditional' | 'sso'): void {
-      this.authMode = mode
-    },
-
-    /**
-     * Initialize authentication - check SSO first, fallback to traditional
-     * Khởi tạo xác thực - kiểm tra SSO trước, fallback về traditional
+     * Initialize authentication - check for existing tokens
+     * Khởi tạo xác thực - kiểm tra token hiện có
      */
     async initAuth(): Promise<void> {
       this.isLoading = true
       this.error = null
 
       try {
-        // Try SSO authentication first
-        const sso = useSso()
-        sso.initializeSso()
-          if (sso.isAuthenticated.value && sso.user.value) {
-          // Use SSO authentication
-          this.authMode = 'sso'
-          this.user = {
-            id: sso.user.value.sub,
-            email: sso.user.value.email,
-            firstName: sso.user.value.name.split(' ')[0] || '',
-            lastName: sso.user.value.name.split(' ').slice(1).join(' ') || '',
-            isActive: true,
-            roles: sso.user.value.roles.map(role => ({ id: role, name: role })),
-            emailConfirmed: sso.user.value.email_verified || false,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-          }
-          this.token = sso.state.accessToken
-          this.refreshToken = sso.state.refreshToken
-          this.isAuthenticated = true
-          return
-        }
-
-        // Fallback to traditional token-based authentication
+        // Check for existing tokens in cookies
         const tokenCookie = useCookie('auth-token')
         const refreshCookie = useCookie('refresh-token')
 
         if (tokenCookie.value) {
-          this.authMode = 'traditional'
           this.token = tokenCookie.value
           this.refreshToken = refreshCookie.value || null
           this.isAuthenticated = true
           
-          // In traditional mode, we assume token is valid
-          // Real implementation would validate with server
+          // In a real implementation, validate token with server
+          // For now, assume token is valid if it exists
         }
       } catch (error: any) {
         console.error('Auth initialization error:', error)
@@ -92,15 +57,11 @@ export const useAuthStore = defineStore('auth', {
       } finally {
         this.isLoading = false
       }
-    },
-
-    /**
-     * Login user with email and password (traditional mode only)
-     * Đăng nhập người dùng bằng email và mật khẩu (chỉ chế độ traditional)
+    },    /**
+     * Login user with email and password
+     * Đăng nhập người dùng bằng email và mật khẩu
      */
     async login(credentials: LoginCredentials): Promise<boolean> {
-      // Force traditional mode for email/password login
-      this.authMode = 'traditional'
       this.isLoading = true
       this.error = null
 
@@ -150,24 +111,6 @@ export const useAuthStore = defineStore('auth', {
     },
 
     /**
-     * SSO Login - redirect to SSO server
-     * Đăng nhập SSO - chuyển hướng đến SSO server
-     */
-    async loginWithSso(returnUrl?: string): Promise<void> {
-      this.authMode = 'sso'
-      this.isLoading = true
-      this.error = null
-
-      try {
-        const sso = useSso()
-        await sso.login(returnUrl)
-      } catch (error: any) {
-        this.error = error.message || 'SSO login failed'
-        this.isLoading = false
-      }
-    },
-
-    /**
      * Logout user
      * Đăng xuất người dùng
      */
@@ -175,23 +118,17 @@ export const useAuthStore = defineStore('auth', {
       this.isLoading = true
 
       try {
-        if (this.authMode === 'sso') {
-          // SSO logout
-          const sso = useSso()
-          await sso.logout()
-        } else {
-          // Traditional logout
-          try {
-            await $fetch('/api/auth/logout', {
-              method: 'POST',
-              headers: {
-                Authorization: `Bearer ${this.token}`
-              }
-            })
-          } catch (error) {
-            // Continue with local logout even if server logout fails
-            console.warn('Server logout failed:', error)
-          }
+        // Traditional logout - call API to invalidate token
+        try {
+          await $fetch('/api/auth/logout', {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${this.token}`
+            }
+          })
+        } catch (error) {
+          // Continue with local logout even if server logout fails
+          console.warn('Server logout failed:', error)
         }
       } catch (error: any) {
         console.error('Logout error:', error)
@@ -200,9 +137,7 @@ export const useAuthStore = defineStore('auth', {
         this.clearAuthState()
         this.isLoading = false
       }
-    },
-
-    /**
+    },    /**
      * Clear authentication state
      * Xóa trạng thái xác thực
      */
@@ -216,13 +151,9 @@ export const useAuthStore = defineStore('auth', {
       // Clear cookies
       const tokenCookie = useCookie('auth-token')
       const refreshCookie = useCookie('refresh-token')
-      const ssoTokenCookie = useCookie('sso_access_token')
-      const ssoRefreshCookie = useCookie('sso_refresh_token')
 
       tokenCookie.value = null
       refreshCookie.value = null
-      ssoTokenCookie.value = null
-      ssoRefreshCookie.value = null
     },
 
     /**

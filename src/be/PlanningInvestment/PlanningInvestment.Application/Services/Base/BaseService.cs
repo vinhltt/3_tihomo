@@ -2,10 +2,10 @@ using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using PlanningInvestment.Domain.UnitOfWorks;
-using Shared.Contracts.BaseEfModels;
-using Shared.Contracts.DTOs;
+using Shared.EntityFramework.BaseEfModels;
 using Shared.Contracts.Exceptions;
 using Shared.Contracts.Utilities;
+using Shared.EntityFramework.DTOs;
 
 namespace PlanningInvestment.Application.Services.Base;
 
@@ -43,7 +43,7 @@ public abstract class BaseService<TEntity, TCreateRequest, TUpdateRequest, TView
     /// </returns>
     public async Task<int?> DeleteHardAsync(TKey id)
     {
-        logger.LogTrace("{DeleteHardAsync} request: {id}", nameof(DeleteHardAsync), id.TryParseToString());
+        logger.LogTrace("{DeleteHardAsync} request: {id}", nameof(DeleteHardAsync), id);
         return await unitOfWork.Repository<TEntity, TKey>().DeleteHardAsync(id!);
     }
 
@@ -58,7 +58,7 @@ public abstract class BaseService<TEntity, TCreateRequest, TUpdateRequest, TView
     /// </returns>
     public async Task<int?> DeleteSoftAsync(TKey id)
     {
-        logger.LogTrace("{DeleteSoftAsync} request: {id}", nameof(DeleteSoftAsync), id.TryParseToString());
+        logger.LogTrace("{DeleteSoftAsync} request: {id}", nameof(DeleteSoftAsync), id);
         return await unitOfWork.Repository<TEntity, TKey>().DeleteSoftAsync(id!);
     }
 

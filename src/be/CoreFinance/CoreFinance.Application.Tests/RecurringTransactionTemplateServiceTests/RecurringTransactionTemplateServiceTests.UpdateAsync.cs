@@ -9,6 +9,7 @@ using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Logging;
 using MockQueryable;
 using Moq;
+using Shared.Contracts.Exceptions;
 
 namespace CoreFinance.Application.Tests.RecurringTransactionTemplateServiceTests;
 
@@ -191,7 +192,7 @@ public partial class RecurringTransactionTemplateServiceTests
 
     /// <summary>
     ///     (EN) Verifies that UpdateAsync throws a NullReferenceException when the template to update is not found.<br />
-    ///     (VI) Xác minh rằng UpdateAsync ném ra NullReferenceException khi không tìm thấy mẫu cần cập nhật.
+    ///     (VI) Xác minh rằng UpdateAsync throws a NullReferenceException khi không tìm thấy mẫu cần cập nhật.
     /// </summary>
     [Fact]
     public async Task UpdateAsync_ShouldThrowNullReferenceException_WhenTemplateNotFound()
@@ -230,7 +231,7 @@ public partial class RecurringTransactionTemplateServiceTests
 
         // Act & Assert
         var act = async () => await service.UpdateAsync(templateId, updateRequest);
-        await act.Should().ThrowAsync<NullReferenceException>();
+        await act.Should().ThrowAsync<EntityNotFoundException>();
 
         templateRepoMock.Verify(r => r.GetByIdAsync(templateId), Times.Once);
         templateRepoMock.Verify(r => r.UpdateAsync(It.IsAny<RecurringTransactionTemplate>()), Times.Never);

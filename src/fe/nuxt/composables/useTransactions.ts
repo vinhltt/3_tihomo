@@ -140,9 +140,10 @@ export const useTransactions = () => {
     try {
       isLoading.value = true
       error.value = null
-      
-      const response = await $fetch<TransactionViewModel>(`/api/transaction/${id}`, {
-        baseURL: useRuntimeConfig().public.apiBase
+        const response = await $fetch<TransactionViewModel>(`/api/core-finance/transaction/${id}`, {
+        headers: {
+          'Authorization': `Bearer ${useAuthStore().token}`
+        }
       })
       
       selectedTransaction.value = response

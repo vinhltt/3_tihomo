@@ -74,10 +74,16 @@ builder.Services.AddCors(options =>
 // Add Entity Framework - register both contexts for different layers
 // Thêm Entity Framework - đăng ký cả hai contexts cho các layer khác nhau
 builder.Services.AddDbContext<IdentityDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+{
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"));
+    options.UseSnakeCaseNamingConvention();
+});
 
 builder.Services.AddDbContext<Identity.Infrastructure.Data.IdentityDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+{
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"));
+    options.UseSnakeCaseNamingConvention();
+});
 
 // ✅ Add caching services for performance optimization
 // Thêm caching services để tối ưu hiệu suất

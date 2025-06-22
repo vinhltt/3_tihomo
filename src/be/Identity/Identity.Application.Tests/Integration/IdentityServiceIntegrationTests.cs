@@ -1,6 +1,6 @@
 using Identity.Application.Common.Interfaces;
 using Identity.Application.Services.Users;
-using Identity.Contracts.Users;
+using Identity.Domain.Dtos.Users;
 using Identity.Domain.Entities;
 using Identity.Domain.Repositories;
 using Moq;

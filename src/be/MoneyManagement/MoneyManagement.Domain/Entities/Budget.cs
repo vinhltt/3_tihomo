@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using MoneyManagement.Contracts.BaseEfModels;
+using Shared.EntityFramework.BaseEfModels;
 using MoneyManagement.Domain.Enums;
 
 namespace MoneyManagement.Domain.Entities;

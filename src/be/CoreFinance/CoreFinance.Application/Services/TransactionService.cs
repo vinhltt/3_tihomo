@@ -2,13 +2,13 @@ using AutoMapper;
 using CoreFinance.Application.DTOs.Transaction;
 using CoreFinance.Application.Interfaces;
 using CoreFinance.Application.Services.Base;
+using Shared.EntityFramework.DTOs;
 using CoreFinance.Domain.Entities;
 using CoreFinance.Domain.UnitOfWorks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using Shared.Contracts.BaseEfModels;
-using Shared.Contracts.DTOs;
-using Shared.Contracts.EntityFrameworkUtilities;
+using Shared.EntityFramework.BaseEfModels;
+using Shared.EntityFramework.EntityFrameworkUtilities;
 
 namespace CoreFinance.Application.Services;
 

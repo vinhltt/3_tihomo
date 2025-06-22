@@ -8,8 +8,8 @@ using FluentAssertions;
 using Microsoft.Extensions.Logging;
 using MockQueryable;
 using Moq;
-using Shared.Contracts.BaseEfModels;
-using Shared.Contracts.Enums;
+using Shared.EntityFramework.BaseEfModels;
+using Shared.EntityFramework.Enums;
 
 namespace CoreFinance.Application.Tests.TransactionServiceTests;
 

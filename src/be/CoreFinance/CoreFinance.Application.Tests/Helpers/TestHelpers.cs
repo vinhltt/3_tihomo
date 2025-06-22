@@ -166,7 +166,7 @@ public static class TestHelpers
             .RuleFor(t => t.CreatedAt, f => f.Date.Past(2))
             .RuleFor(t => t.UpdatedAt, f => f.Date.Recent())
             .RuleFor(t => t.CreatedAt, f => f.Date.Past(2))
-            .RuleFor(t => t.UpdateAt, f => f.Date.Recent())
+            .RuleFor(t => t.UpdatedAt, f => f.Date.Recent())
             .RuleFor(t => t.CreateBy, f => f.Person.UserName)
             .RuleFor(t => t.UpdateBy, f => f.Person.UserName);
         return faker.Generate(count).AsQueryable().BuildMock();

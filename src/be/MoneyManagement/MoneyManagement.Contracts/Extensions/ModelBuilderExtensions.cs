@@ -1,5 +1,5 @@
 using Microsoft.EntityFrameworkCore;
-using MoneyManagement.Contracts.BaseEfModels;
+using Shared.EntityFramework.BaseEfModels;
 
 namespace MoneyManagement.Contracts.Extensions;
 
@@ -14,7 +14,7 @@ public static class ModelBuilderExtensions
         where T : BaseEntity
     {
         builder.Entity<T>()
-            .HasQueryFilter(e => e.Deleted == null);
+            .HasQueryFilter(e => e.IsDeleted == null);
     }
 
     /// <summary>

@@ -1,7 +1,9 @@
+using Shared.EntityFramework.BaseEfModels;
+
 namespace Identity.Domain.Repositories;
 
 public interface IBaseRepository<TEntity, TId>
-    where TEntity : class
+    where TEntity : BaseEntity<TId>
     where TId : struct
 {
     Task<TEntity?> GetByIdAsync(TId id, CancellationToken cancellationToken = default);

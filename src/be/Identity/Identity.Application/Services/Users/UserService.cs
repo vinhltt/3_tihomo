@@ -1,7 +1,7 @@
 using Identity.Application.Common.Interfaces;
-using Identity.Contracts.Common;
-using Identity.Contracts.Roles;
-using Identity.Contracts.Users;
+using Identity.Domain.Dtos.Common;
+using Identity.Domain.Dtos.Roles;
+using Identity.Domain.Dtos.Users;
 using Identity.Domain.Entities;
 using Identity.Domain.Repositories;
 

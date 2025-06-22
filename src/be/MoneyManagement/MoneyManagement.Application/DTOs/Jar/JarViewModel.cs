@@ -108,11 +108,11 @@ public class JarViewModel
     ///     Creation date (EN)<br />
     ///     Ngày tạo (VI)
     /// </summary>
-    public DateTime CreateAt { get; set; }
+    public DateTime CreatedAt { get; set; }
 
     /// <summary>
     ///     Last update date (EN)<br />
     ///     Ngày cập nhật cuối (VI)
     /// </summary>
-    public DateTime? UpdateAt { get; set; }
+    public DateTime? UpdatedAt { get; set; }
 }

@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 using Shared.Contracts.Attributes;
-using Shared.Contracts.BaseEfModels;
+using Shared.EntityFramework.BaseEfModels;
 using Shared.Contracts.Constants;
 using Shared.Contracts.Utilities;
 

@@ -2,6 +2,8 @@ using System.Text.Json;
 using Identity.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using OpenIddict.EntityFrameworkCore.Models;
+using Shared.EntityFramework.BaseEfModels;
+using Shared.EntityFramework.Extensions;
 
 namespace Identity.Infrastructure.Data;
 
@@ -37,9 +39,6 @@ public class IdentityDbContext(DbContextOptions<IdentityDbContext> options) : Db
             entity.Property(e => e.AvatarUrl).HasMaxLength(500);
             entity.Property(e => e.PasswordHash).HasMaxLength(255);
             entity.Property(e => e.EmailConfirmed).IsRequired().HasDefaultValue(false);
-
-            // Soft delete
-            entity.HasQueryFilter(e => !e.IsDeleted);
         });
 
         // Role configuration
@@ -55,9 +54,6 @@ public class IdentityDbContext(DbContextOptions<IdentityDbContext> options) : Db
                     v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
                     v => JsonSerializer.Deserialize<List<string>>(v, (JsonSerializerOptions?)null) ??
                          new List<string>());
-
-            // Soft delete
-            entity.HasQueryFilter(e => !e.IsDeleted);
         });
 
         // ApiKey configuration
@@ -78,9 +74,6 @@ public class IdentityDbContext(DbContextOptions<IdentityDbContext> options) : Db
                 .WithMany(u => u.ApiKeys)
                 .HasForeignKey(e => e.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
-
-            // Soft delete
-            entity.HasQueryFilter(e => !e.IsDeleted);
         });
 
         // UserRole many-to-many configuration
@@ -98,9 +91,6 @@ public class IdentityDbContext(DbContextOptions<IdentityDbContext> options) : Db
                 .WithMany(r => r.UserRoles)
                 .HasForeignKey(e => e.RoleId)
                 .OnDelete(DeleteBehavior.Cascade);
-
-            // Soft delete
-            entity.HasQueryFilter(e => !e.IsDeleted);
         }); // RefreshToken configuration
         modelBuilder.Entity<RefreshToken>(entity =>
         {
@@ -114,9 +104,6 @@ public class IdentityDbContext(DbContextOptions<IdentityDbContext> options) : Db
                 .WithMany(u => u.RefreshTokens)
                 .HasForeignKey(e => e.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
-
-            // Soft delete
-            entity.HasQueryFilter(e => !e.IsDeleted);
         });
 
         // OAuthClient configuration
@@ -133,9 +120,6 @@ public class IdentityDbContext(DbContextOptions<IdentityDbContext> options) : Db
             entity.Property(e => e.PostLogoutRedirectUris).HasMaxLength(2000);
             entity.Property(e => e.AllowedScopes).HasMaxLength(1000).IsRequired();
             entity.Property(e => e.ApplicationUrl).HasMaxLength(500);
-
-            // Soft delete
-            entity.HasQueryFilter(e => !e.IsDeleted);
         });
 
         // Seed default roles
@@ -146,8 +130,8 @@ public class IdentityDbContext(DbContextOptions<IdentityDbContext> options) : Db
                 Name = "User",
                 Description = "Standard user role",
                 Permissions = ["read:profile", "update:profile"],
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
+                CreatedAt = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+                UpdatedAt = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc)
             },
             new Role
             {
@@ -155,8 +139,8 @@ public class IdentityDbContext(DbContextOptions<IdentityDbContext> options) : Db
                 Name = "Admin",
                 Description = "Administrator role",
                 Permissions = ["*"],
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
+                CreatedAt = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+                UpdatedAt = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc)
             }
         );
 
@@ -177,10 +161,9 @@ public class IdentityDbContext(DbContextOptions<IdentityDbContext> options) : Db
                 AccessTokenLifetime = 3600, // 1 hour
                 RefreshTokenLifetime = 2592000, // 30 days
                 AllowRefreshTokens = true,
-                RequirePkce = true,
-                ApplicationUrl = "https://app.tihomo.vn",
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
+                RequirePkce = true,                ApplicationUrl = "https://app.tihomo.vn",
+                CreatedAt = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+                UpdatedAt = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc)
             },
             new OAuthClient
             {
@@ -195,11 +178,10 @@ public class IdentityDbContext(DbContextOptions<IdentityDbContext> options) : Db
                 AllowedScopes = "openid,profile,email,offline_access",
                 IsActive = true,
                 AccessTokenLifetime = 3600, // 1 hour
-                RefreshTokenLifetime = 2592000, // 30 days
-                AllowRefreshTokens = true,
+                RefreshTokenLifetime = 2592000, // 30 days                AllowRefreshTokens = true,
                 RequirePkce = true,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
+                CreatedAt = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+                UpdatedAt = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc)
             },
             new OAuthClient
             {
@@ -214,14 +196,14 @@ public class IdentityDbContext(DbContextOptions<IdentityDbContext> options) : Db
                 AllowedScopes = "openid,profile,email,offline_access",
                 IsActive = true,
                 AccessTokenLifetime = 3600, // 1 hour
-                RefreshTokenLifetime = 2592000, // 30 days
-                AllowRefreshTokens = true,
+                RefreshTokenLifetime = 2592000, // 30 days                AllowRefreshTokens = true,
                 RequirePkce = true,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
+                CreatedAt = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+                UpdatedAt = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc)
             });
 
         base.OnModelCreating(modelBuilder);
+        modelBuilder.UseQueryFilter();
 
         // Configure OpenIddict entities
         modelBuilder.UseOpenIddict();
@@ -241,8 +223,7 @@ public class IdentityDbContext(DbContextOptions<IdentityDbContext> options) : Db
                     break;
                 case EntityState.Deleted:
                     entry.State = EntityState.Modified;
-                    entry.Entity.IsDeleted = true;
-                    entry.Entity.DeletedAt = DateTime.UtcNow;
+                    entry.Entity.IsDeleted = DateTime.Now.ToString("yyyyMMddHHmmss");
                     break;
             }
 

@@ -1,6 +1,6 @@
 using System.Runtime.CompilerServices;
 using Microsoft.EntityFrameworkCore.Storage;
-using MoneyManagement.Contracts.BaseEfModels;
+using Shared.EntityFramework.BaseEfModels;
 using MoneyManagement.Domain.BaseRepositories;
 
 namespace MoneyManagement.Domain.UnitOfWorks;

@@ -27,11 +27,11 @@ public class SharedExpenseMappingProfile : Profile
             .ForMember(dest => dest.SettledAmount, opt => opt.MapFrom(src => 0))
             .ForMember(dest => dest.Status, opt => opt.MapFrom(src => SharedExpenseStatus.Pending))
             .ForMember(dest => dest.Participants, opt => opt.Ignore())
-            .ForMember(dest => dest.CreateAt, opt => opt.Ignore())
-            .ForMember(dest => dest.UpdateAt, opt => opt.Ignore())
+            .ForMember(dest => dest.CreatedAt, opt => opt.Ignore())
+            .ForMember(dest => dest.UpdatedAt, opt => opt.Ignore())
             .ForMember(dest => dest.CreateBy, opt => opt.Ignore())
             .ForMember(dest => dest.UpdateBy, opt => opt.Ignore())
-            .ForMember(dest => dest.Deleted, opt => opt.Ignore());
+            .ForMember(dest => dest.IsDeleted, opt => opt.Ignore());
 
         // UpdateSharedExpenseRequestDto to SharedExpense entity mapping
         CreateMap<UpdateSharedExpenseRequestDto, SharedExpense>()
@@ -40,11 +40,11 @@ public class SharedExpenseMappingProfile : Profile
             .ForMember(dest => dest.SettledAmount, opt => opt.Ignore()) // Managed through payment operations
             .ForMember(dest => dest.Status, opt => opt.Ignore()) // Managed through business logic
             .ForMember(dest => dest.Participants, opt => opt.Ignore())
-            .ForMember(dest => dest.CreateAt, opt => opt.Ignore())
-            .ForMember(dest => dest.UpdateAt, opt => opt.Ignore())
+            .ForMember(dest => dest.CreatedAt, opt => opt.Ignore())
+            .ForMember(dest => dest.UpdatedAt, opt => opt.Ignore())
             .ForMember(dest => dest.CreateBy, opt => opt.Ignore())
             .ForMember(dest => dest.UpdateBy, opt => opt.Ignore())
-            .ForMember(dest => dest.Deleted,
+            .ForMember(dest => dest.IsDeleted,
                 opt => opt.Ignore()); // SharedExpenseParticipant entity to SharedExpenseParticipantResponseDto mapping
         CreateMap<SharedExpenseParticipant, SharedExpenseParticipantResponseDto>()
             .ForMember(dest => dest.RemainingAmount, opt => opt.MapFrom(src => src.OwedAmount))
@@ -57,11 +57,11 @@ public class SharedExpenseMappingProfile : Profile
             .ForMember(dest => dest.PaidAmount, opt => opt.MapFrom(src => 0))
             .ForMember(dest => dest.SettledDate, opt => opt.Ignore())
             .ForMember(dest => dest.SharedExpense, opt => opt.Ignore())
-            .ForMember(dest => dest.CreateAt, opt => opt.Ignore())
-            .ForMember(dest => dest.UpdateAt, opt => opt.Ignore())
+            .ForMember(dest => dest.CreatedAt, opt => opt.Ignore())
+            .ForMember(dest => dest.UpdatedAt, opt => opt.Ignore())
             .ForMember(dest => dest.CreateBy, opt => opt.Ignore())
             .ForMember(dest => dest.UpdateBy, opt => opt.Ignore())
-            .ForMember(dest => dest.Deleted, opt => opt.Ignore());
+            .ForMember(dest => dest.IsDeleted, opt => opt.Ignore());
 
         // UpdateSharedExpenseParticipantRequestDto to SharedExpenseParticipant entity mapping
         CreateMap<UpdateSharedExpenseParticipantRequestDto, SharedExpenseParticipant>()
@@ -71,11 +71,11 @@ public class SharedExpenseMappingProfile : Profile
             .ForMember(dest => dest.PaidAmount, opt => opt.Ignore()) // Managed through payment operations
             .ForMember(dest => dest.SettledDate, opt => opt.Ignore()) // Managed through payment operations
             .ForMember(dest => dest.SharedExpense, opt => opt.Ignore())
-            .ForMember(dest => dest.CreateAt, opt => opt.Ignore())
-            .ForMember(dest => dest.UpdateAt, opt => opt.Ignore())
+            .ForMember(dest => dest.CreatedAt, opt => opt.Ignore())
+            .ForMember(dest => dest.UpdatedAt, opt => opt.Ignore())
             .ForMember(dest => dest.CreateBy, opt => opt.Ignore())
             .ForMember(dest => dest.UpdateBy, opt => opt.Ignore())
-            .ForMember(dest => dest.Deleted, opt => opt.Ignore());
+            .ForMember(dest => dest.IsDeleted, opt => opt.Ignore());
 
         // SharedExpense entity to SharedExpenseSummaryDto mapping
         CreateMap<SharedExpense, SharedExpenseSummaryDto>()
@@ -102,10 +102,10 @@ public class SharedExpenseMappingProfile : Profile
             .ForMember(dest => dest.PaidAmount, opt => opt.MapFrom(src => src.OwedAmount))
             .ForMember(dest => dest.SettledDate, opt => opt.Ignore())
             .ForMember(dest => dest.SharedExpense, opt => opt.Ignore())
-            .ForMember(dest => dest.CreateAt, opt => opt.Ignore())
-            .ForMember(dest => dest.UpdateAt, opt => opt.Ignore())
+            .ForMember(dest => dest.CreatedAt, opt => opt.Ignore())
+            .ForMember(dest => dest.UpdatedAt, opt => opt.Ignore())
             .ForMember(dest => dest.CreateBy, opt => opt.Ignore())
             .ForMember(dest => dest.UpdateBy, opt => opt.Ignore())
-            .ForMember(dest => dest.Deleted, opt => opt.Ignore());
+            .ForMember(dest => dest.IsDeleted, opt => opt.Ignore());
     }
 }

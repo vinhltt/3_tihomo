@@ -1,5 +1,5 @@
 using Identity.Application.Common.Interfaces;
-using Identity.Contracts.Authentication;
+using Identity.Domain.Dtos.Authentication;
 using Identity.Domain.Entities;
 using Identity.Domain.Repositories;
 

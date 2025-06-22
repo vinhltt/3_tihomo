@@ -2,6 +2,7 @@ using CoreFinance.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Shared.Contracts.Extensions;
+using Shared.EntityFramework.Extensions;
 
 #pragma warning disable CS8618, CS9264
 

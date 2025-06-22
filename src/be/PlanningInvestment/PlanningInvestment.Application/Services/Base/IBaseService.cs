@@ -1,5 +1,5 @@
-﻿using Shared.Contracts.BaseEfModels;
-using Shared.Contracts.DTOs;
+﻿using Shared.EntityFramework.DTOs;
+using Shared.EntityFramework.BaseEfModels;
 
 namespace PlanningInvestment.Application.Services.Base;
 

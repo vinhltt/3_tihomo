@@ -140,6 +140,31 @@
         "Period": "1m",
         "PeriodTimespan": 60,
         "Limit": 200
+      }    },    {
+      "DownstreamPathTemplate": "/{everything}",
+      "DownstreamScheme": "https",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "localhost",
+          "Port": "${ExcelApiPort}"
+        }
+      ],
+      "UpstreamPathTemplate": "/api/excel/{everything}",
+      "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE", "OPTIONS" ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKeys": [ "Bearer", "ApiKey" ],
+        "AllowedScopes": []
+      },
+      "RouteClaimsRequirement": {},
+      "LoadBalancerOptions": {
+        "Type": "RoundRobin"
+      },
+      "RateLimitOptions": {
+        "ClientWhitelist": [],
+        "EnableRateLimiting": true,
+        "Period": "1m",
+        "PeriodTimespan": 60,
+        "Limit": 150
       }
     },    {
       "DownstreamPathTemplate": "/{everything}",

@@ -17,7 +17,7 @@ namespace CoreFinance.Infrastructure.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "9.0.4")
+                .HasAnnotation("ProductVersion", "9.0.6")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -38,15 +38,11 @@ namespace CoreFinance.Infrastructure.Migrations
                         .HasColumnType("character varying(32)")
                         .HasColumnName("card_number");
 
-                    b.Property<DateTime?>("CreateAt")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("create_at");
-
                     b.Property<string>("CreateBy")
                         .HasColumnType("text")
                         .HasColumnName("create_by");
 
-                    b.Property<DateTime>("CreatedAt")
+                    b.Property<DateTime?>("CreatedAt")
                         .HasColumnType("timestamp without time zone")
                         .HasColumnName("created_at");
 
@@ -60,10 +56,6 @@ namespace CoreFinance.Infrastructure.Migrations
                         .HasColumnType("decimal(18,2)")
                         .HasColumnName("current_balance");
 
-                    b.Property<string>("Deleted")
-                        .HasColumnType("text")
-                        .HasColumnName("deleted");
-
                     b.Property<decimal>("InitialBalance")
                         .HasColumnType("decimal(18,2)")
                         .HasColumnName("initial_balance");
@@ -71,6 +63,10 @@ namespace CoreFinance.Infrastructure.Migrations
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean")
                         .HasColumnName("is_active");
+
+                    b.Property<string>("IsDeleted")
+                        .HasColumnType("text")
+                        .HasColumnName("is_deleted");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -82,15 +78,11 @@ namespace CoreFinance.Infrastructure.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("type");
 
-                    b.Property<DateTime?>("UpdateAt")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("update_at");
-
                     b.Property<string>("UpdateBy")
                         .HasColumnType("text")
                         .HasColumnName("update_by");
 
-                    b.Property<DateTime>("UpdatedAt")
+                    b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp without time zone")
                         .HasColumnName("updated_at");
 
@@ -132,10 +124,6 @@ namespace CoreFinance.Infrastructure.Migrations
                         .HasColumnType("character varying(100)")
                         .HasColumnName("category");
 
-                    b.Property<DateTime?>("CreateAt")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("create_at");
-
                     b.Property<string>("CreateBy")
                         .HasColumnType("text")
                         .HasColumnName("create_by");
@@ -143,10 +131,6 @@ namespace CoreFinance.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp without time zone")
                         .HasColumnName("created_at");
-
-                    b.Property<string>("Deleted")
-                        .HasColumnType("text")
-                        .HasColumnName("deleted");
 
                     b.Property<string>("Description")
                         .HasMaxLength(500)
@@ -168,6 +152,10 @@ namespace CoreFinance.Infrastructure.Migrations
                     b.Property<bool>("IsAdjusted")
                         .HasColumnType("boolean")
                         .HasColumnName("is_adjusted");
+
+                    b.Property<string>("IsDeleted")
+                        .HasColumnType("text")
+                        .HasColumnName("is_deleted");
 
                     b.Property<string>("Notes")
                         .HasMaxLength(1000)
@@ -193,10 +181,6 @@ namespace CoreFinance.Infrastructure.Migrations
                     b.Property<int>("TransactionType")
                         .HasColumnType("integer")
                         .HasColumnName("transaction_type");
-
-                    b.Property<DateTime?>("UpdateAt")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("update_at");
 
                     b.Property<string>("UpdateBy")
                         .HasColumnType("text")
@@ -252,10 +236,6 @@ namespace CoreFinance.Infrastructure.Migrations
                         .HasColumnType("character varying(100)")
                         .HasColumnName("category");
 
-                    b.Property<DateTime?>("CreateAt")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("create_at");
-
                     b.Property<string>("CreateBy")
                         .HasColumnType("text")
                         .HasColumnName("create_by");
@@ -277,10 +257,6 @@ namespace CoreFinance.Infrastructure.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("days_in_advance");
 
-                    b.Property<string>("Deleted")
-                        .HasColumnType("text")
-                        .HasColumnName("deleted");
-
                     b.Property<string>("Description")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)")
@@ -297,6 +273,10 @@ namespace CoreFinance.Infrastructure.Migrations
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean")
                         .HasColumnName("is_active");
+
+                    b.Property<string>("IsDeleted")
+                        .HasColumnType("text")
+                        .HasColumnName("is_deleted");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -320,10 +300,6 @@ namespace CoreFinance.Infrastructure.Migrations
                     b.Property<int>("TransactionType")
                         .HasColumnType("integer")
                         .HasColumnName("transaction_type");
-
-                    b.Property<DateTime?>("UpdateAt")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("update_at");
 
                     b.Property<string>("UpdateBy")
                         .HasColumnType("text")
@@ -385,10 +361,6 @@ namespace CoreFinance.Infrastructure.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("category_type");
 
-                    b.Property<DateTime?>("CreateAt")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("create_at");
-
                     b.Property<string>("CreateBy")
                         .HasColumnType("text")
                         .HasColumnName("create_by");
@@ -396,10 +368,6 @@ namespace CoreFinance.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp without time zone")
                         .HasColumnName("created_at");
-
-                    b.Property<string>("Deleted")
-                        .HasColumnType("text")
-                        .HasColumnName("deleted");
 
                     b.Property<string>("Description")
                         .HasMaxLength(500)
@@ -419,6 +387,10 @@ namespace CoreFinance.Infrastructure.Migrations
                     b.Property<decimal?>("IncreaseCreditLimit")
                         .HasColumnType("decimal(18,2)")
                         .HasColumnName("increase_credit_limit");
+
+                    b.Property<string>("IsDeleted")
+                        .HasColumnType("text")
+                        .HasColumnName("is_deleted");
 
                     b.Property<string>("Note")
                         .HasMaxLength(1000)
@@ -449,10 +421,6 @@ namespace CoreFinance.Infrastructure.Migrations
                     b.Property<DateTime>("TransactionDate")
                         .HasColumnType("timestamp without time zone")
                         .HasColumnName("transaction_date");
-
-                    b.Property<DateTime?>("UpdateAt")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("update_at");
 
                     b.Property<string>("UpdateBy")
                         .HasColumnType("text")

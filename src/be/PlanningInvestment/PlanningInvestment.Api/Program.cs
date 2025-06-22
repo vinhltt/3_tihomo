@@ -1,4 +1,6 @@
+using Microsoft.EntityFrameworkCore;
 using PlanningInvestment.Api;
+using PlanningInvestment.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -6,8 +8,16 @@ var builder = WebApplication.CreateBuilder(args);
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
-// Add health checks (basic check without DbContext until Infrastructure is implemented)
-builder.Services.AddHealthChecks();
+// Add database context
+// Thêm ngữ cảnh cơ sở dữ liệu
+builder.Services.AddDbContext<PlanningInvestmentDbContext>(options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString(PlanningInvestmentDbContext.DEFAULT_CONNECTION_STRING))
+           .UseSnakeCaseNamingConvention());
+
+// Add health checks with DbContext
+// Thêm kiểm tra sức khỏe với DbContext
+builder.Services.AddHealthChecks()
+    .AddDbContextCheck<PlanningInvestmentDbContext>();
 
 var app = builder.Build();
 

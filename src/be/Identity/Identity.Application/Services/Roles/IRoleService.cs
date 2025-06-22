@@ -1,4 +1,4 @@
-using Identity.Contracts.Roles;
+using Identity.Domain.Dtos.Roles;
 
 namespace Identity.Application.Services.Roles;
 

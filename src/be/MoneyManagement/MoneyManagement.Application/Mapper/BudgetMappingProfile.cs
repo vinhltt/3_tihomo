@@ -26,20 +26,20 @@ public class BudgetMappingProfile : Profile
             .ForMember(dest => dest.UserId, opt => opt.Ignore())
             .ForMember(dest => dest.SpentAmount, opt => opt.MapFrom(src => 0))
             .ForMember(dest => dest.Status, opt => opt.MapFrom(src => BudgetStatus.Active))
-            .ForMember(dest => dest.CreateAt, opt => opt.Ignore())
-            .ForMember(dest => dest.UpdateAt, opt => opt.Ignore())
+            .ForMember(dest => dest.CreatedAt, opt => opt.Ignore())
+            .ForMember(dest => dest.UpdatedAt, opt => opt.Ignore())
             .ForMember(dest => dest.CreateBy, opt => opt.Ignore())
             .ForMember(dest => dest.UpdateBy, opt => opt.Ignore())
-            .ForMember(dest => dest.Deleted, opt => opt.Ignore());
+            .ForMember(dest => dest.IsDeleted, opt => opt.Ignore());
 
         // UpdateBudgetRequest to Budget entity mapping
         CreateMap<UpdateBudgetRequest, Budget>()
             .ForMember(dest => dest.UserId, opt => opt.Ignore())
             .ForMember(dest => dest.SpentAmount, opt => opt.Ignore())
-            .ForMember(dest => dest.CreateAt, opt => opt.Ignore())
-            .ForMember(dest => dest.UpdateAt, opt => opt.Ignore())
+            .ForMember(dest => dest.CreatedAt, opt => opt.Ignore())
+            .ForMember(dest => dest.UpdatedAt, opt => opt.Ignore())
             .ForMember(dest => dest.CreateBy, opt => opt.Ignore())
             .ForMember(dest => dest.UpdateBy, opt => opt.Ignore())
-            .ForMember(dest => dest.Deleted, opt => opt.Ignore());
+            .ForMember(dest => dest.IsDeleted, opt => opt.Ignore());
     }
 }

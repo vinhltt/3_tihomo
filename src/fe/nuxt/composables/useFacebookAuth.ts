@@ -110,15 +110,15 @@ export const useFacebookAuth = () => {
       }
     })
   }
-
   /**
    * Send Facebook token to our Identity API (EN)
    * Gửi token Facebook đến Identity API của chúng ta (VI)
    */
   const authenticateWithAPI = async (facebookToken: string): Promise<SocialLoginResponse> => {
-    const apiBase = config.public.apiBase
+    console.log('🔐 Authenticating with API via Gateway (Facebook token)')
     
-    const response = await $fetch<SocialLoginResponse>(`${apiBase}/api/auth/social-login`, {
+    // Call through API Gateway instead of direct service call
+    const response = await $fetch<SocialLoginResponse>('/api/auth/social-login', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'

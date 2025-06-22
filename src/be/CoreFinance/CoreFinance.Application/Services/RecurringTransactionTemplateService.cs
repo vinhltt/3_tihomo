@@ -7,9 +7,9 @@ using CoreFinance.Domain.Enums;
 using CoreFinance.Domain.UnitOfWorks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using Shared.Contracts.BaseEfModels;
-using Shared.Contracts.DTOs;
-using Shared.Contracts.EntityFrameworkUtilities;
+using Shared.EntityFramework.BaseEfModels;
+using Shared.EntityFramework.DTOs;
+using Shared.EntityFramework.EntityFrameworkUtilities;
 
 namespace CoreFinance.Application.Services;
 

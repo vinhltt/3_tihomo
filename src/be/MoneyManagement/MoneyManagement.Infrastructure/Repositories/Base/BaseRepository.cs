@@ -2,8 +2,8 @@ using System.Linq.Expressions;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
-using MoneyManagement.Contracts.BaseEfModels;
 using MoneyManagement.Domain.BaseRepositories;
+using Shared.EntityFramework.BaseEfModels;
 
 namespace MoneyManagement.Infrastructure.Repositories.Base;
 
@@ -184,7 +184,7 @@ public class BaseRepository<TEntity, TKey>(
     /// <returns>Number of state entries written to the database</returns>
     public async Task<int> DeleteSoftAsync(TEntity entity)
     {
-        entity.Deleted = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss");
+        entity.IsDeleted = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss");
         Entities.Update(entity);
         return await context.SaveChangesAsync();
     }
@@ -203,7 +203,7 @@ public class BaseRepository<TEntity, TKey>(
         var entity = await Entities.FindAsync(keyValues);
         if (entity == null) return 0;
 
-        entity.Deleted = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss");
+        entity.IsDeleted = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss");
         Entities.Update(entity);
         return await context.SaveChangesAsync();
     }
