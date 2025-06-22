@@ -7,19 +7,6 @@
         "@upstash/context7-mcp@latest"
       ]
     },
-    "interactive-feedback-mcp": {
-      "command": "C:/Users/thevi/AppData/Local/Programs/Python/Python313/Scripts/uv.exe",
-      "args": [
-        "--directory",
-        "D:/1.Workspace/0.Personal/interactive-feedback-mcp",
-        "run",
-        "server.py"
-      ],
-      "timeout": 600,
-      "autoApprove": [
-        "interactive_feedback"
-      ]
-    },
     "sequential-thinking": {
       "command": "npx",
       "args": [
