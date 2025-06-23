@@ -229,18 +229,23 @@ import appSetting from '@/app-setting'
 import { useAppStore } from '@/stores/index'
 import { useAuth } from '@/composables/useAuth'
 import { useSocialAuth } from '@/composables/useSocialAuth'
+import { useAuthStore } from '@/stores/auth'
 import type { SocialProvider } from '@/types/auth'
 
-useHead({ title: 'Login Cover' })
+useHead({ title: 'Login with Google - Cover' })
 
 definePageMeta({
     layout: 'auth-layout',
+    title: 'Login with Google - Cover',
     auth: false // Disable auth middleware for this page
 })
 
 const store = useAppStore()
 const { login, isLoading, error, clearError } = useAuth()
 const { loginWith, isLoading: socialLoading, error: socialError, initializeProviders } = useSocialAuth()
+const authStore = useAuthStore()
+const router = useRouter()
+const route = useRoute()
 const { setLocale } = useI18n()
 
 // Form state
@@ -295,8 +300,12 @@ const handleLogin = async (): Promise<void> => {
         })
 
         if (success) {
-            // Login successful, redirect will be handled by useAuth composable
             console.log('Login successful')
+            
+            // Redirect to returnUrl or home page
+            const returnUrl = route.query.returnUrl as string
+            const redirectTo = returnUrl && typeof returnUrl === 'string' ? returnUrl : '/'
+            await router.push(redirectTo)
         }
     } catch (err) {
         console.error('Login error:', err)
@@ -307,9 +316,24 @@ const handleLogin = async (): Promise<void> => {
 const handleGoogleLogin = async (): Promise<void> => {
     try {
         currentSocialProvider.value = 'Google'
-        await loginWith('Google')
+        
+        // Step 1: Authenticate with Google
+        const socialResponse = await loginWith('Google')
         console.log('Google login successful')
-        // Navigation will be handled by the auth store
+        
+        // Step 2: Store authentication data in auth store
+        const success = await authStore.socialLogin(socialResponse)
+        
+        if (success) {
+            console.log('✅ Authentication stored, redirecting...')
+            
+            // Step 3: Redirect to returnUrl or home page
+            const returnUrl = route.query.returnUrl as string
+            const redirectTo = returnUrl && typeof returnUrl === 'string' ? returnUrl : '/'
+            await router.push(redirectTo)
+        } else {
+            throw new Error('Failed to store authentication data')
+        }
     } catch (err) {
         console.error('Google login error:', err)
     } finally {

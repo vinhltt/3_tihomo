@@ -306,15 +306,14 @@
                                             <div class="flex items-center px-4 py-4">
                                                 <div class="flex-none">
                                                     <img class="h-10 w-10 rounded-md object-cover" src="/assets/images/user-profile.jpeg" alt="" />
-                                                </div>
-                                                <div class="truncate ltr:pl-4 rtl:pr-4">
+                                                </div>                                                <div class="truncate ltr:pl-4 rtl:pr-4">
                                                     <h4 class="text-base">
-                                                        John Doe<span class="rounded bg-success-light px-1 text-xs text-success ltr:ml-2 rtl:ml-2">Pro</span>
+                                                        {{ (authStore.user?.firstName && authStore.user?.lastName) ? `${authStore.user.firstName} ${authStore.user.lastName}` : authStore.user?.email || 'User' }}<span class="rounded bg-success-light px-1 text-xs text-success ltr:ml-2 rtl:ml-2">Pro</span>
                                                     </h4>
                                                     <a
                                                         class="text-black/60 hover:text-primary dark:text-dark-light/60 dark:hover:text-white"
                                                         href="javascript:;"
-                                                        >johndoe@gmail.com</a
+                                                        >{{ authStore.user?.email || 'user@example.com' }}</a
                                                     >
                                                 </div>
                                             </div>
@@ -339,13 +338,22 @@
 
                                                 Lock Screen
                                             </NuxtLink>
-                                        </li>
-                                        <li class="border-t border-white-light dark:border-white-light/10">
-                                            <NuxtLink to="/auth/boxed-signin" class="!py-3 text-danger" @click="close()">
+                                        </li>                                        <li class="border-t border-white-light dark:border-white-light/10">
+                                            <button 
+                                                @click="handleLogout(); close()" 
+                                                class="flex w-full items-center !py-3 px-4 text-danger hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-200"
+                                                :disabled="authStore.isLoading"
+                                            >
                                                 <icon-logout class="h-4.5 w-4.5 shrink-0 rotate-90 ltr:mr-2 rtl:ml-2" />
-
-                                                Sign Out
-                                            </NuxtLink>
+                                                <span v-if="!authStore.isLoading">Sign Out</span>
+                                                <span v-else class="flex items-center">
+                                                    <svg class="animate-spin h-4 w-4 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                    </svg>
+                                                    Signing out...
+                                                </span>
+                                            </button>
                                         </li>
                                     </ul>
                                 </template>
@@ -873,25 +881,42 @@
     </header>
 </template>
 
-<script lang="ts" setup>
-    import { ref, onMounted, computed, reactive, watch } from 'vue';
+<script lang="ts" setup>    import { ref, onMounted, computed, reactive, watch } from 'vue';
 
     import appSetting from '@/app-setting';
 
     import { useRoute } from 'vue-router';
     import { useAppStore } from '@/stores/index';
-    const store = useAppStore();
+    import { useAuthStore } from '@/stores/auth';    const store = useAppStore();
+    const authStore = useAuthStore();
     const route = useRoute();
+    const router = useRouter();
     const search = ref(false);
-    const { setLocale } = useI18n();
-
-    // multi language
+    const { setLocale } = useI18n();    // multi language
     const changeLanguage = (item: any) => {
         appSetting.toggleLanguage(item, setLocale);
     };
     const currentFlag = computed(() => {
         return `/assets/images/flags/${store.locale?.toUpperCase()}.svg`;
     });
+
+    /**
+     * Handle user logout
+     * Xử lý đăng xuất người dùng
+     */
+    const handleLogout = async (): Promise<void> => {
+        try {
+            await authStore.logout()
+            console.log('✅ Logout successful, redirecting to login...')
+            // Redirect to login page after successful logout
+            await router.push('/auth/cover-login')
+        } catch (error) {
+            console.error('❌ Logout error:', error)
+            // Even if logout fails, clear local state and redirect
+            authStore.clearAuthState()
+            await router.push('/auth/cover-login')
+        }
+    };
 
     const notifications = ref([
         {

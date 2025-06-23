@@ -9,7 +9,7 @@ export const useGoogleAuth = () => {
   const config = useRuntimeConfig()
   const isLoading = ref(false)
   const error = ref<string | null>(null)
-
+  
   // Check if Google client ID is configured
   const isConfigured = computed(() => {
     const clientId = config.public.googleClientId
@@ -41,7 +41,7 @@ export const useGoogleAuth = () => {
         if (window.google?.accounts?.id) {
           window.google.accounts.id.initialize({
             client_id: config.public.googleClientId,
-            callback: () => { }, // Will be overridden in signIn method
+            callback: () => {}, // Will be overridden in signIn method
             auto_select: false,
             cancel_on_tap_outside: true
           })
@@ -81,7 +81,7 @@ export const useGoogleAuth = () => {
                 credentialLength: response.credential?.length || 0,
                 credentialPreview: response.credential?.substring(0, 50) + '...'
               })
-
+              
               if (response.credential) {
                 // This is the Google ID token (JWT format) that backend expects
                 resolve(response.credential)
@@ -98,7 +98,7 @@ export const useGoogleAuth = () => {
               const tempDiv = document.createElement('div')
               tempDiv.style.display = 'none'
               document.body.appendChild(tempDiv)
-
+              
               window.google?.accounts?.id.renderButton(tempDiv, {
                 type: 'standard',
                 shape: 'rectangular',
@@ -110,7 +110,7 @@ export const useGoogleAuth = () => {
                   // Button will trigger the callback automatically
                 }
               })
-
+              
               // Auto-click the button
               setTimeout(() => {
                 const button = tempDiv.querySelector('div[role="button"]') as HTMLElement
@@ -143,14 +143,13 @@ export const useGoogleAuth = () => {
       tokenLength: googleToken?.length || 0,
       tokenPreview: googleToken?.substring(0, 50) + '...'
     })
-
+    
     try {      // Call through API Gateway instead of direct service call
       const response = await $fetch<SocialLoginResponse>('/identity/auth/social-login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
-        },
-        body: {
+        },        body: {
           Provider: 'Google',
           Token: googleToken
         } as SocialLoginRequest
@@ -185,10 +184,10 @@ export const useGoogleAuth = () => {
 
       // Step 1: Get Google ID token (JWT)
       const googleToken = await signIn()
-
+      
       // Step 2: Exchange for our JWT
       const authResponse = await authenticateWithAPI(googleToken)
-
+      
       return authResponse
     } catch (err: any) {
       error.value = err.message || 'Google authentication failed'

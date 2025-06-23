@@ -15,11 +15,10 @@ export default defineNuxtRouteMiddleware(async (to) => {
   }
   
   const authStore = useAuthStore()
-  
-  // Check if route has auth disabled in page meta
+    // Check if route has auth disabled in page meta
   if (to.meta.auth === false) {
-    // If user is already authenticated and trying to access login, redirect to home
-    if (authStore.isAuthenticated && to.path.startsWith('/auth/login')) {
+    // If user is already authenticated and trying to access login pages, redirect to home
+    if (authStore.isAuthenticated && (to.path.startsWith('/auth/login') || to.path.startsWith('/auth/cover-login'))) {
       console.log('🏠 User already authenticated, redirecting to home')
       return navigateTo('/')
     }
@@ -47,11 +46,10 @@ export default defineNuxtRouteMiddleware(async (to) => {
   
   // Check if current route is public
   const isPublicRoute = publicRoutes.some(route => to.path.startsWith(route))
-  
-  // If it's a public route, allow access
+    // If it's a public route, allow access
   if (isPublicRoute) {
-    // If user is already authenticated and trying to access login, redirect to home
-    if (authStore.isAuthenticated && to.path.startsWith('/auth/login')) {
+    // If user is already authenticated and trying to access login pages, redirect to home
+    if (authStore.isAuthenticated && (to.path.startsWith('/auth/login') || to.path.startsWith('/auth/cover-login'))) {
       console.log('🏠 User already authenticated, redirecting to home')
       return navigateTo('/')
     }
@@ -65,10 +63,9 @@ export default defineNuxtRouteMiddleware(async (to) => {
     
     // Clear authentication state and cookies
     authStore.clearAuthState()
-    
-    // Redirect to login page with return URL
+      // Redirect to cover-login page with return URL
     const returnUrl = to.fullPath !== '/' ? `?returnUrl=${encodeURIComponent(to.fullPath)}` : ''
-    return navigateTo(`/auth/login${returnUrl}`)
+    return navigateTo(`/auth/cover-login${returnUrl}`)
   }
   
   // User is authenticated, allow access
