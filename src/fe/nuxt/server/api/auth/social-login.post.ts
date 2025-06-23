@@ -10,11 +10,15 @@ export default defineEventHandler(async (event): Promise<any> => {
   const config = useRuntimeConfig()
   const body: any = await readBody(event)
 
+  // Disable SSL certificate verification for development
+  if (process.env.NODE_ENV === 'development') {
+    process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
+  }
   try {
-    // Proxy request to Identity API through Gateway (identity route)
+    // Proxy request to Identity API through Gateway (auth route)
     const response: any = await $fetch('/identity/auth/social-login', {
       method: 'POST',
-      baseURL: config.public.identityApiBase,
+      baseURL: config.public.apiBase, // Use Gateway instead of direct Identity API
       headers: {
         'Content-Type': 'application/json',
       },

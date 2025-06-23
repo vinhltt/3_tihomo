@@ -165,8 +165,8 @@ export type SocialProvider = 'Google' | 'Facebook'
  * Dữ liệu yêu cầu đăng nhập xã hội (VI)
  */
 export type SocialLoginRequest = {
-  provider: SocialProvider
-  token: string
+  Provider: SocialProvider
+  Token: string
 }
 
 /**

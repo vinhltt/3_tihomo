@@ -58,9 +58,12 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useSocialAuth } from '@/composables/useSocialAuth'
+import { useAuthStore } from '@/stores/auth'
 
 // Composables
 const { loginWith, isLoading: socialLoading, error: socialError, initializeProviders } = useSocialAuth()
+const authStore = useAuthStore()
+const router = useRouter()
 
 /**
  * Handle Google login
@@ -68,9 +71,20 @@ const { loginWith, isLoading: socialLoading, error: socialError, initializeProvi
  */
 const handleGoogleLogin = async (): Promise<void> => {
     try {
-        await loginWith('Google')
+        // Step 1: Authenticate with Google
+        const socialResponse = await loginWith('Google')
         console.log('Google login successful')
-        // Navigation will be handled by the auth store
+        
+        // Step 2: Store authentication data in auth store
+        const success = await authStore.socialLogin(socialResponse)
+        
+        if (success) {
+            console.log('✅ Authentication stored, redirecting to home...')
+            // Step 3: Redirect to home page
+            await router.push('/')
+        } else {
+            throw new Error('Failed to store authentication data')
+        }
     } catch (err) {
         console.error('Google login error:', err)
     }

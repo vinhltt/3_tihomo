@@ -201,6 +201,68 @@ export const useAuthStore = defineStore('auth', {
      */
     clearError(): void {
       this.error = null
+    },    /**
+     * Login user with social provider response (EN)
+     * Đăng nhập người dùng với phản hồi từ nhà cung cấp xã hội (VI)
+     */
+    async socialLogin(socialResponse: import('@/types/auth').SocialLoginResponse): Promise<boolean> {
+      this.isLoading = true
+      this.error = null
+
+      try {
+        // Store social login data
+        this.token = socialResponse.accessToken
+        this.refreshToken = socialResponse.refreshToken
+        
+        // Convert UserInfo to User format for auth store
+        const nameParts = socialResponse.user.name.split(' ')
+        this.user = {
+          id: socialResponse.user.id,
+          email: socialResponse.user.email,
+          firstName: nameParts[0] || '',
+          lastName: nameParts.slice(1).join(' ') || '',
+          isActive: socialResponse.user.isActive,
+          emailConfirmed: true, // Assume email is confirmed from social providers
+          roles: [], // Will be populated from backend if needed
+          createdAt: socialResponse.user.createdAt,
+          updatedAt: socialResponse.user.createdAt, // Use createdAt as fallback
+          pictureUrl: socialResponse.user.pictureUrl
+        }
+        
+        this.isAuthenticated = true
+
+        // Store tokens in cookies for SSR
+        const tokenCookie = useCookie('auth-token', {
+          httpOnly: false,
+          secure: true,
+          sameSite: 'strict',
+          maxAge: 60 * 60 * 24 * 7, // 7 days
+        })
+        const refreshCookie = useCookie('refresh-token', {
+          httpOnly: false,
+          secure: true,
+          sameSite: 'strict',
+          maxAge: 60 * 60 * 24 * 30, // 30 days
+        })
+
+        tokenCookie.value = socialResponse.accessToken
+        refreshCookie.value = socialResponse.refreshToken
+
+        console.log('✅ Social login data stored in auth store:', {
+          hasUser: !!this.user,
+          hasToken: !!this.token,
+          userEmail: this.user?.email,
+          isAuthenticated: this.isAuthenticated
+        })
+
+        return true
+      } catch (error: any) {
+        this.error = error.message || 'Social login failed'
+        console.error('❌ Social login storage error:', error)
+        return false
+      } finally {
+        this.isLoading = false
+      }
     },
   },
 
