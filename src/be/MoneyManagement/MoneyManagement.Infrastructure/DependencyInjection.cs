@@ -25,14 +25,14 @@ public static class DependencyInjection
     {
         // Database - Use InMemory for development if PostgreSQL is not available
         var connectionString = configuration.GetConnectionString("MoneyManagementDb");
-        var useInMemory = bool.Parse(configuration["UseInMemoryDatabase"] ?? "false");
-
+        var useInMemory = bool.Parse(configuration["UseInMemoryDatabase"] ?? "false");        
         if (useInMemory)
             services.AddDbContext<MoneyManagementDbContext>(options =>
                 options.UseInMemoryDatabase("MoneyManagementDb"));
         else
             services.AddDbContext<MoneyManagementDbContext>(options =>
-                options.UseNpgsql(connectionString));
+                options.UseNpgsql(connectionString)
+                       .UseSnakeCaseNamingConvention());
 
         // Unit of Work
         services.AddScoped<IUnitOfWork, UnitOfWork<MoneyManagementDbContext>>();

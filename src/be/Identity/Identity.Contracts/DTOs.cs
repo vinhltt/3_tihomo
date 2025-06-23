@@ -1,7 +1,8 @@
-namespace Identity.Api.Models;
+namespace Identity.Contracts;
 
 /// <summary>
-///     User information returned after successful authentication
+/// User information returned after successful authentication
+/// Thông tin người dùng trả về sau khi xác thực thành công
 /// </summary>
 public class UserInfo
 {
@@ -15,7 +16,8 @@ public class UserInfo
 }
 
 /// <summary>
-///     Request model for social login token verification
+/// Request model for social login token verification
+/// Model yêu cầu để xác minh token đăng nhập xã hội
 /// </summary>
 public class SocialLoginRequest
 {
@@ -24,7 +26,8 @@ public class SocialLoginRequest
 }
 
 /// <summary>
-///     Response model after successful login
+/// Response model after successful login
+/// Model phản hồi sau khi đăng nhập thành công
 /// </summary>
 public class LoginResponse
 {
@@ -35,7 +38,8 @@ public class LoginResponse
 }
 
 /// <summary>
-///     Request model for API key creation
+/// Request model for API key creation
+/// Model yêu cầu để tạo API key
 /// </summary>
 public class CreateApiKeyRequest
 {
@@ -46,7 +50,8 @@ public class CreateApiKeyRequest
 }
 
 /// <summary>
-///     Response model for API key creation
+/// Response model for API key creation
+/// Model phản hồi để tạo API key
 /// </summary>
 public class CreateApiKeyResponse
 {
@@ -59,7 +64,8 @@ public class CreateApiKeyResponse
 }
 
 /// <summary>
-///     API key information (without the actual key)
+/// API key information (without the actual key)
+/// Thông tin API key (không bao gồm key thực tế)
 /// </summary>
 public class ApiKeyInfo
 {

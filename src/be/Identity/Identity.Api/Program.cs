@@ -5,6 +5,7 @@ using Identity.Api.HealthChecks;
 using Identity.Api.Middleware;
 using Identity.Api.Services;
 using Identity.Application.Services.RefreshTokens;
+using Identity.Infrastructure.Data;
 using Identity.Infrastructure.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
@@ -17,6 +18,25 @@ using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using Serilog;
 using Serilog.Events;
+
+
+async Task MigrateDatabaseAsync(IHost host)
+{
+    using var scope = host.Services.CreateScope();
+    var services = scope.ServiceProvider;
+    var logger = services.GetRequiredService<ILogger<Program>>();
+
+    try
+    {
+        var context = services.GetRequiredService<IdentityDbContext>();
+        await context.Database.MigrateAsync();
+        logger.LogInformation("Database migration completed successfully");
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "An error occurred while migrating the database");
+    }
+}
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -63,23 +83,17 @@ builder.Services.AddSwaggerGen(c =>
 // Add CORS
 builder.Services.AddCors(options =>
 {
-    options.AddDefaultPolicy(builder =>
+    options.AddDefaultPolicy(corsPolicyBuilder =>
     {
-        builder.AllowAnyOrigin()
+        corsPolicyBuilder.AllowAnyOrigin()
             .AllowAnyMethod()
             .AllowAnyHeader();
     });
 });
 
-// Add Entity Framework - register both contexts for different layers
-// Thêm Entity Framework - đăng ký cả hai contexts cho các layer khác nhau
+// Add Entity Framework - using Infrastructure DbContext
+// Thêm Entity Framework - sử dụng Infrastructure DbContext
 builder.Services.AddDbContext<IdentityDbContext>(options =>
-{
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"));
-    options.UseSnakeCaseNamingConvention();
-});
-
-builder.Services.AddDbContext<Identity.Infrastructure.Data.IdentityDbContext>(options =>
 {
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"));
     options.UseSnakeCaseNamingConvention();
@@ -89,7 +103,8 @@ builder.Services.AddDbContext<Identity.Infrastructure.Data.IdentityDbContext>(op
 // Thêm caching services để tối ưu hiệu suất
 builder.Services.AddMemoryCache(options =>
 {
-    options.SizeLimit = 1000; // Limit cache size to prevent memory issues
+    // Temporarily remove SizeLimit to fix cache entry errors
+    // options.SizeLimit = 1000; // Limit cache size to prevent memory issues
 });
 
 // Add Redis distributed cache (if configured)
@@ -264,5 +279,8 @@ app.MapHealthChecks("/health", new HealthCheckOptions
         await context.Response.WriteAsync(JsonSerializer.Serialize(result));
     }
 });
+
+// Apply database migration automatically
+await MigrateDatabaseAsync(app);
 
 app.Run();

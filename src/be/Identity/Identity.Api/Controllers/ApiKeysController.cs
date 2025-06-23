@@ -1,4 +1,4 @@
-using Identity.Api.Models;
+using Identity.Contracts;
 using Identity.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

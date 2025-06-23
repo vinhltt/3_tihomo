@@ -17,6 +17,7 @@ public class MoneyManagementDbContext : DbContext
     ///     The default connection string name for the database (EN)<br />
     ///     Tên chuỗi kết nối mặc định cho cơ sở dữ liệu (VI)
     /// </summary>
+    // ReSharper disable once InconsistentNaming
     public const string DEFAULT_CONNECTION_STRING = "MoneyManagementDb";
 
     // ReSharper disable once NotAccessedField.Local
@@ -76,7 +77,7 @@ public class MoneyManagementDbContext : DbContext
     {
         if (optionsBuilder.IsConfigured)
             return;
-        var connectionString = _configuration?.GetConnectionString(DEFAULT_CONNECTION_STRING);
+        var connectionString = _configuration.GetConnectionString(DEFAULT_CONNECTION_STRING);
         if (!string.IsNullOrEmpty(connectionString)) optionsBuilder.UseNpgsql(connectionString);
     }
 

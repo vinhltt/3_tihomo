@@ -16,6 +16,7 @@ public class PlanningInvestmentDbContext : DbContext
     ///     The default connection string name for the database (EN)<br />
     ///     Tên chuỗi kết nối mặc định cho cơ sở dữ liệu (VI)
     /// </summary>
+    // ReSharper disable once InconsistentNaming
     public const string DEFAULT_CONNECTION_STRING = "PlanningInvestmentDb";
 
     // ReSharper disable once NotAccessedField.Local
@@ -48,6 +49,7 @@ public class PlanningInvestmentDbContext : DbContext
     /// </summary>
     public DbSet<Debt> Debts { get; set; }
 
+    // ReSharper disable once RedundantOverriddenMember
     /// <summary>
     ///     Configures the database model for the Planning Investment context (EN)<br />
     ///     Cấu hình mô hình cơ sở dữ liệu cho ngữ cảnh Lập kế hoạch Đầu tư (VI)
@@ -56,21 +58,6 @@ public class PlanningInvestmentDbContext : DbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
-
-        // Configure table names using snake_case convention
-        // Cấu hình tên bảng sử dụng quy ước snake_case
-        modelBuilder.Entity<Debt>().ToTable("debts");        // Configure entity properties
-        // Cấu hình thuộc tính thực thể
-        modelBuilder.Entity<Debt>(entity =>
-        {
-            entity.HasKey(e => e.Id);
-            entity.Property(e => e.Id).HasColumnName("id");
-            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
-            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
-            entity.Property(e => e.CreateBy).HasColumnName("create_by");
-            entity.Property(e => e.UpdateBy).HasColumnName("update_by");
-            entity.Property(e => e.IsDeleted).HasColumnName("is_deleted");
-        });
     }
 
     /// <summary>
@@ -80,11 +67,9 @@ public class PlanningInvestmentDbContext : DbContext
     /// <param name="optionsBuilder">The options builder (EN)<br />Trình xây dựng tùy chọn (VI)</param>
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
-        if (!optionsBuilder.IsConfigured)
-        {
-            // Default configuration for design-time
-            // Cấu hình mặc định cho thời gian thiết kế
-            optionsBuilder.UseNpgsql("Host=localhost;Database=db_planning;Username=planning_user;Password=planning_pass;Port=5436");
-        }
+        if (optionsBuilder.IsConfigured)
+            return;
+        var connectionString = _configuration.GetConnectionString(DEFAULT_CONNECTION_STRING);
+        optionsBuilder.UseNpgsql(connectionString);
     }
 }

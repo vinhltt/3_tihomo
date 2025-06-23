@@ -1,7 +1,8 @@
 using System.Diagnostics;
 using System.Text.Json;
-using Identity.Api.Configuration;
-using Identity.Api.Models;
+using Identity.Infrastructure.Data;
+using Identity.Domain.Entities;
+using Identity.Contracts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Caching.Memory;
@@ -152,7 +153,7 @@ public class EnhancedUserService(
             Name = user.Name,
             PictureUrl = user.PictureUrl,
             IsActive = user.IsActive,
-            CreatedAt = user.CreatedAt,
+            CreatedAt = user.CreatedAt ?? DateTime.UtcNow,
             Providers = providers
         };
 

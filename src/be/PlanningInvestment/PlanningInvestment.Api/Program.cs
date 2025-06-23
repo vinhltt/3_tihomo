@@ -2,6 +2,24 @@ using Microsoft.EntityFrameworkCore;
 using PlanningInvestment.Api;
 using PlanningInvestment.Infrastructure;
 
+async Task MigrateDatabaseAsync(IHost host)
+{
+    using var scope = host.Services.CreateScope();
+    var services = scope.ServiceProvider;
+    var logger = services.GetRequiredService<ILogger<Program>>();
+
+    try
+    {
+        var context = services.GetRequiredService<PlanningInvestmentDbContext>();
+        await context.Database.MigrateAsync();
+        logger.LogInformation("PlanningInvestment database migration completed successfully");
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "An error occurred while migrating the PlanningInvestment database");
+    }
+}
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
@@ -28,6 +46,10 @@ app.UseHttpsRedirection();
 
 // Add health check endpoint
 app.MapHealthChecks("/health");
+
+// ✅ Migrate database on startup
+// Tự động migrate database khi khởi động
+await MigrateDatabaseAsync(app);
 
 var summaries = new[]
 {

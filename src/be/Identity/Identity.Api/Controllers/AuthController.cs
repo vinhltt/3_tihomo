@@ -1,10 +1,10 @@
-using Identity.Api.Models;
+using Identity.Contracts;
 using Identity.Api.Services;
 using Identity.Application.Services.RefreshTokens;
 using Identity.Domain.Dtos.Authentication;
 using Identity.Domain.Dtos.RefreshTokens;
 using Microsoft.AspNetCore.Mvc;
-using LoginResponse = Identity.Api.Models.LoginResponse;
+using LoginResponse = Identity.Contracts.LoginResponse;
 using RefreshTokenRequest = Identity.Domain.Dtos.Authentication.RefreshTokenRequest;
 using RefreshTokenResponse = Identity.Domain.Dtos.Authentication.RefreshTokenResponse;
 

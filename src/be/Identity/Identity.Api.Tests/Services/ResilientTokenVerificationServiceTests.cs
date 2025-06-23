@@ -6,7 +6,7 @@ using Microsoft.Extensions.Configuration;
 using Moq;
 using FluentAssertions;
 using Identity.Api.Services;
-using Identity.Api.Models;
+using Identity.Contracts;
 using Polly.CircuitBreaker;
 using Polly.Timeout;
 
@@ -17,20 +17,36 @@ namespace Identity.Api.Tests.Services;
 /// Tests resilience patterns: circuit breaker, retry, timeout, fallback mechanisms
 /// </summary>
 public class ResilientTokenVerificationServiceTests
-{
-    private readonly Mock<ITokenVerificationService> _mockEnhancedService;
+{    private readonly Mock<ITokenVerificationService> _mockEnhancedService;
     private readonly Mock<ILogger<ResilientTokenVerificationService>> _mockLogger;
     private readonly Mock<IConfiguration> _mockConfiguration;
     private readonly Mock<IMemoryCache> _mockMemoryCache;
     private readonly Mock<IDistributedCache> _mockDistributedCache;
+    private readonly Mock<TelemetryService> _mockTelemetryService;
 
     public ResilientTokenVerificationServiceTests()
     {
-        _mockEnhancedService = new Mock<ITokenVerificationService>();
-        _mockLogger = new Mock<ILogger<ResilientTokenVerificationService>>();
+        _mockEnhancedService = new Mock<ITokenVerificationService>();        _mockLogger = new Mock<ILogger<ResilientTokenVerificationService>>();
         _mockConfiguration = new Mock<IConfiguration>();
         _mockMemoryCache = new Mock<IMemoryCache>();
         _mockDistributedCache = new Mock<IDistributedCache>();
+        _mockTelemetryService = new Mock<TelemetryService>();
+    }
+
+    /// <summary>
+    /// Helper method to create ResilientTokenVerificationService with all mocked dependencies
+    /// Phương thức trợ giúp để tạo ResilientTokenVerificationService với tất cả dependencies được mock
+    /// </summary>
+    private ResilientTokenVerificationService CreateResilientService()
+    {
+        return new ResilientTokenVerificationService(
+            _mockEnhancedService.Object,
+            _mockLogger.Object,
+            _mockConfiguration.Object,
+            _mockMemoryCache.Object,
+            _mockDistributedCache.Object,
+            _mockTelemetryService.Object
+        );
     }
 
     [Fact]
@@ -49,13 +65,7 @@ public class ResilientTokenVerificationServiceTests
             .Setup(x => x.VerifyTokenAsync("google", "valid-token"))
             .ReturnsAsync(expectedResult);
 
-        var resilientService = new ResilientTokenVerificationService(
-            _mockEnhancedService.Object,
-            _mockLogger.Object,
-            _mockConfiguration.Object,
-            _mockMemoryCache.Object,
-            _mockDistributedCache.Object
-        );        // Act
+        var resilientService = CreateResilientService();        // Act
         var result = await resilientService.VerifyTokenAsync("google", "valid-token");
 
         // Assert
@@ -81,18 +91,11 @@ public class ResilientTokenVerificationServiceTests
                 "Provider": "google"
             }
             """;
-        
-        _mockDistributedCache
-            .Setup(x => x.GetStringAsync(It.IsAny<string>(), default))
-            .ReturnsAsync(fallbackData);
+          _mockDistributedCache
+            .Setup(x => x.GetAsync(It.IsAny<string>(), default))
+            .ReturnsAsync(System.Text.Encoding.UTF8.GetBytes(fallbackData));
 
-        var resilientService = new ResilientTokenVerificationService(
-            _mockEnhancedService.Object,
-            _mockLogger.Object,
-            _mockConfiguration.Object,
-            _mockMemoryCache.Object,
-            _mockDistributedCache.Object
-        );        // Act
+        var resilientService = CreateResilientService();        // Act
         var result = await resilientService.VerifyTokenAsync("google", "failing-token");
 
         // Assert
@@ -101,7 +104,7 @@ public class ResilientTokenVerificationServiceTests
         result.Provider.Should().Be("google_fallback");
         
         // Verify fallback mechanism was used
-        _mockDistributedCache.Verify(x => x.GetStringAsync(It.IsAny<string>(), default), Times.Once);
+        _mockDistributedCache.Verify(x => x.GetAsync(It.IsAny<string>(), default), Times.Once);
     }
 
     [Fact]
@@ -120,13 +123,7 @@ public class ResilientTokenVerificationServiceTests
             .Setup(x => x.VerifyTokenAsync("google", "google-token"))
             .ReturnsAsync(expectedResult);
 
-        var resilientService = new ResilientTokenVerificationService(
-            _mockEnhancedService.Object,
-            _mockLogger.Object,
-            _mockConfiguration.Object,
-            _mockMemoryCache.Object,
-            _mockDistributedCache.Object
-        );        // Act
+        var resilientService = CreateResilientService();        // Act
         var result = await resilientService.VerifyGoogleTokenAsync("google-token");
 
         // Assert
@@ -151,13 +148,7 @@ public class ResilientTokenVerificationServiceTests
             .Setup(x => x.VerifyTokenAsync("facebook", "facebook-token"))
             .ReturnsAsync(expectedResult);
 
-        var resilientService = new ResilientTokenVerificationService(
-            _mockEnhancedService.Object,
-            _mockLogger.Object,
-            _mockConfiguration.Object,
-            _mockMemoryCache.Object,
-            _mockDistributedCache.Object
-        );        // Act
+        var resilientService = CreateResilientService();        // Act
         var result = await resilientService.VerifyFacebookTokenAsync("facebook-token");
 
         // Assert
@@ -182,18 +173,11 @@ public class ResilientTokenVerificationServiceTests
                 "Provider": "google"
             }
             """;
-        
-        _mockDistributedCache
-            .Setup(x => x.GetStringAsync(It.IsAny<string>(), default))
-            .ReturnsAsync(fallbackData);
+          _mockDistributedCache
+            .Setup(x => x.GetAsync(It.IsAny<string>(), default))
+            .ReturnsAsync(System.Text.Encoding.UTF8.GetBytes(fallbackData));
 
-        var resilientService = new ResilientTokenVerificationService(
-            _mockEnhancedService.Object,
-            _mockLogger.Object,
-            _mockConfiguration.Object,
-            _mockMemoryCache.Object,
-            _mockDistributedCache.Object
-        );
+        var resilientService = CreateResilientService();
 
         // Act
         var result = await resilientService.VerifyTokenAsync("google", "circuit-breaker-token");
@@ -220,19 +204,11 @@ public class ResilientTokenVerificationServiceTests
         // Arrange
         _mockEnhancedService
             .Setup(x => x.VerifyTokenAsync("google", "timeout-token"))
-            .ThrowsAsync(new TimeoutRejectedException("Request timed out"));
+            .ThrowsAsync(new TimeoutRejectedException("Request timed out"));        _mockDistributedCache
+            .Setup(x => x.GetAsync(It.IsAny<string>(), default))
+            .ReturnsAsync((byte[]?)null); // No cached fallback
 
-        _mockDistributedCache
-            .Setup(x => x.GetStringAsync(It.IsAny<string>(), default))
-            .ReturnsAsync((string?)null); // No cached fallback
-
-        var resilientService = new ResilientTokenVerificationService(
-            _mockEnhancedService.Object,
-            _mockLogger.Object,
-            _mockConfiguration.Object,
-            _mockMemoryCache.Object,
-            _mockDistributedCache.Object
-        );
+        var resilientService = CreateResilientService();
 
         // Act
         var result = await resilientService.VerifyTokenAsync("google", "timeout-token");
@@ -264,13 +240,7 @@ public class ResilientTokenVerificationServiceTests
             .Setup(x => x.VerifyTokenAsync(provider, token))
             .ReturnsAsync(expectedUserInfo);
 
-        var resilientService = new ResilientTokenVerificationService(
-            _mockEnhancedService.Object,
-            _mockLogger.Object,
-            _mockConfiguration.Object,
-            _mockMemoryCache.Object,
-            _mockDistributedCache.Object
-        );
+        var resilientService = CreateResilientService();
 
         // Act
         var result = await resilientService.VerifyTokenAsync(provider, token);
@@ -290,13 +260,7 @@ public class ResilientTokenVerificationServiceTests
             .Setup(x => x.VerifyTokenAsync("google", "null-token"))
             .ReturnsAsync((SocialUserInfo?)null);
 
-        var resilientService = new ResilientTokenVerificationService(
-            _mockEnhancedService.Object,
-            _mockLogger.Object,
-            _mockConfiguration.Object,
-            _mockMemoryCache.Object,
-            _mockDistributedCache.Object
-        );
+        var resilientService = CreateResilientService();
 
         // Act
         var result = await resilientService.VerifyTokenAsync("google", "null-token");
@@ -314,19 +278,11 @@ public class ResilientTokenVerificationServiceTests
         
         _mockEnhancedService
             .Setup(x => x.VerifyTokenAsync("google", "critical-error-token"))
-            .ThrowsAsync(criticalException);
+            .ThrowsAsync(criticalException);        _mockDistributedCache
+            .Setup(x => x.GetAsync(It.IsAny<string>(), default))
+            .ReturnsAsync((byte[]?)null);
 
-        _mockDistributedCache
-            .Setup(x => x.GetStringAsync(It.IsAny<string>(), default))
-            .ReturnsAsync((string?)null);
-
-        var resilientService = new ResilientTokenVerificationService(
-            _mockEnhancedService.Object,
-            _mockLogger.Object,
-            _mockConfiguration.Object,
-            _mockMemoryCache.Object,
-            _mockDistributedCache.Object
-        );
+        var resilientService = CreateResilientService();
 
         // Act
         var result = await resilientService.VerifyTokenAsync("google", "critical-error-token");

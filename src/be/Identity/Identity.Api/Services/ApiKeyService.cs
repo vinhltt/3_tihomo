@@ -1,7 +1,8 @@
 using System.Security.Cryptography;
 using System.Text;
-using Identity.Api.Configuration;
-using Identity.Api.Models;
+using Identity.Infrastructure.Data;
+using Identity.Domain.Entities;
+using Identity.Contracts;
 using Microsoft.EntityFrameworkCore;
 
 namespace Identity.Api.Services;
@@ -30,14 +31,11 @@ public class ApiKeyService(IdentityDbContext context, ILogger<ApiKeyService> log
             var newApiKey = new ApiKey
             {
                 UserId = userId,
-                Name = request.Name,
-                KeyHash = keyHash,
+                Name = request.Name,                KeyHash = keyHash,
                 KeyPrefix = keyPrefix,
                 Description = request.Description,
                 ExpiresAt = request.ExpiresAt,
-                Scopes = request.Scopes != null ? string.Join(",", request.Scopes) : null,
-                IsActive = true,
-                CreatedAt = DateTime.UtcNow
+                Scopes = request.Scopes ?? []
             };
 
             context.ApiKeys.Add(newApiKey);
@@ -49,7 +47,7 @@ public class ApiKeyService(IdentityDbContext context, ILogger<ApiKeyService> log
                 Name = newApiKey.Name,
                 ApiKey = apiKey, // Return the actual key only once
                 KeyPrefix = keyPrefix,
-                CreatedAt = newApiKey.CreatedAt,
+                CreatedAt = newApiKey.CreatedAt ?? DateTime.UtcNow,
                 ExpiresAt = newApiKey.ExpiresAt
             };
         }
@@ -87,7 +85,7 @@ public class ApiKeyService(IdentityDbContext context, ILogger<ApiKeyService> log
 
             if (apiKey == null) return false;
 
-            apiKey.IsActive = false;
+            apiKey.Status = Domain.Enums.ApiKeyStatus.Revoked;
             await context.SaveChangesAsync();
 
             return true;
@@ -107,13 +105,12 @@ public class ApiKeyService(IdentityDbContext context, ILogger<ApiKeyService> log
                 return null;
 
             var keyPrefix = apiKey[..8];
-            var keyHash = HashApiKey(apiKey);
-
-            var dbApiKey = await context.ApiKeys
+            var keyHash = HashApiKey(apiKey);            var dbApiKey = await context.ApiKeys
                 .Include(ak => ak.User)
                 .FirstOrDefaultAsync(ak => ak.KeyPrefix == keyPrefix &&
                                            ak.KeyHash == keyHash &&
-                                           ak.IsActive);
+                                           ak.Status == Domain.Enums.ApiKeyStatus.Active &&
+                                           (ak.ExpiresAt == null || ak.ExpiresAt > DateTime.UtcNow));
 
             if (dbApiKey == null) return null;
 
@@ -178,13 +175,10 @@ public class ApiKeyService(IdentityDbContext context, ILogger<ApiKeyService> log
             Name = apiKey.Name,
             KeyPrefix = apiKey.KeyPrefix,
             IsActive = apiKey.IsActive,
-            CreatedAt = apiKey.CreatedAt,
+            CreatedAt = apiKey.CreatedAt ?? DateTime.UtcNow,
             ExpiresAt = apiKey.ExpiresAt,
             LastUsedAt = apiKey.LastUsedAt,
-            Description = apiKey.Description,
-            Scopes = !string.IsNullOrEmpty(apiKey.Scopes)
-                ? apiKey.Scopes.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList()
-                : null
+            Description = apiKey.Description,            Scopes = apiKey.Scopes
         };
     }
 }

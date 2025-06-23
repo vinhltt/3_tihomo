@@ -22,24 +22,27 @@ try
     builder.Configuration
         .SetBasePath(builder.Environment.ContentRootPath)
         .AddJsonFile("appsettings.json", false, true)
-        .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", true, true)
-        .AddEnvironmentVariables();
+        .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", true, true)        .AddEnvironmentVariables();
+
+    // TEMPORARY: Simplified config loading for debugging
+    // Just load the Development config directly
+    builder.Configuration.AddJsonFile($"ocelot.{builder.Environment.EnvironmentName}.json", false, true);
 
     // Read service ports configuration
-    var servicePorts = builder.Configuration.GetSection("ServicePorts").Get<Dictionary<string, int>>() ??
-                       new Dictionary<string, int>();
+    // var servicePorts = builder.Configuration.GetSection("ServicePorts").Get<Dictionary<string, int>>() ??
+    //                    new Dictionary<string, int>();
 
     // Read ocelot.json and replace environment variables with actual port values
-    var ocelotConfig = File.ReadAllText(Path.Combine(builder.Environment.ContentRootPath, "ocelot.json"));
-    foreach (var port in servicePorts) ocelotConfig = ocelotConfig.Replace($"${{{port.Key}}}", port.Value.ToString());
+    // var ocelotConfig = File.ReadAllText(Path.Combine(builder.Environment.ContentRootPath, "ocelot.json"));
+    // foreach (var port in servicePorts) ocelotConfig = ocelotConfig.Replace($"${{{port.Key}}}", port.Value.ToString());
 
     // Write the processed ocelot configuration to a temporary file
-    var tempOcelotPath = Path.Combine(builder.Environment.ContentRootPath, "ocelot.processed.json");
-    File.WriteAllText(tempOcelotPath, ocelotConfig);
+    // var tempOcelotPath = Path.Combine(builder.Environment.ContentRootPath, "ocelot.processed.json");
+    // File.WriteAllText(tempOcelotPath, ocelotConfig);
 
     // Add the processed ocelot configuration
-    builder.Configuration.AddJsonFile("ocelot.processed.json", false, true)
-        .AddJsonFile($"ocelot.{builder.Environment.EnvironmentName}.json", true, true);
+    // builder.Configuration.AddJsonFile("ocelot.processed.json", false, true)
+    //     .AddJsonFile($"ocelot.{builder.Environment.EnvironmentName}.json", true, true);
 
     // Bind configuration sections
     var jwtSettings = builder.Configuration.GetSection(JwtSettings.SectionName).Get<JwtSettings>() ?? new JwtSettings();
@@ -133,9 +136,10 @@ try
             {
                 PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
                 WriteIndented = true
-            }));
-        }
-    }); // Use middleware to conditionally apply Ocelot
+            }));        }
+    }); 
+    
+    // Use middleware to conditionally apply Ocelot
     app.UseWhen(context =>
         {
             var path = context.Request.Path.Value?.ToLower();
@@ -144,7 +148,8 @@ try
                    !path.StartsWith("/health") &&
                    !path.StartsWith("/swagger") &&
                    !path.StartsWith("/api/health") &&
-                   (path.StartsWith("/sso") ||
+                   (path.StartsWith("/identity") ||
+                    path.StartsWith("/sso") ||
                     path.StartsWith("/auth") ||
                     path.StartsWith("/api/users") ||
                     path.StartsWith("/api/admin") ||

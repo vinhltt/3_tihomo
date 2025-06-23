@@ -1,5 +1,6 @@
-using Identity.Api.Configuration;
-using Identity.Api.Models;
+using Identity.Infrastructure.Data;
+using Identity.Domain.Entities;
+using Identity.Contracts;
 using Microsoft.EntityFrameworkCore;
 
 namespace Identity.Api.Services;
@@ -123,7 +124,7 @@ public class UserService(IdentityDbContext context, ILogger<UserService> logger)
             Name = user.Name,
             PictureUrl = user.PictureUrl,
             IsActive = user.IsActive,
-            CreatedAt = user.CreatedAt,
+            CreatedAt = user.CreatedAt ?? DateTime.UtcNow,
             Providers = providers
         };
 

@@ -1,10 +1,29 @@
 using System.Reflection;
 using FluentValidation;
 using FluentValidation.AspNetCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
 using MoneyManagement.Application;
 using MoneyManagement.Application.Services;
 using MoneyManagement.Infrastructure;
+
+async Task MigrateDatabaseAsync(IHost host)
+{
+    using var scope = host.Services.CreateScope();
+    var services = scope.ServiceProvider;
+    var logger = services.GetRequiredService<ILogger<Program>>();
+
+    try
+    {
+        var context = services.GetRequiredService<MoneyManagementDbContext>();
+        await context.Database.MigrateAsync();
+        logger.LogInformation("MoneyManagement database migration completed successfully");
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "An error occurred while migrating the MoneyManagement database");
+    }
+}
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -79,5 +98,9 @@ app.MapControllers();
 
 // Add health check endpoint
 app.MapHealthChecks("/health");
+
+// ✅ Migrate database on startup
+// Tự động migrate database khi khởi động
+await MigrateDatabaseAsync(app);
 
 app.Run();

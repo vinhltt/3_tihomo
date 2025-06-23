@@ -28,7 +28,6 @@ Identity.Api/
 │   ├── ApiKey.cs       # API key entity
 │   └── DTOs.cs         # Request/Response models
 ├── Configuration/      # Configuration and setup
-│   ├── IdentityDbContext.cs        # Entity Framework context
 │   └── ApiKeyAuthenticationMiddleware.cs # API key middleware
 └── Migrations/         # EF Core migrations
 ```

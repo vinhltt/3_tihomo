@@ -1,17 +1,34 @@
-using System.Text.Json;
 using Identity.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using OpenIddict.EntityFrameworkCore.Models;
 using Shared.EntityFramework.BaseEfModels;
 using Shared.EntityFramework.Extensions;
+using System.Text.Json;
+using Microsoft.Extensions.Configuration;
 
 namespace Identity.Infrastructure.Data;
 
-public class IdentityDbContext(DbContextOptions<IdentityDbContext> options) : DbContext(options)
+public class IdentityDbContext : DbContext
 {
+    public const string DEFAULT_CONNECTION_STRING = "IdentityDb";
+
+    // ReSharper disable once NotAccessedField.Local
+    private readonly IConfiguration _configuration;
+
+    public IdentityDbContext()
+    {
+
+    }
+    public IdentityDbContext(DbContextOptions<IdentityDbContext> options,
+        IConfiguration configuration) : base(options)
+    {
+        _configuration = configuration;
+    }
     public DbSet<User> Users { get; set; }
     public DbSet<Role> Roles { get; set; }
     public DbSet<UserRole> UserRoles { get; set; }
+    public DbSet<UserLogin> UserLogins { get; set; }
     public DbSet<ApiKey> ApiKeys { get; set; }
     public DbSet<RefreshToken> RefreshTokens { get; set; }
     public DbSet<OAuthClient> OAuthClients { get; set; }
@@ -32,11 +49,12 @@ public class IdentityDbContext(DbContextOptions<IdentityDbContext> options) : Db
             entity.HasIndex(e => e.Username).IsUnique();
             entity.HasIndex(e => e.GoogleId).IsUnique();
 
-            entity.Property(e => e.Email).HasMaxLength(256).IsRequired();
-            entity.Property(e => e.Username).HasMaxLength(50).IsRequired();
-            entity.Property(e => e.FullName).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.Email).HasMaxLength(256).IsRequired();            entity.Property(e => e.Username).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.Name).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.FullName).HasMaxLength(200);
             entity.Property(e => e.GoogleId).HasMaxLength(100);
             entity.Property(e => e.AvatarUrl).HasMaxLength(500);
+            entity.Property(e => e.PictureUrl).HasMaxLength(500);
             entity.Property(e => e.PasswordHash).HasMaxLength(255);
             entity.Property(e => e.EmailConfirmed).IsRequired().HasDefaultValue(false);
         });
@@ -58,12 +76,12 @@ public class IdentityDbContext(DbContextOptions<IdentityDbContext> options) : Db
 
         // ApiKey configuration
         modelBuilder.Entity<ApiKey>(entity =>
-        {
-            entity.HasKey(e => e.Id);
+        {            entity.HasKey(e => e.Id);
             entity.HasIndex(e => e.KeyHash).IsUnique();
-
-            entity.Property(e => e.Name).HasMaxLength(100).IsRequired();
+            entity.HasIndex(e => e.KeyPrefix);entity.Property(e => e.Name).HasMaxLength(100).IsRequired();
             entity.Property(e => e.KeyHash).HasMaxLength(255).IsRequired();
+            entity.Property(e => e.KeyPrefix).HasMaxLength(32).IsRequired();
+            entity.Property(e => e.Description).HasMaxLength(500);
             entity.Property(e => e.Scopes)
                 .HasConversion(
                     v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
@@ -91,7 +109,25 @@ public class IdentityDbContext(DbContextOptions<IdentityDbContext> options) : Db
                 .WithMany(r => r.UserRoles)
                 .HasForeignKey(e => e.RoleId)
                 .OnDelete(DeleteBehavior.Cascade);
-        }); // RefreshToken configuration
+        });
+
+        // UserLogin configuration
+        modelBuilder.Entity<UserLogin>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => new { e.Provider, e.ProviderUserId }).IsUnique();
+
+            entity.Property(e => e.Provider).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.ProviderUserId).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.ProviderDisplayName).HasMaxLength(200);
+
+            entity.HasOne(e => e.User)
+                .WithMany(u => u.UserLogins)
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // RefreshToken configuration
         modelBuilder.Entity<RefreshToken>(entity =>
         {
             entity.HasKey(e => e.Id);
@@ -207,6 +243,22 @@ public class IdentityDbContext(DbContextOptions<IdentityDbContext> options) : Db
 
         // Configure OpenIddict entities
         modelBuilder.UseOpenIddict();
+    }
+
+    /// <summary>
+    ///     (EN) Configures the database context.<br />
+    ///     (VI) Cấu hình ngữ cảnh cơ sở dữ liệu.
+    /// </summary>
+    /// <param name="optionsBuilder">
+    ///     The options builder. (EN)<br />
+    ///     Bộ xây dựng tùy chọn. (VI)
+    /// </param>
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+    {
+        if (optionsBuilder.IsConfigured)
+            return;
+        var connectionString = _configuration.GetConnectionString(DEFAULT_CONNECTION_STRING);
+        optionsBuilder.UseNpgsql(connectionString);
     }
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
