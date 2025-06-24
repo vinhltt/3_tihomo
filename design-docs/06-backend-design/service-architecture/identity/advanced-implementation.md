@@ -1,8 +1,8 @@
-# Identity Service Detailed Design - Advanced Implementation
+# Identity Service - Advanced Implementation
 
 ## 1. Service Overview
 
-Identity Service trong TiHoMo system đã phát triển qua 4 phases chính để trở thành production-ready service với advanced features:
+Identity Service in TiHoMo system has evolved through 4 main phases to become a production-ready service with advanced features:
 
 - **Phase 1**: Basic Authentication & Token Verification
 - **Phase 2**: Refresh Token Management & Security Enhancement
@@ -139,7 +139,7 @@ DelayGenerator = Backoff.DecorrelatedJitterBackoffV2(
 
 #### 3.3.2 Instrumentation Coverage
 - **ASP.NET Core**: HTTP request/response tracing
-- **Entity Framework Core**: Database query tracing với SQL statements
+- **Entity Framework Core**: Database query tracing with SQL statements
 - **HTTP Client**: External provider API call tracing
 - **Custom Business Logic**: Token verification flow tracing
 
@@ -176,8 +176,8 @@ DelayGenerator = Backoff.DecorrelatedJitterBackoffV2(
 ```
 
 #### 3.4.2 Correlation Strategy
-- **Automatic Generation**: ObservabilityMiddleware generates unique GUID cho mỗi request
-- **Propagation**: Correlation ID được propagated qua tất cả log entries trong request
+- **Automatic Generation**: ObservabilityMiddleware generates unique GUID for each request
+- **Propagation**: Correlation ID is propagated through all log entries within request
 - **Context Enrichment**: Serilog LogContext automatically includes correlation properties
 
 ## 4. Health Check Design
@@ -242,8 +242,8 @@ DelayGenerator = Backoff.DecorrelatedJitterBackoffV2(
 
 ### 5.1 Key Classes
 - **ResilientTokenVerificationService**: Main resilience wrapper service
-- **TelemetryService**: Custom metrics và business logic monitoring
-- **ObservabilityMiddleware**: Request correlation và timing middleware
+- **TelemetryService**: Custom metrics and business logic monitoring
+- **ObservabilityMiddleware**: Request correlation and timing middleware
 - **CircuitBreakerHealthCheck**: Resilience patterns health monitoring
 - **TelemetryHealthCheck**: Observability system health verification
 
@@ -273,20 +273,24 @@ DelayGenerator = Backoff.DecorrelatedJitterBackoffV2(
 ### 6.1 Availability Improvements
 - **99.9% uptime** even during external provider outages
 - **Automatic recovery** when providers come back online
-- **Predictable latency** với 10-second maximum response time
-- **Graceful degradation** với multi-level fallback
+- **Predictable latency** with 10-second maximum response time
+- **Graceful degradation** with multi-level fallback
 
 ### 6.2 Observability Benefits
-- **Complete request tracing** với unique correlation IDs
-- **Real-time metrics** cho business logic và infrastructure
-- **Detailed error tracking** với stack traces và context
-- **Performance monitoring** với response times và throughput
-- **Dashboard-ready** metrics cho Grafana visualization
-- **Alerting-ready** health checks cho Prometheus AlertManager
+- **Complete request tracing** with unique correlation IDs
+- **Real-time metrics** for business logic and infrastructure
+- **Detailed error tracking** with stack traces and context
+- **Performance monitoring** with response times and throughput
+- **Dashboard-ready** metrics for Grafana visualization
+- **Alerting-ready** health checks for Prometheus AlertManager
 
 ### 6.3 Operational Benefits
-- **Zero-downtime deployments** với health check integration
-- **Proactive monitoring** với circuit breaker state tracking
-- **Debugging efficiency** với structured logging và distributed tracing
-- **Performance optimization** với detailed metrics và profiling data
-- **SLA compliance** với comprehensive monitoring và alerting
+- **Zero-downtime deployments** with health check integration
+- **Proactive monitoring** with circuit breaker state tracking
+- **Debugging efficiency** with structured logging and distributed tracing
+- **Performance optimization** with detailed metrics and profiling data
+- **SLA compliance** with comprehensive monitoring and alerting
+
+---
+
+*This document provides advanced implementation details for Phases 3 and 4 of the Identity Service, focusing on resilience patterns and comprehensive observability for production environments.*

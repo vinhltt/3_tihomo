@@ -1,26 +1,26 @@
-# Reporting & Integration Design Document
+# Reporting & Integration Service Design
 
-## 1. Tổng quan Reporting & Integration
+## 1. Service Overview
 
-Reporting & Integration là bounded context hỗ trợ quan trọng của hệ thống TiHoMo, chịu trách nhiệm tạo báo cáo, phân tích dữ liệu, gửi thông báo và tích hợp với các dịch vụ bên ngoài. Domain này đóng vai trò cầu nối giữa các microservice nội bộ và thế giới bên ngoài, đồng thời cung cấp insights tổng thể về tình hình tài chính.
+Reporting & Integration is a crucial supporting bounded context in the TiHoMo system, responsible for generating reports, analyzing data, sending notifications, and integrating with external services. This domain serves as a bridge between internal microservices and the external world, while providing comprehensive insights into financial health.
 
-### Mục tiêu chính
-- Tạo báo cáo và phân tích tài chính tổng hợp (ReportingService)
-- Gửi thông báo đa kênh cho người dùng (NotificationService)
-- Tích hợp với các dịch vụ bên ngoài (IntegrationService)
-- Phân tích và xử lý file sao kê ngân hàng (StatementParserService)
-- Data warehouse và business intelligence
+### Primary Objectives
+- Generate comprehensive financial reports and analytics (ReportingService)
+- Multi-channel user notifications (NotificationService)
+- External service integrations (IntegrationService)
+- Bank statement parsing and analysis (StatementParserService)
+- Data warehouse and business intelligence
 
 ---
 
-## 2. Kiến trúc tổng thể
+## 2. Architecture Overview
 
 ### 2.1 Microservice Structure
 
-- **Reporting.Api**: REST API cho reports, analytics dashboard, data export
-- **Notification.Api**: Notification engine với multi-channel delivery
-- **Integration.Api**: External service connectors và webhooks
-- **StatementParser.Api**: File parsing service với AI/ML capabilities
+- **Reporting.Api**: REST API for reports, analytics dashboard, data export
+- **Notification.Api**: Notification engine with multi-channel delivery
+- **Integration.Api**: External service connectors and webhooks
+- **StatementParser.Api**: File parsing service with AI/ML capabilities
 - **Shared.Application**: Business logic, aggregation algorithms, data processing
 - **Shared.Infrastructure**: Data warehouse, event sourcing, file storage, messaging
 
@@ -33,16 +33,16 @@ Reporting & Integration là bounded context hỗ trợ quan trọng của hệ t
 
 ### 2.3 Event-Driven Data Pipeline
 
-- **Event Sourcing**: Rebuild state từ domain events
-- **CQRS**: Read models optimized cho reporting
-- **Stream Processing**: Real-time aggregation và alerting
-- **Data Lake**: Raw data storage cho advanced analytics
+- **Event Sourcing**: Rebuild state from domain events
+- **CQRS**: Read models optimized for reporting
+- **Stream Processing**: Real-time aggregation and alerting
+- **Data Lake**: Raw data storage for advanced analytics
 
 ### 2.4 File Processing Pipeline
 
-- **MinIO**: Object storage cho files, parsed data, report exports
+- **MinIO**: Object storage for files, parsed data, report exports
 - **Message Queues**: Async file processing workflows
-- **ML Pipeline**: AI-powered statement parsing và categorization
+- **ML Pipeline**: AI-powered statement parsing and categorization
 
 ---
 
@@ -51,13 +51,13 @@ Reporting & Integration là bounded context hỗ trợ quan trọng của hệ t
 ### 3.1 ReportingService
 
 **Primary Responsibilities:**
-- Aggregate data từ tất cả microservices
+- Aggregate data from all microservices
 - Generate financial reports (income statement, balance sheet, cash flow)
 - Create interactive dashboards
 - Export data (PDF, Excel, CSV)
-- Business intelligence và trend analysis
+- Business intelligence and trend analysis
 
-**Flow xử lý:**
+**Process Flow:**
 ```mermaid
 sequenceDiagram
     participant Client as Dashboard UI
@@ -100,12 +100,12 @@ sequenceDiagram
 
 **Primary Responsibilities:**
 - Multi-channel notification delivery (email, SMS, push, in-app)
-- Notification scheduling và batching
+- Notification scheduling and batching
 - User preference management
-- Template engine cho personalized messages
-- Delivery tracking và retry logic
+- Template engine for personalized messages
+- Delivery tracking and retry logic
 
-**Flow xử lý:**
+**Process Flow:**
 ```mermaid
 sequenceDiagram
     participant EventBus as RabbitMQ
@@ -145,13 +145,13 @@ sequenceDiagram
 ### 3.3 IntegrationService
 
 **Primary Responsibilities:**
-- Bank API connections cho real-time data sync
+- Bank API connections for real-time data sync
 - Third-party service integrations (Plaid, Yodlee, etc.)
-- Webhook management cho external notifications
-- API rate limiting và error handling
-- Data transformation và validation
+- Webhook management for external notifications
+- API rate limiting and error handling
+- Data transformation and validation
 
-**Flow xử lý:**
+**Process Flow:**
 ```mermaid
 sequenceDiagram
     participant Scheduler as Background Scheduler
@@ -181,13 +181,13 @@ sequenceDiagram
 ### 3.4 StatementParserService
 
 **Primary Responsibilities:**
-- Parse PDF và Excel bank statements
+- Parse PDF and Excel bank statements
 - AI-powered transaction categorization
-- OCR pentru scanned documents
-- Data extraction và validation
+- OCR for scanned documents
+- Data extraction and validation
 - Anti-fraud pattern detection
 
-**Flow xử lý:**
+**Process Flow:**
 ```mermaid
 sequenceDiagram
     participant Client as Mobile App
@@ -219,8 +219,8 @@ sequenceDiagram
 **Parsing Capabilities:**
 - **PDF Statements**: Text extraction, table recognition
 - **Excel/CSV Files**: Column mapping, data validation
-- **Scanned Documents**: OCR với confidence scoring
-- **Multi-language Support**: Tiếng Việt, English statement processing
+- **Scanned Documents**: OCR with confidence scoring
+- **Multi-language Support**: Vietnamese, English statement processing
 - **Bank Format Recognition**: Auto-detect bank statement formats
 
 ---
@@ -563,8 +563,8 @@ public class ReportCacheService
 ### 7.2 Database Optimization
 
 **Read Replicas for Analytics:**
-- Master database cho write operations
-- Read replicas cho reporting queries
+- Master database for write operations
+- Read replicas for reporting queries
 - Connection string routing based on operation type
 
 **Partitioning Strategy:**
@@ -779,4 +779,4 @@ public class BackupOrchestrator
 
 ---
 
-*Bản thiết kế này tổng hợp từ Memory Bank, overview_v4.md và flowcharts_v4.md. Reporting & Integration domain cung cấp comprehensive analytics, intelligent notifications, seamless integrations và powerful statement processing capabilities - essential components cho data-driven personal finance management.*
+*This design consolidates requirements from Memory Bank, overview_v4.md and flowcharts_v4.md. The Reporting & Integration domain provides comprehensive analytics, intelligent notifications, seamless integrations and powerful statement processing capabilities - essential components for data-driven personal finance management.*

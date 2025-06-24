@@ -1,45 +1,45 @@
-# PlanningInvestment Design Document
+# PlanningInvestment Service Design
 
-## 1. Tổng quan PlanningInvestment
+## 1. Service Overview
 
-PlanningInvestment là bounded context strategically quan trọng của hệ thống TiHoMo, chịu trách nhiệm quản lý các khía cạnh dài hạn của tài chính cá nhân. Domain này giúp người dùng lập kế hoạch tài chính, quản lý nợ và đầu tư để đạt được mục tiêu tài chính cá nhân.
+PlanningInvestment is a strategically important bounded context in the TiHoMo system, responsible for managing long-term personal finance aspects. This domain helps users create financial plans, manage debt, and investments to achieve personal financial goals.
 
-### Mục tiêu chính
-- Quản lý khoản nợ và kế hoạch trả nợ (DebtService)
-- Quản lý mục tiêu tài chính dài hạn (GoalService)
-- Quản lý và theo dõi đầu tư (InvestmentService)
-- Phân tích và dự báo tài chính
-- Tích hợp với các domain khác để cung cấp insights tổng thể
+### Primary Objectives
+- Debt management and payoff planning (DebtService)
+- Long-term financial goal management (GoalService)
+- Investment management and tracking (InvestmentService)
+- Financial analysis and forecasting
+- Integration with other domains to provide comprehensive insights
 
 ---
 
-## 2. Kiến trúc tổng thể
+## 2. Architecture Overview
 
 ### 2.1 Microservice Structure
 
-- **PlanningInvestment.Api**: REST API cho các thao tác CRUD debt, goals, investments
+- **PlanningInvestment.Api**: REST API for CRUD operations on debt, goals, investments
 - **PlanningInvestment.Application**: Business logic, financial calculations, planning algorithms
 - **PlanningInvestment.Domain**: Domain models, aggregates, financial business rules
 - **PlanningInvestment.Infrastructure**: Data access (EF Core/PostgreSQL), event publishing, external API integration
-- **PlanningInvestment.Contracts**: DTOs, contracts cho event/message bus
+- **PlanningInvestment.Contracts**: DTOs, contracts for event/message bus
 
 ### 2.2 Database
 
-- **db_planning** (PostgreSQL): Lưu trữ debts, goals, investments, plans, projections
-- Sử dụng EF Core, migration quản lý schema
-- Optimized for complex financial calculations và historical data
+- **db_planning** (PostgreSQL): Stores debts, goals, investments, plans, projections
+- Uses EF Core with migration-managed schema
+- Optimized for complex financial calculations and historical data
 
 ### 2.3 Event-Driven Communication
 
-- **RabbitMQ**: Publish các event như DebtUpdated, GoalAchieved, InvestmentPerformanceUpdated
-- Consume events từ CoreFinance (transactions) và MoneyManagement (budget, jars)
-- Notify Reporting service để tạo financial planning reports
+- **RabbitMQ**: Publishes events like DebtUpdated, GoalAchieved, InvestmentPerformanceUpdated
+- Consumes events from CoreFinance (transactions) and MoneyManagement (budget, jars)
+- Notifies Reporting service to generate financial planning reports
 
 ### 2.4 External Integrations
 
 - **Investment APIs**: Real-time stock prices, fund performance data
-- **Interest Rate APIs**: Current market rates cho debt calculations
-- **Economic Data APIs**: Market trends cho investment recommendations
+- **Interest Rate APIs**: Current market rates for debt calculations
+- **Economic Data APIs**: Market trends for investment recommendations
 
 ---
 
@@ -48,12 +48,12 @@ PlanningInvestment là bounded context strategically quan trọng của hệ th�
 ### 3.1 DebtService
 
 **Primary Responsibilities:**
-- Quản lý các khoản nợ (credit cards, loans, mortgages)
-- Tính toán payment schedules và interest
+- Manage debt accounts (credit cards, loans, mortgages)
+- Calculate payment schedules and interest
 - Debt payoff strategies (snowball, avalanche)
-- Theo dõi progress và early payoff scenarios
+- Track progress and early payoff scenarios
 
-**Flow xử lý:**
+**Process Flow:**
 ```mermaid
 sequenceDiagram
     participant Client as Mobile App
@@ -85,12 +85,12 @@ sequenceDiagram
 ### 3.2 GoalService
 
 **Primary Responsibilities:**
-- Quản lý financial goals (emergency fund, house down payment, retirement)
-- Tính toán timeline và required savings rate
-- Progress tracking và milestone alerts
-- Goal prioritization và trade-off analysis
+- Manage financial goals (emergency fund, house down payment, retirement)
+- Calculate timeline and required savings rate
+- Progress tracking and milestone alerts
+- Goal prioritization and trade-off analysis
 
-**Flow xử lý:**
+**Process Flow:**
 ```mermaid
 sequenceDiagram
     participant Client as Web App
@@ -123,12 +123,12 @@ sequenceDiagram
 ### 3.3 InvestmentService
 
 **Primary Responsibilities:**
-- Portfolio management và asset allocation
-- Performance tracking và analysis
-- Risk assessment và diversification recommendations
+- Portfolio management and asset allocation
+- Performance tracking and analysis
+- Risk assessment and diversification recommendations
 - Tax-advantaged account optimization (401k, IRA, etc.)
 
-**Flow xử lý:**
+**Process Flow:**
 ```mermaid
 sequenceDiagram
     participant Client as Dashboard
@@ -156,7 +156,7 @@ sequenceDiagram
 - **Asset Allocation**: Stocks, bonds, real estate, commodities
 - **Performance Metrics**: ROI, Sharpe ratio, alpha, beta
 - **Risk Analysis**: Portfolio volatility, VaR (Value at Risk)
-- **Rebalancing**: Automated suggestions để maintain target allocation
+- **Rebalancing**: Automated suggestions to maintain target allocation
 
 ---
 
@@ -461,40 +461,40 @@ public class InvestmentAnalysisEngine
 ### 6.1 Debt Management
 
 **Debt CRUD:**
-- `GET /debts` - Lấy danh sách debts của user
-- `POST /debts` - Tạo debt mới
-- `PUT /debts/{id}` - Cập nhật debt information
-- `DELETE /debts/{id}` - Xóa debt
-- `POST /debts/{id}/payments` - Ghi nhận payment
+- `GET /debts` - Get user's debt list
+- `POST /debts` - Create new debt
+- `PUT /debts/{id}` - Update debt information
+- `DELETE /debts/{id}` - Delete debt
+- `POST /debts/{id}/payments` - Record payment
 
 **Debt Analysis:**
-- `GET /debts/summary` - Tổng quan debt portfolio
-- `GET /debts/payoff-strategies` - So sánh snowball vs avalanche
-- `GET /debts/{id}/payoff-projection` - Dự báo payoff timeline
-- `POST /debts/consolidation-analysis` - Phân tích consolidation options
+- `GET /debts/summary` - Debt portfolio overview
+- `GET /debts/payoff-strategies` - Compare snowball vs avalanche
+- `GET /debts/{id}/payoff-projection` - Payoff timeline forecast
+- `POST /debts/consolidation-analysis` - Analyze consolidation options
 
 ### 6.2 Financial Goals
 
 **Goal Management:**
-- `GET /goals` - Danh sách financial goals
-- `POST /goals` - Tạo goal mới
-- `PUT /goals/{id}` - Cập nhật goal
-- `DELETE /goals/{id}` - Xóa goal
-- `POST /goals/{id}/contributions` - Ghi nhận contribution
+- `GET /goals` - List financial goals
+- `POST /goals` - Create new goal
+- `PUT /goals/{id}` - Update goal
+- `DELETE /goals/{id}` - Delete goal
+- `POST /goals/{id}/contributions` - Record contribution
 
 **Goal Planning:**
-- `GET /goals/{id}/progress` - Chi tiết progress
+- `GET /goals/{id}/progress` - Progress details
 - `GET /goals/dashboard` - Goal dashboard overview
-- `POST /goals/savings-plan` - Tạo savings plan
+- `POST /goals/savings-plan` - Create savings plan
 - `GET /goals/recommendations` - Goal prioritization suggestions
 
 ### 6.3 Investment Management
 
 **Portfolio Operations:**
-- `GET /investments/portfolios` - Danh sách portfolios
-- `POST /investments/portfolios` - Tạo portfolio mới
+- `GET /investments/portfolios` - List portfolios
+- `POST /investments/portfolios` - Create new portfolio
 - `GET /investments/portfolios/{id}` - Portfolio details
-- `POST /investments/portfolios/{id}/transactions` - Ghi nhận transaction
+- `POST /investments/portfolios/{id}/transactions` - Record transaction
 
 **Investment Analysis:**
 - `GET /investments/portfolios/{id}/analysis` - Portfolio performance analysis
@@ -665,9 +665,9 @@ public class AlphaVantageMarketDataService : IMarketDataService
 - Risk calculation algorithms
 
 **Property-Based Testing:**
-- Debt payoff calculations với various interest rates
-- Investment return calculations với market scenarios
-- Goal timeline calculations với different contribution patterns
+- Debt payoff calculations with various interest rates
+- Investment return calculations with market scenarios
+- Goal timeline calculations with different contribution patterns
 
 ### 11.2 Integration Testing
 
@@ -699,4 +699,4 @@ public class AlphaVantageMarketDataService : IMarketDataService
 
 ---
 
-*Bản thiết kế này tổng hợp từ Memory Bank, overview_v4.md và flowcharts_v4.md. PlanningInvestment domain cung cấp foundation cho long-term financial planning, debt management và investment tracking - essential components cho comprehensive personal finance management.*
+*This design consolidates requirements from Memory Bank, overview_v4.md and flowcharts_v4.md. The PlanningInvestment domain provides the foundation for long-term financial planning, debt management, and investment tracking - essential components for comprehensive personal finance management.*

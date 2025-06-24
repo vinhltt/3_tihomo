@@ -1,36 +1,36 @@
-# Identity Service - Complete Design Document
+# Identity Service Design
 
-## 1. Overview
+## 1. Service Overview
 
-Identity Service là bounded context cốt lõi của hệ thống TiHoMo, chịu trách nhiệm xác thực, phân quyền và quản lý người dùng. Thiết kế này tập trung vào social login integration (Google, Facebook, Apple) với stateless authentication pattern thông qua API Gateway.
+Identity Service is the core bounded context of the TiHoMo system, responsible for authentication, authorization, and user management. This design focuses on social login integration (Google, Facebook, Apple) with stateless authentication patterns through the API Gateway.
 
-Service đã phát triển qua 4 phases chính để trở thành production-ready service với advanced features:
+The service has evolved through 4 main phases to become a production-ready service with advanced features:
 
 - **Phase 1**: Basic Authentication & Token Verification  
 - **Phase 2**: Refresh Token Management & Security Enhancement
 - **Phase 3**: Resilience Patterns & Circuit Breaker Implementation
 - **Phase 4**: Monitoring & Observability System
 
-### 1.1 Mục tiêu chính
-- Cung cấp xác thực đa dạng (Social Login, API Key)
-- Quản lý người dùng và phân quyền đơn giản
-- Stateless authentication với high performance
-- Tích hợp seamless với API Gateway
-- Đảm bảo bảo mật và khả năng scale
+### 1.1 Primary Objectives
+- Provide diverse authentication methods (Social Login, API Key)
+- Simple user management and authorization
+- Stateless authentication with high performance
+- Seamless integration with API Gateway
+- Ensure security and scalability
 
 ### 1.2 Problem Statement
 
-Hệ thống SSO truyền thống thường phức tạp với:
+Traditional SSO systems are often complex with:
 - Multiple authentication flows (OpenId Connect, IdentityServer4, custom sessions)
-- Complex database schema với nhiều bảng không cần thiết
-- Complicated redirect flows giữa multiple services
-- Khó maintain và debug
+- Complex database schema with unnecessary tables
+- Complicated redirect flows between multiple services
+- Difficult to maintain and debug
 
 ### 1.3 Proposed Solution
 
-Simplified design sử dụng pattern **stateless token verification** thông qua API Gateway, dựa trên proven patterns từ Microsoft eShop và ABP Framework.
+Simplified design using **stateless token verification** pattern through API Gateway, based on proven patterns from Microsoft eShop and ABP Framework.
 
-## 2. Kiến trúc tổng quan (Primary Approach)
+## 2. Overall Architecture (Primary Approach)
 
 ### 2.1 High-Level Architecture
 
@@ -298,10 +298,10 @@ public class BearerTokenAuthenticationHandler : AuthenticationHandler
 ```csharp
 // CoreFinance.Api - TransactionController
 [HttpGet]
-[Authorize] // Gateway đã verify token và inject claims
+[Authorize] // Gateway has verified token and injected claims
 public async Task<IActionResult> GetTransactions()
 {
-    // Gateway đã inject user claims vào headers:
+    // Gateway has injected user claims into headers:
     // X-User-Id: {userId}
     // X-User-Email: {email}
     var userId = HttpContext.Request.Headers["X-User-Id"];
@@ -332,82 +332,28 @@ sequenceDiagram
 ## 4. Key Advantages
 
 ### ✅ Stateless & Scalable
-- Không có server-side sessions
-- Gateway có thể scale horizontally
-- Identity service chỉ cần verify token, không maintain state
+- No server-side sessions
+- Gateway can scale horizontally
+- Identity service only needs to verify tokens, no state maintenance
 
 ### ✅ Security
-- Token verification với social provider mỗi request (hoặc với caching TTL ngắn)
-- API key được hash trong database
-- Claims được inject an toàn qua headers
+- Token verification with social provider on each request (or with short TTL caching)
+- API keys hashed in database
+- Claims injected securely through headers
 
 ### ✅ Performance
-- Token verification có thể được cache (5 phút TTL)  
-- Single hop tới Identity service
-- Target services không cần gọi Identity service
+- Token verification can be cached (5 minute TTL)  
+- Single hop to Identity service
+- Target services don't need to call Identity service
 
 ### ✅ Simplicity
-- Loại bỏ OAuth2/OIDC server complexity
-- Straight-forward social login flow
+- Eliminates OAuth2/OIDC server complexity
+- Straightforward social login flow
 - Clear separation of concerns
 
-## 5. Error Handling & Edge Cases
+## 5. Production-Ready Improvements ⚠️ **CRITICAL FIXES NEEDED**
 
-### 5.1 Token Refresh Flow
-```mermaid
-sequenceDiagram
-    participant Frontend as Nuxt.js SPA
-    participant Google as Google API
-    
-    Frontend->>Google: Check token expiry
-    alt Token expired
-        Frontend->>Google: Request new token
-        Google-->>Frontend: Return fresh token
-        Frontend->>Frontend: Update stored tokens
-    end
-```
-
-### 5.2 Rate Limiting & Abuse Prevention
-- Gateway implements rate limiting per IP/user
-- Identity service tracks failed verification attempts  
-- API keys có usage quotas và rate limits
-
-## 6. Alternative Architecture (Complex Approach - Reference)
-
-### 6.1 Dual Service Architecture
-
-**Identity.Sso (Port 5217) - SSO Server:**
-- Single Sign-On server cho OAuth2/OIDC flows
-- Login/Register/Consent pages với Razor Views
-- Cookie-based authentication cho UI sessions
-- Target Users: End users thông qua browser interface
-
-**Identity.Api (Port 5228) - Management API:**
-- REST API để quản lý users, roles, API keys  
-- JWT Bearer tokens và API Key authentication
-- Target Users: Applications, admins, third-party integrations
-
-### 6.2 OAuth2/OIDC Flows
-```mermaid
-sequenceDiagram
-    participant Client as Web App
-    participant SSO as Identity.Sso
-    participant User as End User
-    participant DB as db_identity
-
-    Client->>SSO: GET /connect/authorize
-    SSO->>User: Show login page
-    User->>SSO: Submit credentials
-    SSO->>DB: Validate user
-    SSO->>Client: Redirect with auth code
-    Client->>SSO: POST /connect/token {code}
-    SSO->>DB: Verify code
-    SSO->>Client: Return access_token + refresh_token
-```
-
-## 7. Production-Ready Improvements ⚠️ **CRITICAL FIXES NEEDED**
-
-### 7.1 Enhanced Token Verification Strategy 🔥 **HIGH PRIORITY**
+### 5.1 Enhanced Token Verification Strategy 🔥 **HIGH PRIORITY**
 
 **Issue**: Current design verifies Google token on every request - MAJOR performance and security risk.
 
@@ -550,7 +496,7 @@ public class TokenVerificationResult
 }
 ```
 
-### 7.2 Optimized User Management Service 🔥 **HIGH PRIORITY**
+### 5.2 Optimized User Management Service 🔥 **HIGH PRIORITY**
 
 **Issue**: Database hit on every request to check/create user causes performance bottleneck.
 
@@ -670,7 +616,7 @@ public class UserRepository : IUserRepository
 }
 ```
 
-### 7.3 Refresh Token Management 🔥 **MEDIUM PRIORITY**
+### 5.3 Refresh Token Management 🔥 **MEDIUM PRIORITY**
 
 **Issue**: Google ID tokens expire in 1 hour, causing users to logout frequently.
 
@@ -773,41 +719,9 @@ public async Task<ActionResult<RefreshTokenResponse>> RefreshToken()
         });
     }
 }
-
-// Token service to generate internal JWT
-public class TokenService : ITokenService
-{
-    private readonly IConfiguration _configuration;
-    
-    public async Task<string> GenerateTokenAsync(string userId, string email)
-    {
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:SecretKey"]));
-        var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-        
-        var claims = new[]
-        {
-            new Claim("sub", userId),
-            new Claim("email", email),
-            new Claim("iss", "identity-service"),
-            new Claim("aud", "tihomo-services"),
-            new Claim("iat", DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64),
-            new Claim("exp", DateTimeOffset.UtcNow.AddHours(1).ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64)
-        };
-        
-        var token = new JwtSecurityToken(
-            issuer: "identity-service",
-            audience: "tihomo-services",
-            claims: claims,
-            expires: DateTime.UtcNow.AddHours(1),
-            signingCredentials: credentials
-        );
-        
-        return new JwtSecurityTokenHandler().WriteToken(token);
-    }
-}
 ```
 
-### 7.4 Circuit Breaker & Resilience Patterns 🔥 **MEDIUM PRIORITY**
+### 5.4 Circuit Breaker & Resilience Patterns 🔥 **MEDIUM PRIORITY**
 
 **Issue**: Single point of failure - if Identity service is down, entire system fails.
 
@@ -896,342 +810,90 @@ public class ResilientAuthenticationService : IAuthenticationService
         }
     }
 }
+```
 
-// Circuit Breaker Configuration
-public class CircuitBreakerOptions
-{
-    public string ServiceName { get; set; } = "IdentityService";
-    public int FailureThreshold { get; set; } = 5; // Open after 5 consecutive failures
-    public TimeSpan OpenTimeout { get; set; } = TimeSpan.FromSeconds(30); // Stay open for 30 seconds
-    public TimeSpan SamplingDuration { get; set; } = TimeSpan.FromMinutes(2); // Sample window
-    public int MinimumThroughput { get; set; } = 10; // Minimum requests before considering failure rate
-}
+## 6. Monitoring & Observability
 
-// API Gateway middleware
-public class ResilientAuthenticationMiddleware
+### 6.1 Key Metrics
+
+**Performance Metrics:**
+- Token verification duration
+- Cache hit rates (L1/L2)
+- Database query times
+- External API response times
+
+**Business Metrics:**
+- User login success rates
+- Token refresh rates
+- Authentication failure patterns
+- API key usage statistics
+
+**Health Metrics:**
+- Circuit breaker states
+- Service availability
+- Database connection health
+- External provider connectivity
+
+### 6.2 Health Check Implementation
+
+```csharp
+public class IdentityHealthCheck : IHealthCheck
 {
-    private readonly RequestDelegate _next;
-    private readonly ResilientAuthenticationService _authService;
+    private readonly IdentityDbContext _context;
+    private readonly ICircuitBreaker _circuitBreaker;
     
-    public async Task InvokeAsync(HttpContext context)
+    public async Task<HealthCheckResult> CheckHealthAsync(HealthCheckContext context, CancellationToken cancellationToken = default)
     {
-        var token = ExtractToken(context);
-        if (string.IsNullOrEmpty(token))
+        try
         {
-            context.Response.StatusCode = 401;
-            await context.Response.WriteAsync("Missing authentication token");
-            return;
-        }
-        
-        var authResult = await _authService.AuthenticateAsync(token);
-        
-        if (authResult.IsSuccess)
-        {
-            // Inject user claims into headers for downstream services
-            context.Request.Headers.Add("X-User-Id", authResult.UserId);
-            context.Request.Headers.Add("X-User-Email", authResult.Email);
+            // Check database connectivity
+            await _context.Users.CountAsync(cancellationToken);
             
-            if (authResult.IsFallback)
+            // Check circuit breaker state
+            var circuitBreakerState = _circuitBreaker.State;
+            
+            var data = new Dictionary<string, object>
             {
-                context.Request.Headers.Add("X-Auth-Mode", "fallback");
-            }
+                ["database"] = "healthy",
+                ["circuit_breaker_state"] = circuitBreakerState.ToString(),
+                ["timestamp"] = DateTime.UtcNow
+            };
             
-            await _next(context);
+            return HealthCheckResult.Healthy("Identity service is healthy", data);
         }
-        else
+        catch (Exception ex)
         {
-            context.Response.StatusCode = 401;
-            await context.Response.WriteAsync($"Authentication failed: {authResult.ErrorMessage}");
+            return HealthCheckResult.Unhealthy("Identity service is unhealthy", ex);
         }
     }
 }
 ```
 
-## 9. Advanced Implementation (Phase 3 & 4)
+## 7. Security Considerations
 
-### 9.1 Phase 3: Resilience & Circuit Breaker Design
+### 7.1 Token Security
 
-#### 9.1.1 Architecture Pattern
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    AuthController                           │
-└─────────────────────┬───────────────────────────────────────┘
-                      │
-┌─────────────────────▼───────────────────────────────────────┐
-│           ResilientTokenVerificationService                 │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │              Polly Resilience Pipeline             │   │
-│  │  • Circuit Breaker (5 failures, 30s break)        │   │
-│  │  • Retry (3 attempts with exponential backoff)     │   │
-│  │  • Timeout (10 seconds)                            │   │
-│  │  • Fallback (cache → local parsing → null)         │   │
-│  └─────────────────────────────────────────────────────┘   │
-└─────────────────────┬───────────────────────────────────────┘
-                      │
-┌─────────────────────▼───────────────────────────────────────┐
-│           EnhancedTokenVerificationService                  │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │                Multi-Layer Cache                    │   │
-│  │  • Memory Cache (L1) - 100ms TTL                   │   │
-│  │  • Redis Cache (L2) - 300s TTL                     │   │
-│  │  • Local JWT parsing for basic validation          │   │
-│  └─────────────────────────────────────────────────────┘   │
-└─────────────────────┬───────────────────────────────────────┘
-                      │
-┌─────────────────────▼───────────────────────────────────────┐
-│              External Provider APIs                         │
-│                (Google, Facebook)                           │
-└─────────────────────────────────────────────────────────────┘
-```
+- **JWT Validation**: Local parsing before external API calls
+- **Secure Caching**: Hashed cache keys to prevent token exposure
+- **Short TTL**: Cache expires quickly to limit exposure window
+- **Rate Limiting**: Prevent brute force attacks on token verification
 
-#### 9.1.2 Resilience Components
+### 7.2 API Key Security
 
-##### Circuit Breaker Configuration
-```csharp
-// Circuit breaker opens after 5 failures in 30 seconds
-// Stays open for 30 seconds before attempting recovery
-FailureRatio = 0.5,
-SamplingDuration = TimeSpan.FromSeconds(30),
-MinimumThroughput = 5,
-BreakDuration = TimeSpan.FromSeconds(30)
-```
+- **Hashed Storage**: API keys stored as hashes, never plain text
+- **Prefix Identification**: First 8 characters for safe identification
+- **Usage Tracking**: Monitor for unusual usage patterns
+- **Scope Limitation**: Granular permissions per API key
 
-##### Retry Strategy
-```csharp
-// 3 retry attempts with decorrelated jitter backoff
-// Starting from 200ms median delay
-MaxRetryAttempts = 3,
-DelayGenerator = Backoff.DecorrelatedJitterBackoffV2(
-    medianFirstRetryDelay: TimeSpan.FromMilliseconds(200),
-    retryCount: 3)
-```
+### 7.3 Privacy Protection
 
-##### Fallback Mechanisms
-1. **Primary**: External provider API call
-2. **Fallback Level 1**: Cached token validation result
-3. **Fallback Level 2**: Local JWT parsing for basic claims
-4. **Fallback Level 3**: Graceful null return
+- **PII Minimization**: Only store necessary user information
+- **Data Encryption**: Sensitive data encrypted at rest
+- **Audit Logging**: Track all authentication events
+- **GDPR Compliance**: User data deletion and export capabilities
 
-### 9.2 Phase 4: Monitoring & Observability Design
+## 8. Production Readiness Checklist 🎯
 
-#### 9.2.1 Observability Stack
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    HTTP Requests                            │
-└─────────────────────┬───────────────────────────────────────┘
-                      │
-┌─────────────────────▼───────────────────────────────────────┐
-│              ObservabilityMiddleware                        │
-│  • Generate Correlation ID                                 │
-│  • Start OpenTelemetry Activity                            │
-│  • Record Request Timing                                   │
-│  • Track Active Request Count                              │
-└─────────────────────┬───────────────────────────────────────┘
-                      │
-┌─────────────────────▼───────────────────────────────────────┐
-│                Application Layer                            │
-│  • TelemetryService Integration                             │
-│  • Business Logic Metrics                                  │
-│  • Circuit Breaker Telemetry                               │
-└─────────────────────┬───────────────────────────────────────┘
-                      │
-┌─────────────────────▼───────────────────────────────────────┐
-│              Telemetry Exporters                            │
-│  ┌─────────────────┬─────────────────┬───────────────────┐ │
-│  │   Prometheus    │    Serilog      │   OpenTelemetry   │ │
-│  │   /metrics      │  Structured     │   Distributed     │ │
-│  │   Endpoint      │    Logging      │     Tracing       │ │
-│  └─────────────────┴─────────────────┴───────────────────┘ │
-└─────────────────────────────────────────────────────────────┘
-```
-
-#### 9.2.2 Metrics Design
-
-##### Custom Business Metrics
-- **Counters**: 
-  - `identity_token_verification_attempts_total`
-  - `identity_token_verification_successes_total`
-  - `identity_token_verification_failures_total`
-  - `identity_circuit_breaker_opened_total`
-  - `identity_cache_hits_total`
-  - `identity_cache_misses_total`
-
-- **Histograms**:
-  - `identity_token_verification_duration_seconds`
-  - `identity_external_provider_response_time_seconds`
-  - `identity_cache_operation_duration_seconds`
-
-- **Gauges**:
-  - `identity_circuit_breaker_state` (0=Closed, 1=Open, 2=HalfOpen)
-  - `identity_active_requests_current`
-
-##### Runtime Metrics (Automatic)
-- `process_runtime_dotnet_gc_collections_count_total`
-- `process_runtime_dotnet_gc_objects_size_bytes`
-- `process_runtime_dotnet_gc_allocations_size_bytes_total`
-- `http_server_request_duration_seconds`
-
-#### 9.2.3 Distributed Tracing Design
-
-##### Activity Sources
-- **"Identity.Api"**: Main application activities
-- **"Identity.TokenVerification.Resilience"**: Resilience pattern activities
-
-##### Instrumentation Coverage
-- **ASP.NET Core**: HTTP request/response tracing
-- **Entity Framework Core**: Database query tracing với SQL statements
-- **HTTP Client**: External provider API call tracing
-- **Custom Business Logic**: Token verification flow tracing
-
-##### Trace Context
-```json
-{
-  "TraceId": "89751302e522d19a7489b0f4f23ceda8",
-  "SpanId": "d26587f5dc54f120",
-  "Resource": {
-    "service.name": "TiHoMo.Identity",
-    "service.namespace": "TiHoMo",
-    "deployment.environment": "Development",
-    "service.instance.id": "MACHINE_NAME"
-  }
-}
-```
-
-#### 9.2.4 Structured Logging Design
-
-##### Log Format
-```json
-{
-  "Timestamp": "2025-06-19T12:01:22.6871611Z",
-  "Level": "Information",
-  "CorrelationId": "c6b6a18a-a54d-46db-8015-de3f284825ad",
-  "Application": "TiHoMo.Identity",
-  "Message": "Request GET /metrics completed in 85ms with status 200",
-  "Properties": {
-    "RequestPath": "/metrics",
-    "StatusCode": 200,
-    "Duration": 85
-  }
-}
-```
-
-##### Correlation Strategy
-- **Automatic Generation**: ObservabilityMiddleware generates unique GUID cho mỗi request
-- **Propagation**: Correlation ID được propagated qua tất cả log entries trong request
-- **Context Enrichment**: Serilog LogContext automatically includes correlation properties
-
-### 9.3 Health Check Design
-
-#### 9.3.1 Health Check Hierarchy
-```
-┌─────────────────────────────────────────────────────────────┐
-│                  /health Endpoint                           │
-└─────────────────────┬───────────────────────────────────────┘
-                      │
-           ┌──────────┼──────────┐
-           │          │          │
-    ┌──────▼───┐ ┌────▼────┐ ┌───▼─────┐
-    │Database  │ │Circuit  │ │Telemetry│
-    │Health    │ │Breaker  │ │Health   │
-    │Check     │ │Health   │ │Check    │
-    └──────────┘ └─────────┘ └─────────┘
-```
-
-#### 9.3.2 Health Check Response
-```json
-{
-  "Status": "Healthy",
-  "Timestamp": "2025-06-19T12:01:15.2875877Z",
-  "Duration": "00:00:00.0503784",
-  "Services": [
-    {
-      "Service": "database",
-      "Status": "Healthy",
-      "Duration": "00:00:00.0497418",
-      "Description": null,
-      "Data": null
-    },
-    {
-      "Service": "circuit_breaker",
-      "Status": "Healthy",
-      "Duration": "00:00:00.0000354",
-      "Description": "Circuit breaker and resilience patterns are properly configured and operational",
-      "Data": {
-        "service_type": "ResilientTokenVerificationService",
-        "timestamp": "2025-06-19T12:01:15.23911788Z",
-        "resilience_enabled": true
-      }
-    },
-    {
-      "Service": "telemetry",
-      "Status": "Healthy",
-      "Duration": "00:00:00.0000232",
-      "Description": "Telemetry system is operational",
-      "Data": {
-        "tracing": "inactive",
-        "metrics_counter": "available",
-        "metrics_histogram": "available",
-        "metrics_gauge": "available"
-      }
-    }
-  ]
-}
-```
-
-### 9.4 Implementation Components
-
-#### 9.4.1 Key Classes
-- **ResilientTokenVerificationService**: Main resilience wrapper service
-- **TelemetryService**: Custom metrics và business logic monitoring
-- **ObservabilityMiddleware**: Request correlation và timing middleware
-- **CircuitBreakerHealthCheck**: Resilience patterns health monitoring
-- **TelemetryHealthCheck**: Observability system health verification
-
-#### 9.4.2 Package Dependencies
-```xml
-<!-- Resilience -->
-<PackageReference Include="Polly" Version="8.2.1" />
-<PackageReference Include="Polly.Extensions.Http" Version="3.0.0" />
-<PackageReference Include="Polly.Contrib.WaitAndRetry" Version="1.1.1" />
-
-<!-- Observability -->
-<PackageReference Include="OpenTelemetry" Version="1.9.0" />
-<PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.9.0" />
-<PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.9.0" />
-<PackageReference Include="OpenTelemetry.Instrumentation.Http" Version="1.9.0" />
-<PackageReference Include="OpenTelemetry.Instrumentation.EntityFrameworkCore" Version="1.0.0-beta.12" />
-<PackageReference Include="OpenTelemetry.Exporter.Prometheus.AspNetCore" Version="1.8.0-rc.1" />
-
-<!-- Structured Logging -->
-<PackageReference Include="Serilog" Version="4.0.1" />
-<PackageReference Include="Serilog.AspNetCore" Version="8.0.2" />
-<PackageReference Include="Serilog.Sinks.Console" Version="6.0.0" />
-```
-
-### 9.5 Production Benefits
-
-#### 9.5.1 Availability Improvements
-- **99.9% uptime** even during external provider outages
-- **Automatic recovery** when providers come back online
-- **Predictable latency** với 10-second maximum response time
-- **Graceful degradation** với multi-level fallback
-
-#### 9.5.2 Observability Benefits
-- **Complete request tracing** với unique correlation IDs
-- **Real-time metrics** cho business logic và infrastructure
-- **Detailed error tracking** với stack traces và context
-- **Performance monitoring** với response times và throughput
-- **Dashboard-ready** metrics cho Grafana visualization
-- **Alerting-ready** health checks cho Prometheus AlertManager
-
-#### 9.5.3 Operational Benefits
-- **Zero-downtime deployments** với health check integration
-- **Proactive monitoring** với circuit breaker state tracking
-- **Debugging efficiency** với structured logging và distributed tracing
-- **Performance optimization** với detailed metrics và profiling data
-- **SLA compliance** với comprehensive monitoring và alerting
-
-## 10. Production Readiness Checklist 🎯 **IMPLEMENTATION ROADMAP**
 ### Phase 1: Critical Performance Fixes (Week 1) 🔥
 - [ ] **Enhanced Token Verification Service**
   - [ ] Implement JWT local parsing for structure validation
@@ -1287,22 +949,6 @@ DelayGenerator = Backoff.DecorrelatedJitterBackoffV2(
   - [ ] Secure token storage (HttpOnly cookies for web)
   - [ ] Regular security audits and penetration testing
 
-### Current Status Assessment ✅
-Based on memory bank, current implementation has:
-- ✅ **Basic Google login working** (Frontend + Backend)
-- ✅ **Identity.Api service running** on port 5214
-- ✅ **JWT token flow implemented**
-- ✅ **Database user storage working**
+---
 
-**CRITICAL GAPS** that need immediate attention:
-- ❌ **No token verification caching** → Google API called on every request
-- ❌ **No refresh token flow** → Users logout every hour  
-- ❌ **No fallback mechanisms** → Single point of failure
-- ❌ **No monitoring/observability** → Blind to performance issues
-
-### Implementation Priority 🎯
-1. **Week 1**: Token caching + User caching (CRITICAL for performance)
-2. **Week 2**: Refresh token flow (CRITICAL for UX)
-3. **Week 3**: Circuit breaker + Resilience (CRITICAL for reliability)
-4. **Week 4**: Monitoring + Health checks (CRITICAL for operations)
-5. **Week 5**: Security hardening (IMPORTANT for production)
+*This design consolidates the complete Identity service architecture with production-ready improvements, performance optimizations, and comprehensive monitoring capabilities for the TiHoMo financial management system.*

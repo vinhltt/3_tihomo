@@ -190,8 +190,6 @@ graph TD
     ReportSvc -- Consume Event --> MessageBus
     NotifySvc -- Consume Event --> MessageBus
     BudgetSvc -- Consume Event --> MessageBus # e.g., update budget on transaction
-
-
 ```
 
 ### 6.3 Công nghệ chính
@@ -275,7 +273,6 @@ sequenceDiagram
     APIGateway-->>UI: Response
     UI-->>User: Hiển thị kết quả
     TranSvc->>MsgBus: Publish TransactionCreated (TransactionDetails) # Event cho các service khác (Reporting, Budget, etc.)
-
 ```
 (Cần bổ sung các luồng quy trình quan trọng khác như: Đăng ký, Đăng nhập, Tạo Ngân sách, Tạo Mục tiêu, v.v.)
 
@@ -320,4 +317,4 @@ sequenceDiagram
 
 ---
 *Tài liệu này được tạo dựa trên `design/architech_design/overview_v4.md` và các tệp trong Memory Bank.*
-*Cần bổ sung và chi tiết hóa các phần yêu cầu nghiệp vụ, UI/UX, và các quyết định thiết kế cụ thể hơn.* 
+*Cần bổ sung và chi tiết hóa các phần yêu cầu nghiệp vụ, UI/UX, và các quyết định thiết kế cụ thể hơn.*

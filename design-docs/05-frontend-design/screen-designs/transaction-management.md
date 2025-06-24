@@ -61,6 +61,24 @@ public enum TransactionDirection
 
 ---
 
+## ⏰ 4. Xử lý TransactionDate với thời gian
+
+### Frontend (FE):
+* **DateTime picker** thay vì Date picker đơn thuần
+* **Default value**: Ngày hiện tại + thời gian hiện tại
+* **Format hiển thị**: `dd/MM/yyyy HH:mm` (ví dụ: 15/12/2024 14:30)
+* **UX**: 
+  * Có thể chọn nhanh "Hôm nay", "Hôm qua", "Tuần này"
+  * Có thể nhập thời gian chính xác hoặc chọn từ dropdown (00:00, 06:00, 12:00, 18:00, 23:59)
+* **Validation**: Không được chọn thời gian trong tương lai
+
+### Backend (BE):
+* Lưu trữ `TransactionDate` dưới dạng `DateTime` (không phải `DateOnly`)
+* Sắp xếp giao dịch theo `TransactionDate` chính xác đến phút
+* API filter hỗ trợ range theo datetime
+
+---
+
 ## 💰 5. Logic xử lý Balance tự động
 
 ### Frontend (FE):
@@ -255,21 +273,3 @@ Hiển thị **tất cả các cột** bao gồm:
 * Handle timezone conversion properly
 * Validate balance calculation logic
 * Graceful fallback when balance calculation fails
-
----
-
-## ⏰ 4. Xử lý TransactionDate với thời gian
-
-### Frontend (FE):
-* **DateTime picker** thay vì Date picker đơn thuần
-* **Default value**: Ngày hiện tại + thời gian hiện tại
-* **Format hiển thị**: `dd/MM/yyyy HH:mm` (ví dụ: 15/12/2024 14:30)
-* **UX**: 
-  * Có thể chọn nhanh "Hôm nay", "Hôm qua", "Tuần này"
-  * Có thể nhập thời gian chính xác hoặc chọn từ dropdown (00:00, 06:00, 12:00, 18:00, 23:59)
-* **Validation**: Không được chọn thời gian trong tương lai
-
-### Backend (BE):
-* Lưu trữ `TransactionDate` dưới dạng `DateTime` (không phải `DateOnly`)
-* Sắp xếp giao dịch theo `TransactionDate` chính xác đến phút
-* API filter hỗ trợ range theo datetime
