@@ -721,7 +721,7 @@ sequenceDiagram
 
     Note over ThirdParty,DB: API Key Authentication Flow
 
-    ThirdParty->>Gateway: GET /api/transactions
+    ThirdParty->>Gateway: GET /api/core-finance/transaction
     Note right of ThirdParty: Authorization: ApiKey abc123...
     
     Gateway->>Gateway: Extract API Key from header

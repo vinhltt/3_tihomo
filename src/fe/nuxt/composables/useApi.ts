@@ -3,9 +3,10 @@ import type { ApiError } from '~/types'
 export const useApi = () => {
   const config = useRuntimeConfig()
   const baseURL = config.public.apiBase
+  const authStore = useAuthStore()
 
   /**
-   * Generic API call wrapper with error handling
+   * Generic API call wrapper with error handling and authentication
    */
   const apiCall = async <T>(
     endpoint: string,
@@ -19,6 +20,13 @@ export const useApi = () => {
     try {
       const headers: Record<string, string> = {
         'Accept': 'application/json'
+      }
+
+      // Add authentication headers if user is authenticated
+      if (authStore.isAuthenticated && authStore.token) {
+        headers['Authorization'] = `Bearer ${authStore.token}`
+        // Also add API key header for Ocelot Gateway
+        headers['X-API-Key'] = authStore.token
       }
 
       let body = options.body
@@ -46,13 +54,16 @@ export const useApi = () => {
           Object.keys(options.query).forEach(key => {
             url.searchParams.append(key, options.query![key])
           })
-        }
-
-        const response = await fetch(url.toString(), {
+        }        const response = await fetch(url.toString(), {
           method: options.method || 'GET',
           body,
           headers: {
-            'Accept': 'application/json'
+            'Accept': 'application/json',
+            // Add authentication headers for FormData requests too
+            ...(authStore.isAuthenticated && authStore.token ? {
+              'Authorization': `Bearer ${authStore.token}`,
+              'X-API-Key': authStore.token
+            } : {})
             // Don't set Content-Type for FormData
           }
         })

@@ -59,7 +59,7 @@
             v-model.number="form.amount" 
             :disabled="mode === 'view'"
             type="number" 
-            step="0.01"
+            step="1000"
             class="form-input"
             placeholder="Nhập số tiền"
             required
@@ -134,22 +134,6 @@
             placeholder="Nhập mô tả giao dịch"
           />
         </div>
-
-        <!-- Balance -->
-        <div>
-          <label class="text-sm font-medium text-white-dark">
-            Số dư sau giao dịch *
-          </label>
-          <input 
-            v-model.number="form.balance" 
-            :disabled="mode === 'view'"
-            type="number" 
-            step="0.01"
-            class="form-input"
-            placeholder="Nhập số dư"
-            required
-          />
-        </div>
       </div>
 
       <!-- Toggle Advanced Mode -->
@@ -170,6 +154,21 @@
 
       <!-- Advanced Mode Fields -->
       <div v-if="showAdvanced" class="space-y-4 border-t pt-5 dark:border-[#1b2e4b]">
+        <!-- Balance -->
+        <div>
+          <label class="text-sm font-medium text-white-dark">
+            Số dư sau giao dịch *
+          </label>
+          <input 
+            v-model.number="form.balance" 
+            :disabled="mode === 'view'"
+            type="number" 
+            step="1"
+            class="form-input"
+            placeholder="Nhập số dư"
+            required
+          />
+        </div>
         <!-- Financial Info Group -->
         <div class="space-y-4">
           <h6 class="text-md font-semibold">Thông tin tài chính mở rộng</h6>

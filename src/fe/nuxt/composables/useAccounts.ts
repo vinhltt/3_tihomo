@@ -12,40 +12,35 @@ import { useApi } from './useApi'
 
 export const useAccounts = () => {
   const { get, post, postForm, put, putForm, delete: del } = useApi()
-
   /**
    * Fetch accounts with pagination and filters
    */
   const getAccounts = async (request: FilterBodyRequest): Promise<ApiResponse<Account>> => {
-    return post<ApiResponse<Account>>('/api/account/filter', request)
+    return post<ApiResponse<Account>>('/api/core-finance/account/filter', request)
   }
-
   /**
    * Get account by ID
    */
   const getAccountById = async (id: string): Promise<Account> => {
-    return get<Account>(`/api/account/${id}`)
+    return get<Account>(`/api/core-finance/account/${id}`)
   }
-
   /**
    * Create new account
    */
   const createAccount = async (request: AccountCreateRequest): Promise<Account> => {
-    return postForm<Account>('/api/account', request)
+    return postForm<Account>('/api/core-finance/account', request)
   }
-
   /**
    * Update existing account
    */
   const updateAccount = async (id: string, request: AccountUpdateRequest): Promise<Account> => {
-    return putForm<Account>(`/api/account/${id}`, request)
+    return putForm<Account>(`/api/core-finance/account/${id}`, request)
   }
-
   /**
    * Delete account (soft delete)
    */
   const deleteAccount = async (id: string): Promise<void> => {
-    return del<void>(`/api/account/${id}`)
+    return del<void>(`/api/core-finance/account/${id}`)
   }
 
   /**

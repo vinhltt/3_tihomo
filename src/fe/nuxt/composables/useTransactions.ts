@@ -119,7 +119,7 @@ export const useTransactions = () => {
         }
       }
 
-      const response = await post<ApiResponse<TransactionViewModel>>('/api/transaction/filter', filterRequest)
+      const response = await post<ApiResponse<TransactionViewModel>>('/api/core-finance/transaction/filter', filterRequest)
       
       if (response?.data) {
         transactions.value = response.data
@@ -190,7 +190,7 @@ export const useTransactions = () => {
       // Convert frontend request to backend format
       const backendRequest = convertToBackendUpdateRequest(request)
       
-      const response = await putForm<TransactionViewModel>(`/api/transaction/${request.id}`, backendRequest)
+      const response = await putForm<TransactionViewModel>(`/api/core-finance/transaction/${request.id}`, backendRequest)
       
       if (response) {
         // Update local state
@@ -218,7 +218,7 @@ export const useTransactions = () => {
       isLoading.value = true
       error.value = null
       
-      await deleteRequest(`/api/transaction/${id}`)
+      await deleteRequest(`/api/core-finance/transaction/${id}`)
       
       // Remove from local state
       transactions.value = transactions.value.filter((t: TransactionViewModel) => t.id !== id)

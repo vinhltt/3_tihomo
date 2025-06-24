@@ -99,7 +99,7 @@ public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
 | `/api/users/*` | Identity.Api | 5228 | Required (Bearer/ApiKey) | 200/min |
 | `/api/apikeys/*` | Identity.Api | 5228 | Required (Bearer/ApiKey) | 100/min |
 | `/api/accounts/*` | CoreFinance.Api | 5001 | Required (Bearer/ApiKey) | 300/min |
-| `/api/transactions/*` | CoreFinance.Api | 5001 | Required (Bearer/ApiKey) | 500/min |
+| `/api/core-finance/transaction/*` | CoreFinance.Api | 5001 | Required (Bearer/ApiKey) | 500/min |
 | `/api/budgets/*` | MoneyManagement.Api | 5002 | Required (Bearer/ApiKey) | 200/min |
 | `/api/goals/*` | PlanningInvestment.Api | 5003 | Required (Bearer/ApiKey) | 150/min |
 | `/api/reports/*` | Reporting.Api | 5004 | Required (Bearer/ApiKey) | 50/min |
@@ -498,7 +498,7 @@ public class ServiceRegistrar
 {
   "Routes": [
     {
-      "DownstreamPathTemplate": "/api/transactions/{everything}",
+      "DownstreamPathTemplate": "/api/core-finance/transaction/{everything}",
       "DownstreamScheme": "http",
       "ServiceName": "corefinance-api",
       "LoadBalancerOptions": {

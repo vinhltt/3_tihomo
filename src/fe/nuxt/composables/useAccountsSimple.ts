@@ -15,9 +15,8 @@ export const useAccountsSimple = () => {
     try {
       isLoading.value = true
       error.value = null
-      
-      // Use simple get request to get all accounts
-      const response = await get<AccountViewModel[]>('/api/account')
+        // Use simple get request to get all accounts via Gateway
+      const response = await get<AccountViewModel[]>('/api/core-finance/account')
       accounts.value = response || []
       
     } catch (err) {

@@ -143,11 +143,11 @@ public class Transaction
 - `DELETE /api/accounts/{id}` – Delete account
 
 ### 5.2. Transaction API
-- `GET /api/transactions` – List transactions (filter by account, date, type, ...)
-- `GET /api/transactions/{id}` – Transaction details
-- `POST /api/transactions` – Create transaction
-- `PUT /api/transactions/{id}` – Update transaction
-- `DELETE /api/transactions/{id}` – Delete transaction
+- `GET /api/core-finance/transaction` – List transactions (filter by account, date, type, ...)
+- `GET /api/core-finance/transaction/{id}` – Transaction details
+- `POST /api/core-finance/transaction` – Create transaction
+- `PUT /api/core-finance/transaction/{id}` – Update transaction
+- `DELETE /api/core-finance/transaction/{id}` – Delete transaction
 
 ---
 

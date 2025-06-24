@@ -265,7 +265,7 @@ sequenceDiagram
     participant MsgBus as RabbitMQ
 
     User->>UI: Nhập thông tin giao dịch & Lưu
-    UI->>APIGateway: POST /api/transactions (dữ liệu giao dịch)
+    UI->>APIGateway: POST /api/core-finance/transaction (dữ liệu giao dịch)
     APIGateway->>TranSvc: Forward Request
     TranSvc->>TranSvc: Validate dữ liệu
     TranSvc->>AccSvc: Cập nhật số dư tài khoản liên quan (nếu cần)
