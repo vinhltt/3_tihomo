@@ -270,28 +270,120 @@ public static class ExpressionBuilder
     private static Expression CreateExpressionForEnumType(Expression member, Expression value,
         Criteria filterDescriptor)
     {
-        var expression = Expression.Convert(member, Enum.GetUnderlyingType(member.Type));
-        value = Expression.Convert(value, Enum.GetUnderlyingType(value.Type));
+        // Get actual enum type (handle nullable enums)
+        // Lấy kiểu enum thực tế (xử lý nullable enums)
+        var actualEnumType = Nullable.GetUnderlyingType(member.Type) ?? member.Type;
+        if (!actualEnumType.IsEnum)
+            throw new ArgumentException($"Member type {member.Type} is not an enum or nullable enum");
 
         switch (filterDescriptor.Operator)
         {
+            case FilterType.Equal:
+                return CreateEnumEqualExpression(member, actualEnumType, filterDescriptor.Value, false);
+
+            case FilterType.NotEqual:
+                return CreateEnumEqualExpression(member, actualEnumType, filterDescriptor.Value, true);
+
             case FilterType.In:
             case FilterType.Contains:
-                return Expression.Equal(Expression.Or(expression, value), value);
+                return CreateEnumInExpression(member, actualEnumType, filterDescriptor.Value, false);
 
             case FilterType.NotIn:
             case FilterType.NotContains:
-                return Expression.Not(Expression.Equal(Expression.Or(expression, value), value));
+                return CreateEnumInExpression(member, actualEnumType, filterDescriptor.Value, true);
 
-            case FilterType.Equal:
-                return Expression.Equal(expression, value);
+            default:
+                throw new NotSupportedException($"Operator {filterDescriptor.Operator} is not supported for enum types");
+        }
+    }
 
-            case FilterType.NotEqual:
-                return Expression.NotEqual(expression, value);
+    /// <summary>
+    ///     (EN) Creates an equal/not equal expression for enum filtering.<br />
+    ///     (VI) Tạo biểu thức so sánh bằng/khác cho việc lọc enum.
+    /// </summary>
+    private static Expression CreateEnumEqualExpression(Expression member, Type actualEnumType, object? value, bool negate)
+    {
+        var enumValue = ParseEnumValue(actualEnumType, value);
+        var constantValue = Expression.Constant(enumValue, actualEnumType);
+
+        Expression comparison;
+        if (member.Type != actualEnumType) // Nullable enum case
+        {
+            var hasValue = Expression.Property(member, "HasValue");
+            var getValue = Expression.Property(member, "Value");
+            var equalComparison = Expression.Equal(getValue, constantValue);
+            comparison = Expression.AndAlso(hasValue, equalComparison);
+        }
+        else // Direct enum case
+        {
+            comparison = Expression.Equal(member, constantValue);
         }
 
-        throw new NotSupportedException(
-            $"{filterDescriptor.Operator.ToString()} is not supported by {value.Type} ");
+        return negate ? Expression.Not(comparison) : comparison;
+    }
+
+    /// <summary>
+    ///     (EN) Creates an In/NotIn expression for enum filtering.<br />
+    ///     (VI) Tạo biểu thức In/NotIn cho việc lọc enum.
+    /// </summary>
+    private static Expression CreateEnumInExpression(Expression member, Type actualEnumType, object? values, bool negate)
+    {
+        var stringValues = values as string[] ?? new[] { values?.ToString() ?? string.Empty };
+        if (stringValues.Length == 0)
+            return negate ? ExpressionUtils.TypeTrueExpression : ExpressionUtils.TypeFalseExpression;
+
+        Expression? inExpression = null;
+        foreach (var stringValue in stringValues)
+        {
+            var enumValue = ParseEnumValue(actualEnumType, stringValue);
+            var constantValue = Expression.Constant(enumValue, actualEnumType);
+
+            Expression comparison;
+            if (member.Type != actualEnumType) // Nullable enum case
+            {
+                var hasValue = Expression.Property(member, "HasValue");
+                var getValue = Expression.Property(member, "Value");
+                comparison = Expression.AndAlso(hasValue, Expression.Equal(getValue, constantValue));
+            }
+            else // Direct enum case
+            {
+                comparison = Expression.Equal(member, constantValue);
+            }
+
+            inExpression = inExpression == null ? comparison : Expression.OrElse(inExpression, comparison);
+        }
+
+        return negate ? Expression.Not(inExpression!) : inExpression!;
+    }
+
+    /// <summary>
+    ///     (EN) Parses a string value to enum.<br />
+    ///     (VI) Chuyển đổi giá trị string thành enum.
+    /// </summary>
+    private static object ParseEnumValue(Type enumType, object? value)
+    {
+        var stringValue = value?.ToString();
+        if (string.IsNullOrWhiteSpace(stringValue))
+            throw new ArgumentException($"Cannot parse empty value to enum type {enumType.Name}");
+
+        try
+        {
+            // Try parse as string name first
+            // Thử parse như tên string trước
+            if (Enum.TryParse(enumType, stringValue, true, out var enumValue))
+                return enumValue;
+
+            // Try parse as numeric value
+            // Thử parse như giá trị số
+            if (int.TryParse(stringValue, out var intValue))
+                return Enum.ToObject(enumType, intValue);
+
+            throw new ArgumentException($"Cannot parse '{stringValue}' to enum type {enumType.Name}");
+        }
+        catch (Exception ex)
+        {
+            throw new ArgumentException($"Cannot parse '{stringValue}' to enum type {enumType.Name}: {ex.Message}", ex);
+        }
     }
 
     /// <summary>
