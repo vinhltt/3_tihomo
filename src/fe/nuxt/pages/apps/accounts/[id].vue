@@ -47,19 +47,11 @@
               </div>
             </div>
             <div class="flex gap-3">
-              <button
-                type="button"
-                class="btn btn-outline-primary"
-                @click="openEditModal"
-              >
+              <button type="button" class="btn btn-outline-primary" @click="openEditModal">
                 <icon-edit class="h-4 w-4 ltr:mr-2 rtl:ml-2" />
                 Edit Account
               </button>
-              <button
-                type="button"
-                class="btn btn-outline-danger"
-                @click="confirmDelete"
-              >
+              <button type="button" class="btn btn-outline-danger" @click="confirmDelete">
                 <icon-trash class="h-4 w-4 ltr:mr-2 rtl:ml-2" />
                 Delete
               </button>
@@ -185,14 +177,9 @@
               </client-only>
             </div>
           </div>
-          
+
           <client-only>
-            <apexchart 
-              v-if="chartOptions && chartSeries" 
-              height="300" 
-              :options="chartOptions" 
-              :series="chartSeries" 
-            />
+            <apexchart v-if="chartOptions && chartSeries" height="300" :options="chartOptions" :series="chartSeries" />
             <div v-else class="flex justify-center py-20">
               <div class="text-gray-500">No chart data available</div>
             </div>
@@ -207,7 +194,7 @@
               View All Transactions
             </NuxtLink>
           </div>
-          
+
           <div class="table-responsive">
             <table class="table-auto">
               <thead>
@@ -246,12 +233,7 @@
     </div>
 
     <!-- Edit Modal -->
-    <AccountModal
-      v-model="isEditModalOpen"
-      :account="account"
-      :is-edit="true"
-      @saved="handleAccountUpdated"
-    />
+    <AccountModal v-model="isEditModalOpen" :account="account" :is-edit="true" @saved="handleAccountUpdated" />
   </div>
 </template>
 
@@ -310,7 +292,7 @@ const recentTransactions = ref([
 // Chart configuration
 const chartOptions = computed(() => {
   if (!account.value) return null
-  
+
   return {
     chart: {
       type: 'area',
@@ -368,7 +350,7 @@ const chartOptions = computed(() => {
 
 const chartSeries = computed(() => {
   if (!account.value) return null
-  
+
   // Mock balance history data
   return [{
     name: 'Balance',
@@ -402,7 +384,7 @@ const handleAccountUpdated = () => {
 
 const confirmDelete = async () => {
   if (!account.value) return
-  
+
   const result = await Swal.fire({
     title: 'Are you sure?',
     text: `Delete account "${account.value.name}"? This action cannot be undone.`,
@@ -457,4 +439,4 @@ onMounted(() => {
 useHead({
   title: computed(() => `${account.value?.name || 'Account'} - CoreFinance`)
 })
-</script> 
+</script>

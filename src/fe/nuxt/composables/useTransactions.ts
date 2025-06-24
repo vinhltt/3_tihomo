@@ -59,18 +59,19 @@ export const useTransactions = () => {
         })
       }
       
-      currentFilter.value = mergedFilter
-
-      // Build filter details array
+      currentFilter.value = mergedFilter      // Build filter details array
       const filterDetails: any[] = []
 
-      // Add filters to filterDetails - only add if value exists and is not empty
+      // Add account filter - only when a specific account is selected
       if (mergedFilter.accountId && mergedFilter.accountId.trim() !== '') {
         filterDetails.push({
           attributeName: 'accountId',
           filterType: FilterType.Equal,
           value: mergedFilter.accountId
         })
+        console.log('Adding account filter:', mergedFilter.accountId)
+      } else {
+        console.log('No account filter - loading all accounts transactions')
       }
 
       if (mergedFilter.startDate && mergedFilter.startDate.trim() !== '') {
@@ -84,8 +85,8 @@ export const useTransactions = () => {
       if (mergedFilter.endDate && mergedFilter.endDate.trim() !== '') {
         filterDetails.push({
           attributeName: 'transactionDate',
-          filterType: FilterType.LessThanOrEqual,
-          value: mergedFilter.endDate
+          filterType: FilterType.LessThan,
+          value: mergedFilter.endDate + 'T23:59:59' // Ensure we include the whole day
         })
       }
 
@@ -95,9 +96,7 @@ export const useTransactions = () => {
           filterType: FilterType.Equal,
           value: mergedFilter.categoryType.toString()
         })
-      }
-
-      // Build FilterBodyRequest
+      }      // Build FilterBodyRequest
       const filterRequest: FilterBodyRequest = {
         langId: '',
         searchValue: '',
@@ -118,6 +117,12 @@ export const useTransactions = () => {
           pageCount: 0
         }
       }
+
+      console.log('Transaction filter request:', {
+        accountFilter: mergedFilter.accountId || 'ALL_ACCOUNTS',
+        filterDetailsCount: filterDetails.length,
+        filterRequest: JSON.stringify(filterRequest, null, 2)
+      })
 
       const response = await post<ApiResponse<TransactionViewModel>>('/api/core-finance/transaction/filter', filterRequest)
       
@@ -165,7 +170,7 @@ export const useTransactions = () => {
       // Convert frontend request to backend format
       const backendRequest = convertToBackendRequest(request)
       
-      const response = await postForm<TransactionViewModel>('/api/transaction', backendRequest)
+      const response = await postForm<TransactionViewModel>('/api/core-finance/transaction', backendRequest)
       
       if (response) {
         // Refresh the list

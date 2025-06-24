@@ -1,78 +1,73 @@
 <template>
-  <div class="space-y-6">
-    <!-- Header với breadcrumbs -->
+  <div class="space-y-6"> <!-- Header với breadcrumbs -->
     <div>
       <ul class="flex space-x-2 rtl:space-x-reverse">
         <li>
           <NuxtLink to="/apps" class="text-primary hover:underline">Apps</NuxtLink>
+        </li>
+        <li v-if="route.query.accountId && route.query.accountName"
+          class="before:content-['/'] ltr:before:mr-2 rtl:before:ml-2">
+          <NuxtLink to="/apps/accounts" class="text-primary hover:underline">Accounts</NuxtLink>
+        </li>
+        <li v-if="route.query.accountId && route.query.accountName"
+          class="before:content-['/'] ltr:before:mr-2 rtl:before:ml-2">
+          <NuxtLink :to="`/apps/accounts?highlight=${route.query.accountId}`" class="text-primary hover:underline">
+            {{ route.query.accountName }}
+          </NuxtLink>
         </li>
         <li class="before:content-['/'] ltr:before:mr-2 rtl:before:ml-2">
           <span>Transactions</span>
         </li>
       </ul>
       <div class="pt-5">
-        <h1 class="text-2xl font-semibold">Quản lý Giao dịch</h1>
+        <h1 class="text-2xl font-semibold">
+          {{ route.query.accountName ? `Giao dịch - ${route.query.accountName}` : 'Quản lý Giao dịch' }}
+        </h1>
         <p class="text-gray-600 dark:text-white-light">
-          Theo dõi và quản lý các giao dịch thu chi
+          {{
+            route.query.accountName
+              ? `Theo dõi giao dịch của tài khoản ${route.query.accountName}`
+              : 'Theo dõi và quản lý các giao dịch thu chi'
+          }}
         </p>
       </div>
     </div>
 
     <!-- Filter Section -->
     <div class="panel">
-      <div class="mb-5 flex flex-col gap-4 sm:flex-row sm:items-end sm:gap-6">
-        <!-- Account Filter -->
+      <div class="mb-5 flex flex-col gap-4 sm:flex-row sm:items-end sm:gap-6"> <!-- Account Filter -->
         <div class="flex-1">
           <label class="text-sm font-medium">Tài khoản</label>
-          <select 
-            v-model="selectedAccountId" 
-            @change="handleAccountChange"
-            class="form-select"
-          >
-            <option value="">Tất cả tài khoản</option>
-            <option 
-              v-for="account in accounts" 
-              :key="account.id" 
-              :value="account.id"
-            >
-              {{ account.name }}
-            </option>
-          </select>
+          <div class="relative">
+            <select v-model="selectedAccountId" @change="handleAccountChange" class="form-select" :disabled="isLoading">
+              <option value="">Tất cả tài khoản</option>
+              <option v-for="account in accounts" :key="account.id" :value="account.id">
+                {{ account.name }}
+              </option>
+            </select>
+            <div v-if="isLoading" class="absolute right-8 top-1/2 transform -translate-y-1/2">
+              <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+            </div>
+          </div>
         </div>
 
         <!-- Date Range -->
         <div class="flex-1">
           <label class="text-sm font-medium">Từ ngày</label>
-          <input 
-            v-model="dateRange.startDate" 
-            @change="handleDateRangeChange"
-            type="date" 
-            class="form-input" 
-          />
+          <input v-model="dateRange.startDate" @change="handleDateRangeChange" type="date" class="form-input" />
         </div>
         <div class="flex-1">
           <label class="text-sm font-medium">Đến ngày</label>
-          <input 
-            v-model="dateRange.endDate" 
-            @change="handleDateRangeChange"
-            type="date" 
-            class="form-input" 
-          />
+          <input v-model="dateRange.endDate" @change="handleDateRangeChange" type="date" class="form-input" />
         </div>
 
         <!-- Quick Actions -->
         <div class="flex gap-2">
-          <button 
-            @click="() => openCreateModal(TransactionDirection.Revenue)"
-            class="btn btn-outline-success"
-          >
+          <button @click="() => openCreateModal(TransactionDirection.Revenue)" class="btn btn-outline-success">
             <icon-plus class="w-4 h-4" />
             Thu
           </button>
-          <button 
-            @click="() => openCreateModal(TransactionDirection.Spent)"
-            class="btn btn-outline-danger"
-          >
+          <button @click="() => openCreateModal(TransactionDirection.Spent)" class="btn btn-outline-danger">
             <icon-plus class="w-4 h-4" />
             Chi
           </button>
@@ -83,10 +78,7 @@
     <!-- Main Layout: Transaction List + Detail Panel -->
     <div class="relative">
       <!-- Transaction List Container -->
-      <div 
-        class="transition-all duration-300"
-        :class="showDetailPanel ? 'lg:mr-[50%]' : ''"
-      >
+      <div class="transition-all duration-300" :class="showDetailPanel ? 'lg:mr-[50%]' : ''">
         <div class="panel">
           <!-- Table Header với Column Selector -->
           <div class="mb-5 flex items-center justify-between">
@@ -97,7 +89,7 @@
               <div class="text-sm text-gray-500">
                 Tổng: {{ pagination.totalRow }} giao dịch
               </div>
-              
+
               <!-- Columns Selector -->
               <div class="relative">
                 <Popper placement="bottom-end">
@@ -106,78 +98,45 @@
                     Cột
                   </button>
                   <template #content="{ close }">
-                    <div class="bg-white dark:bg-[#0e1726] border border-gray-200 dark:border-[#1b2e4b] rounded-lg shadow-lg p-4 min-w-[200px]">
+                    <div
+                      class="bg-white dark:bg-[#0e1726] border border-gray-200 dark:border-[#1b2e4b] rounded-lg shadow-lg p-4 min-w-[200px]">
                       <h6 class="font-semibold mb-3">Chọn cột hiển thị</h6>
                       <div class="space-y-2">
                         <label class="flex items-center">
-                          <input 
-                            type="checkbox" 
-                            v-model="visibleColumns.date"
-                            class="form-checkbox"
-                          />
+                          <input type="checkbox" v-model="visibleColumns.date" class="form-checkbox" />
                           <span class="ml-2">Ngày</span>
                         </label>
                         <label class="flex items-center">
-                          <input 
-                            type="checkbox" 
-                            v-model="visibleColumns.description"
-                            class="form-checkbox"
-                          />
+                          <input type="checkbox" v-model="visibleColumns.description" class="form-checkbox" />
                           <span class="ml-2">Mô tả</span>
                         </label>
                         <label class="flex items-center">
-                          <input 
-                            type="checkbox" 
-                            v-model="visibleColumns.amount"
-                            class="form-checkbox"
-                          />
+                          <input type="checkbox" v-model="visibleColumns.amount" class="form-checkbox" />
                           <span class="ml-2">Số tiền</span>
                         </label>
                         <hr class="border-gray-200 dark:border-[#1b2e4b]" />
                         <label class="flex items-center">
-                          <input 
-                            type="checkbox" 
-                            v-model="visibleColumns.account"
-                            class="form-checkbox"
-                          />
+                          <input type="checkbox" v-model="visibleColumns.account" class="form-checkbox" />
                           <span class="ml-2">Tài khoản</span>
                         </label>
                         <label class="flex items-center">
-                          <input 
-                            type="checkbox" 
-                            v-model="visibleColumns.category"
-                            class="form-checkbox"
-                          />
+                          <input type="checkbox" v-model="visibleColumns.category" class="form-checkbox" />
                           <span class="ml-2">Danh mục</span>
                         </label>
                         <label class="flex items-center">
-                          <input 
-                            type="checkbox" 
-                            v-model="visibleColumns.balance"
-                            class="form-checkbox"
-                          />
+                          <input type="checkbox" v-model="visibleColumns.balance" class="form-checkbox" />
                           <span class="ml-2">Số dư</span>
                         </label>
                         <label class="flex items-center">
-                          <input 
-                            type="checkbox" 
-                            v-model="visibleColumns.actions"
-                            class="form-checkbox"
-                          />
+                          <input type="checkbox" v-model="visibleColumns.actions" class="form-checkbox" />
                           <span class="ml-2">Thao tác</span>
                         </label>
                       </div>
                       <div class="flex gap-2 mt-4">
-                        <button 
-                          @click="setSimpleMode()"
-                          class="btn btn-outline-primary btn-sm flex-1"
-                        >
+                        <button @click="setSimpleMode()" class="btn btn-outline-primary btn-sm flex-1">
                           Đơn giản
                         </button>
-                        <button 
-                          @click="setAdvancedMode()"
-                          class="btn btn-outline-primary btn-sm flex-1"
-                        >
+                        <button @click="setAdvancedMode()" class="btn btn-outline-primary btn-sm flex-1">
                           Nâng cao
                         </button>
                       </div>
@@ -207,16 +166,10 @@
             <icon-folder class="w-16 h-16 mx-auto text-gray-400 mb-4" />
             <p class="text-gray-500">Chưa có giao dịch nào</p>
             <div class="flex gap-2 justify-center mt-4">
-              <button 
-                @click="() => openCreateModal(TransactionDirection.Revenue)"
-                class="btn btn-success btn-sm"
-              >
+              <button @click="() => openCreateModal(TransactionDirection.Revenue)" class="btn btn-success btn-sm">
                 Thêm giao dịch Thu
               </button>
-              <button 
-                @click="() => openCreateModal(TransactionDirection.Spent)"
-                class="btn btn-danger btn-sm"
-              >
+              <button @click="() => openCreateModal(TransactionDirection.Spent)" class="btn btn-danger btn-sm">
                 Thêm giao dịch Chi
               </button>
             </div>
@@ -237,16 +190,11 @@
                 </tr>
               </thead>
               <tbody>
-                <tr 
-                  v-for="transaction in transactions" 
-                  :key="transaction.id"
-                  @click="() => selectTransaction(transaction)"
-                  class="cursor-pointer transition-colors"
-                  :class="[
+                <tr v-for="transaction in transactions" :key="transaction.id"
+                  @click="() => selectTransaction(transaction)" class="cursor-pointer transition-colors" :class="[
                     'hover:bg-gray-50 dark:hover:bg-gray-800',
                     selectedTransaction?.id === transaction.id ? 'bg-primary/10 border-l-4 border-primary' : ''
-                  ]"
-                >
+                  ]">
                   <td v-if="visibleColumns.date">
                     <div class="text-sm font-medium">
                       {{ formatDate(transaction.transactionDate) }}
@@ -279,25 +227,16 @@
                   </td>
                   <td v-if="visibleColumns.actions" class="text-center">
                     <div class="flex items-center justify-center gap-2">
-                      <button 
-                        @click.stop="() => selectTransaction(transaction)"
-                        class="btn btn-sm btn-outline-primary"
-                        title="Xem chi tiết"
-                      >
+                      <button @click.stop="() => selectTransaction(transaction)" class="btn btn-sm btn-outline-primary"
+                        title="Xem chi tiết">
                         <icon-eye class="w-4 h-4" />
                       </button>
-                      <button 
-                        @click.stop="() => editTransaction(transaction)"
-                        class="btn btn-sm btn-outline-warning"
-                        title="Chỉnh sửa"
-                      >
+                      <button @click.stop="() => editTransaction(transaction)" class="btn btn-sm btn-outline-warning"
+                        title="Chỉnh sửa">
                         <icon-edit class="w-4 h-4" />
                       </button>
-                      <button 
-                        @click.stop="() => confirmDelete(transaction)"
-                        class="btn btn-sm btn-outline-danger"
-                        title="Xóa"
-                      >
+                      <button @click.stop="() => confirmDelete(transaction)" class="btn btn-sm btn-outline-danger"
+                        title="Xóa">
                         <icon-trash class="w-4 h-4" />
                       </button>
                     </div>
@@ -310,22 +249,17 @@
           <!-- Pagination -->
           <div v-if="pagination.pageCount > 1" class="mt-5 flex items-center justify-between">
             <div class="text-sm text-gray-500">
-              Hiển thị {{ (pagination.pageIndex * pagination.pageSize) + 1 }}-{{ Math.min((pagination.pageIndex + 1) * pagination.pageSize, pagination.totalRow) }} 
+              Hiển thị {{ (pagination.pageIndex * pagination.pageSize) + 1 }}-{{ Math.min((pagination.pageIndex + 1) *
+                pagination.pageSize, pagination.totalRow) }}
               trong tổng số {{ pagination.totalRow }} giao dịch
             </div>
             <div class="flex gap-1">
-              <button 
-                @click="changePage(pagination.pageIndex - 1)"
-                :disabled="pagination.pageIndex === 0"
-                class="btn btn-sm btn-outline-primary"
-              >
+              <button @click="changePage(pagination.pageIndex - 1)" :disabled="pagination.pageIndex === 0"
+                class="btn btn-sm btn-outline-primary">
                 Trước
               </button>
-              <button 
-                @click="changePage(pagination.pageIndex + 1)"
-                :disabled="pagination.pageIndex >= pagination.pageCount - 1"
-                class="btn btn-sm btn-outline-primary"
-              >
+              <button @click="changePage(pagination.pageIndex + 1)"
+                :disabled="pagination.pageIndex >= pagination.pageCount - 1" class="btn btn-sm btn-outline-primary">
                 Sau
               </button>
             </div>
@@ -334,34 +268,20 @@
       </div>
 
       <!-- Transaction Detail Panel (Desktop) -->
-      <div 
-        v-if="showDetailPanel" 
+      <div v-if="showDetailPanel"
         class="fixed right-0 top-0 h-full w-full lg:w-1/2 z-40 bg-white dark:bg-[#0e1726] border-l border-gray-200 dark:border-[#1b2e4b] transition-transform duration-300"
-        :class="showDetailPanel ? 'translate-x-0' : 'translate-x-full'"
-      >
+        :class="showDetailPanel ? 'translate-x-0' : 'translate-x-full'">
         <div class="h-full overflow-y-auto">
-          <TransactionDetailPanel
-            :visible="showDetailPanel"
-            :transaction="selectedTransaction"
-            :accounts="[...accounts]"
-            :mode="detailMode"
-            :default-direction="defaultDirection"
-            :default-account-id="selectedAccountId"
-            @update:visible="closeDetailPanel"
-            @created="handleTransactionCreated"
-            @updated="handleTransactionUpdated"
-            @deleted="handleTransactionDeleted"
-            @edit="handleEdit"
-          />
+          <TransactionDetailPanel :visible="showDetailPanel" :transaction="selectedTransaction"
+            :accounts="[...accounts]" :mode="detailMode" :default-direction="defaultDirection"
+            :default-account-id="selectedAccountId" @update:visible="closeDetailPanel"
+            @created="handleTransactionCreated" @updated="handleTransactionUpdated" @deleted="handleTransactionDeleted"
+            @edit="handleEdit" />
         </div>
       </div>
 
       <!-- Mobile Overlay -->
-      <div 
-        v-if="showDetailPanel" 
-        class="lg:hidden fixed inset-0 bg-black/50 z-30"
-        @click="closeDetailPanel"
-      ></div>
+      <div v-if="showDetailPanel" class="lg:hidden fixed inset-0 bg-black/50 z-30" @click="closeDetailPanel"></div>
     </div>
   </div>
 </template>
@@ -373,11 +293,12 @@ import { TransactionDirection, CategoryType, formatDisplayAmount, getAmountClass
 import TransactionDetailPanel from '~/components/apps/transactions/TransactionDetailPanel.vue'
 
 // Composables
-const { 
-  transactions, 
-  selectedTransaction, 
-  isLoading, 
-  error, 
+const route = useRoute()
+const {
+  transactions,
+  selectedTransaction,
+  isLoading,
+  error,
   pagination,
   getTransactions,
   deleteTransaction,
@@ -426,12 +347,33 @@ const handleKeydown = (event: KeyboardEvent) => {
 onMounted(async () => {
   await Promise.all([
     getAccounts(),
-    getTransactions()
+    handleNavigationContext()
   ])
-  
+
   // Add ESC key listener
   window.addEventListener('keydown', handleKeydown)
 })
+
+// Handle navigation context from query parameters
+const handleNavigationContext = async () => {
+  const { accountId, accountName } = route.query
+
+  if (accountId && accountName) {
+    // Set the selected account based on navigation context
+    selectedAccountId.value = accountId as string
+
+    // Update page title to include account name
+    useHead({
+      title: `Giao dịch - ${accountName} | Quản lý Giao dịch`
+    })
+
+    // Filter transactions by the selected account
+    await getTransactions({ accountId: accountId as string })
+  } else {
+    // Default behavior - load all transactions
+    await getTransactions()
+  }
+}
 
 onUnmounted(() => {
   // Remove ESC key listener
@@ -440,8 +382,18 @@ onUnmounted(() => {
 
 // Methods
 const handleAccountChange = () => {
+  // If "Tất cả tài khoản" is selected (empty string), pass undefined to clear the filter
+  // Otherwise pass the selected account ID
+  const accountIdFilter = selectedAccountId.value === '' ? undefined : selectedAccountId.value
+
+  console.log('Account filter changed:', {
+    selectedValue: selectedAccountId.value,
+    filterValue: accountIdFilter,
+    willFilterByAccount: accountIdFilter !== undefined
+  })
+
   // Always call getTransactions with accountId filter to ensure proper clearing
-  getTransactions({ accountId: selectedAccountId.value })
+  getTransactions({ accountId: accountIdFilter })
 }
 
 const handleDateRangeChange = () => {
@@ -538,7 +490,7 @@ const handleEdit = () => {
 const getCategoryTypeName = (categoryType: number) => {
   const names: Record<number, string> = {
     [CategoryType.Income]: 'Thu nhập',
-    [CategoryType.Expense]: 'Chi tiêu', 
+    [CategoryType.Expense]: 'Chi tiêu',
     [CategoryType.Transfer]: 'Chuyển khoản',
     [CategoryType.Fee]: 'Phí',
     [CategoryType.Other]: 'Khác'
@@ -569,4 +521,4 @@ const formatDate = (dateString: string) => {
 const formatCurrency = (amount: number) => {
   return amount.toLocaleString('vi-VN') + ' ₫'
 }
-</script> 
+</script>
