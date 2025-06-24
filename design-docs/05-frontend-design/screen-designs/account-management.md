@@ -175,7 +175,13 @@ Hiển thị **tất cả các cột** bao gồm:
 
 ### Tương tác với account trong danh sách:
 
-* **Click vào bất kỳ account nào** trong danh sách sẽ:
+* **Click vào account name** trong danh sách sẽ:
+  * **Navigate** đến màn hình Transaction Management
+  * **Auto-select** account đó trong dropdown filter của trang transaction
+  * **Load** danh sách giao dịch của account đó
+  * **Breadcrumb**: Hiển thị "Accounts > [Account Name] > Transactions"
+
+* **Click vào các phần khác của row** (type, balance, currency, status) sẽ:
   * Mở **detail pane** ở bên phải với thông tin chi tiết account đó
   * **Chế độ xem**: Hiển thị đầy đủ thông tin account
   * **Các nút action**: `Update`, `Delete`, `Duplicate`, `View Transactions`
@@ -236,12 +242,13 @@ Hiển thị **tất cả các cột** bao gồm:
 #### 🔄 Section 4: Recent Activity
 * **Recent transactions** (10 items gần nhất)
 * **Quick action**: Add transaction cho account này
-* **Link** để xem toàn bộ transactions
+* **Link** để xem toàn bộ transactions → Navigate đến Transaction Management với account pre-selected
 
 #### ⚙️ Section 5: Actions
 * **Primary actions**: Update, Delete
-* **Secondary actions**: Duplicate, Export Data, View Full History
+* **Secondary actions**: Duplicate, Export Data, **View All Transactions**
 * **Danger zone**: Deactivate Account
+* **View All Transactions**: Navigate đến Transaction Management với account được filter sẵn
 
 ### Đóng detail pane:
 
@@ -393,3 +400,306 @@ Hiển thị **tất cả các cột** bao gồm:
 * **Account performance**: ROI, growth trends
 * **Spending behavior**: Per account spending patterns
 * **Predictive analytics**: Account balance forecasting
+
+---
+
+## 🔀 14. Navigation Flow & Account Integration
+
+### Account to Transaction Navigation:
+
+#### Click Account Name Flow:
+```typescript
+// When user clicks on account name in list
+onAccountNameClick(accountId: string, accountName: string) {
+  // Navigate to transaction page with account filter
+  navigateTo(`/transactions?accountId=${accountId}&accountName=${encodeURIComponent(accountName)}`)
+}
+```
+
+#### Transaction Page Auto-Selection:
+* **URL Parameters**: `/transactions?accountId=123&accountName=Techcombank`
+* **Auto-select account** trong dropdown filter
+* **Load transactions** của account đó ngay lập tức
+* **Breadcrumb navigation**: `Accounts > Techcombank > Transactions`
+* **Back button behavior**: Quay lại trang Accounts với account được highlight
+
+#### Detail Pane Navigation:
+* **"View All Transactions" button** trong detail pane
+* **Recent transactions links** - click vào từng transaction để xem chi tiết
+* **Quick Add Transaction** - thêm giao dịch mới cho account hiện tại
+
+### Navigation State Management:
+
+#### Route Parameters:
+```typescript
+// Transaction page route
+/transactions
+  ?accountId=optional         // Pre-select account
+  &accountName=optional       // For breadcrumb display
+  &dateFrom=optional         // Date range filter
+  &dateTo=optional           // Date range filter
+  &transactionId=optional    // Open specific transaction detail
+```
+
+#### Navigation Context:
+```typescript
+type NavigationContext = {
+  fromPage: 'accounts' | 'dashboard' | 'reports'
+  selectedAccountId?: string
+  selectedAccountName?: string
+  returnUrl?: string
+  filters?: {
+    dateRange?: DateRange
+    transactionType?: 'revenue' | 'spent'
+  }
+}
+```
+
+### Breadcrumb Implementation:
+
+#### Account List Page:
+* **Simple**: `Dashboard > Accounts`
+* **With search/filter**: `Dashboard > Accounts (filtered by: Bank)`
+
+#### Transaction Page (from Account):
+* **From account name click**: `Dashboard > Accounts > [Account Name] > Transactions`
+* **From detail pane**: `Dashboard > Accounts > [Account Name] > Transactions`
+* **Breadcrumb actions**:
+  * Click "Accounts" → Navigate back với account highlighted
+  * Click "Account Name" → Open account detail in side panel
+
+### Cross-Page State Synchronization:
+
+#### Account Selection Persistence:
+* **Store in URL**: Account ID và name trong query parameters
+* **Store in state**: Pinia store để maintain selection across pages
+* **localStorage backup**: Backup selection cho page refresh
+
+#### Filter State Transfer:
+```typescript
+// From Account page
+const accountFilter = {
+  accountId: selectedAccount.id,
+  accountName: selectedAccount.name,
+  accountType: selectedAccount.type
+}
+
+// To Transaction page
+const transactionState = {
+  filters: {
+    accountId: accountFilter.accountId,
+    // Inherit other default filters
+    dateRange: 'last30days',
+    showAll: false
+  },
+  selectedAccount: accountFilter
+}
+```
+
+---
+
+## 🔧 15. Technical Implementation Notes (Updated)
+
+### Frontend Navigation:
+
+#### Vue Router Configuration:
+```typescript
+// routes/transactions.ts
+{
+  path: '/transactions',
+  name: 'transactions',
+  component: TransactionManagement,
+  props: route => ({
+    preSelectedAccountId: route.query.accountId,
+    preSelectedAccountName: route.query.accountName,
+    navigationContext: {
+      fromPage: route.query.from || 'direct',
+      returnUrl: route.query.returnUrl
+    }
+  })
+}
+```
+
+#### Account Name Click Handler:
+```typescript
+// In AccountList.vue
+const handleAccountNameClick = (account: Account) => {
+  // Store navigation context
+  navigationStore.setContext({
+    fromPage: 'accounts',
+    selectedAccountId: account.id,
+    returnUrl: '/accounts'
+  })
+  
+  // Navigate with parameters
+  router.push({
+    name: 'transactions',
+    query: {
+      accountId: account.id,
+      accountName: account.name,
+      from: 'accounts'
+    }
+  })
+}
+```
+
+#### Transaction Page Auto-Selection:
+```typescript
+// In TransactionManagement.vue
+onMounted(async () => {
+  const { accountId, accountName } = route.query
+  
+  if (accountId) {
+    // Auto-select account in dropdown
+    await loadAccountData(accountId)
+    filterStore.setAccountFilter(accountId, accountName)
+    
+    // Load transactions for this account
+    await loadTransactions({ accountId })
+    
+    // Setup breadcrumb
+    breadcrumbStore.setBreadcrumb([
+      { name: 'Dashboard', path: '/' },
+      { name: 'Accounts', path: '/accounts' },
+      { name: accountName, path: `/accounts?highlight=${accountId}` },
+      { name: 'Transactions', path: '' }
+    ])
+  }
+})
+```
+
+### State Management (Pinia):
+
+#### Navigation Store:
+```typescript
+// stores/navigation.ts
+export const useNavigationStore = defineStore('navigation', {
+  state: () => ({
+    context: null as NavigationContext | null,
+    breadcrumb: [] as BreadcrumbItem[],
+    returnUrl: null as string | null
+  }),
+  
+  actions: {
+    setContext(context: NavigationContext) {
+      this.context = context
+    },
+    
+    navigateBack() {
+      if (this.returnUrl) {
+        router.push(this.returnUrl)
+      } else {
+        router.back()
+      }
+    }
+  }
+})
+```
+
+#### Account Filter Store:
+```typescript
+// stores/accountFilter.ts
+export const useAccountFilterStore = defineStore('accountFilter', {
+  state: () => ({
+    selectedAccountId: null as string | null,
+    selectedAccountName: null as string | null,
+    filterHistory: [] as AccountFilter[]
+  }),
+  
+  actions: {
+    setAccountFilter(accountId: string, accountName: string) {
+      this.selectedAccountId = accountId
+      this.selectedAccountName = accountName
+      
+      // Add to history
+      this.filterHistory.unshift({
+        accountId,
+        accountName,
+        timestamp: new Date()
+      })
+      
+      // Keep only last 10
+      if (this.filterHistory.length > 10) {
+        this.filterHistory = this.filterHistory.slice(0, 10)
+      }
+    }
+  }
+})
+```
+
+### UI Components:
+
+#### Clickable Account Name:
+```vue
+<!-- In AccountListItem.vue -->
+<template>
+  <tr class="account-row">
+    <td class="account-name-cell">
+      <button 
+        @click="handleAccountNameClick"
+        class="account-name-link"
+        :class="{ 'highlighted': isHighlighted }"
+      >
+        <Icon :name="accountTypeIcon" class="mr-2" />
+        {{ account.name }}
+      </button>
+    </td>
+    <td @click="openDetailPane">{{ account.type }}</td>
+    <td @click="openDetailPane">{{ formatCurrency(account.currentBalance) }}</td>
+    <!-- ...other columns... -->
+  </tr>
+</template>
+
+<style scoped>
+.account-name-link {
+  @apply text-primary hover:text-primary-dark font-medium 
+         underline decoration-dotted hover:decoration-solid
+         transition-all duration-200 cursor-pointer
+}
+
+.account-name-link.highlighted {
+  @apply bg-primary-50 text-primary-dark font-semibold
+}
+</style>
+```
+
+#### Enhanced Breadcrumb:
+```vue
+<!-- Components/Breadcrumb.vue -->
+<template>
+  <nav class="breadcrumb-nav">
+    <ol class="breadcrumb-list">
+      <li v-for="(item, index) in breadcrumbs" :key="index">
+        <router-link 
+          v-if="item.path && index < breadcrumbs.length - 1"
+          :to="item.path"
+          class="breadcrumb-link"
+        >
+          {{ item.name }}
+        </router-link>
+        <span v-else class="breadcrumb-current">
+          {{ item.name }}
+        </span>
+        <ChevronRightIcon v-if="index < breadcrumbs.length - 1" />
+      </li>
+    </ol>
+  </nav>
+</template>
+```
+
+### Performance Considerations:
+
+#### Lazy Loading:
+* **Account data**: Chỉ load khi cần thiết
+* **Transaction data**: Load theo chunks khi navigate
+* **Navigation history**: Limit history size
+
+#### Caching Strategy:
+* **Route cache**: Cache previous route state
+* **Account cache**: Cache account info để tránh re-fetch
+* **Filter cache**: Cache filter state trong session
+
+#### URL State Management:
+* **Minimal URL params**: Chỉ essential parameters
+* **State restoration**: Restore từ URL khi page refresh
+* **Deep linking**: Support direct URL access

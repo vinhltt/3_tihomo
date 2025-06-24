@@ -868,7 +868,7 @@ groups:
           description: "RabbitMQ is not responding"
 
       - alert: TransactionProcessingStalled
-        expr: rate(transactions_total[5m]) == 0 and rate(http_requests_total{endpoint="/api/transactions"}[5m]) > 0
+        expr: rate(transactions_total[5m]) == 0 and rate(http_requests_total{endpoint="/api/core-finance/transaction"}[5m]) > 0
         for: 10m
         labels:
           severity: critical

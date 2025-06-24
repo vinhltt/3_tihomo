@@ -79,7 +79,7 @@ Accept: application/json
 
 ### 3.1 Cursor-Based Pagination (Recommended)
 ```http
-GET /api/transactions?cursor=abc123&limit=20
+GET /api/core-finance/transaction?cursor=abc123&limit=20
 ```
 
 Response:
@@ -96,7 +96,7 @@ Response:
 
 ### 3.2 Offset-Based Pagination (Alternative)
 ```http
-GET /api/transactions?page=2&limit=20
+GET /api/core-finance/transaction?page=2&limit=20
 ```
 
 Response:
@@ -116,7 +116,7 @@ Response:
 
 ### 4.1 Query Parameters
 ```http
-GET /api/transactions?accountId=123&type=expense&startDate=2025-01-01&endDate=2025-01-31&sort=date&order=desc
+GET /api/core-finance/transaction?accountId=123&type=expense&startDate=2025-01-01&endDate=2025-01-31&sort=date&order=desc
 ```
 
 ### 4.2 Supported Operators

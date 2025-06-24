@@ -153,12 +153,36 @@ public async Task<ActionResult<decimal?>> GetLatestBalance(Guid accountId)
 
 ### Mặc định hiển thị:
 
-* Hiển thị **toàn bộ giao dịch trong 30 ngày gần nhất** của **tất cả tài khoản**
-* Có thể **lọc** theo:
-  * Tài khoản (Account dropdown)
-  * Loại giao dịch: `Revenue` / `Spent`
-  * Khoảng thời gian (theo `TransactionDate` với thời gian)
-* **Sắp xếp mặc định**: `TransactionDate` giảm dần (mới nhất ở trên)
+#### 🔀 Navigation Context - 2 trường hợp:
+
+**Trường hợp 1: Navigate từ Account page (có URL params)**
+* URL: `/transactions?accountId=123&accountName=Techcombank`
+* **Auto-select account** trong dropdown filter
+* **Load transactions** của account đó trong **30 ngày gần nhất**
+* **Breadcrumb**: `Accounts > [Account Name] > Transactions`
+* **Title**: "Giao dịch - [Account Name]"
+
+**Trường hợp 2: Navigate từ Menu (direct access)**
+* URL: `/transactions` (không có params)
+* **Dropdown account** để ở **"Tất cả tài khoản"**
+* **Load toàn bộ transactions** của user trong **30 ngày gần nhất**
+* **Breadcrumb**: `Dashboard > Transactions`
+* **Title**: "Giao dịch"
+
+#### 📊 Default Behavior:
+* **Time range**: 30 ngày gần nhất (mặc định cho cả 2 trường hợp)
+* **Account filter**:
+  * **Có accountId**: Auto-select account cụ thể
+  * **Không có accountId**: "Tất cả tài khoản" (All Accounts)
+* **Sorting**: `TransactionDate` giảm dần (mới nhất ở trên)
+
+#### 🎛 Filter Options:
+* **Account dropdown**:
+  * Option đầu tiên: "Tất cả tài khoản" (value = null/empty)
+  * Danh sách accounts của user (active accounts only)
+  * **Pre-selected** account nếu có accountId trong URL
+* **Transaction type**: `All` / `Revenue` / `Spent`
+* **Date range**: Custom date picker (default 30 ngày gần nhất)
 
 ### Cột hiển thị theo chế độ:
 
@@ -187,8 +211,83 @@ Hiển thị **tất cả các cột** bao gồm:
 * Khi nhấn các nút này:
   * Giao diện detail thêm transaction được mở ở **bên phải màn hình**
   * `Direction` được chọn sẵn nhưng vẫn có thể thay đổi
-  * Tài khoản được chọn sẵn theo dropdown account hiện tại trong danh sách
+  * **Account selection behavior**:
+    * **Nếu có account filter**: Pre-select account đó
+    * **Nếu "Tất cả tài khoản"**: Dropdown để trống, user phải chọn
   * `TransactionDate` mặc định là thời gian hiện tại
+
+### Account Dropdown UI/UX:
+
+#### Visual Design:
+```vue
+<!-- Account Dropdown Component -->
+<template>
+  <div class="account-filter-container">
+    <label class="filter-label">Tài khoản</label>
+    <select 
+      v-model="selectedAccountId" 
+      @change="onAccountChange"
+      class="account-dropdown"
+      :class="{
+        'all-accounts': selectedAccountId === null,
+        'specific-account': selectedAccountId !== null
+      }"
+    >
+      <option value="" class="all-accounts-option">
+        🏦 Tất cả tài khoản
+      </option>
+      <option 
+        v-for="account in userAccounts" 
+        :key="account.id"
+        :value="account.id"
+        class="account-option"
+      >
+        {{ getAccountIcon(account.type) }} {{ account.name }}
+        <span class="account-balance">
+          ({{ formatCurrency(account.currentBalance) }})
+        </span>
+      </option>
+    </select>
+    
+    <!-- Transaction count indicator -->
+    <div class="transaction-count-indicator">
+      {{ transactionCount }} giao dịch trong 30 ngày gần nhất
+    </div>
+  </div>
+</template>
+
+<style scoped>
+.account-dropdown.all-accounts {
+  @apply border-blue-300 bg-blue-50 text-blue-700 font-medium;
+}
+
+.account-dropdown.specific-account {
+  @apply border-green-300 bg-green-50 text-green-700 font-medium;
+}
+
+.transaction-count-indicator {
+  @apply text-sm text-gray-500 mt-1;
+}
+
+.account-balance {
+  @apply text-gray-400 font-normal;
+}
+</style>
+```
+
+#### Account Icons Mapping:
+```typescript
+function getAccountIcon(accountType: AccountType): string {
+  switch (accountType) {
+    case AccountType.Bank: return '🏦'
+    case AccountType.Wallet: return '👛'
+    case AccountType.CreditCard: return '💳'
+    case AccountType.DebitCard: return '💳'
+    case AccountType.Cash: return '💰'
+    default: return '📊'
+  }
+}
+```
 
 ### Tương tác với transaction trong danh sách:
 
@@ -273,3 +372,361 @@ Hiển thị **tất cả các cột** bao gồm:
 * Handle timezone conversion properly
 * Validate balance calculation logic
 * Graceful fallback when balance calculation fails
+
+### Navigation Integration:
+* Support URL parameters for account pre-selection: `/transactions?accountId=123&accountName=Techcombank`
+* Auto-select account trong dropdown khi có URL parameters
+* Load transactions filtered by selected account ngay lập tức
+* Display breadcrumb navigation khi đến từ Account page
+* Maintain navigation context để quay lại Account page với highlighting
+
+### Navigation Context Handling:
+```typescript
+// Component initialization logic
+onMounted(async () => {
+  const { accountId, accountName } = route.query
+  
+  if (accountId && accountName) {
+    // Case 1: From Account page - có URL parameters
+    await handleAccountNavigation(accountId, accountName)
+  } else {
+    // Case 2: From Menu - direct access
+    await handleDirectNavigation()
+  }
+})
+
+// Handle navigation from Account page
+async function handleAccountNavigation(accountId: string, accountName: string) {
+  // Set filter state
+  filterStore.setAccountFilter(accountId, accountName)
+  
+  // Setup breadcrumb
+  breadcrumbStore.setBreadcrumb([
+    { name: 'Dashboard', path: '/' },
+    { name: 'Accounts', path: '/accounts' },
+    { name: accountName, path: `/accounts?highlight=${accountId}` },
+    { name: 'Transactions', path: '' }
+  ])
+  
+  // Set page title
+  document.title = `Giao dịch - ${accountName}`
+  
+  // Load transactions for specific account (30 days)
+  await loadTransactions({
+    accountId: accountId,
+    dateFrom: subDays(new Date(), 30),
+    dateTo: new Date()
+  })
+}
+
+// Handle direct navigation from menu
+async function handleDirectNavigation() {
+  // Set default filter state
+  filterStore.setAccountFilter(null, 'Tất cả tài khoản')
+  
+  // Setup breadcrumb
+  breadcrumbStore.setBreadcrumb([
+    { name: 'Dashboard', path: '/' },
+    { name: 'Transactions', path: '' }
+  ])
+  
+  // Set page title
+  document.title = 'Giao dịch'
+  
+  // Load all transactions (30 days)
+  await loadTransactions({
+    accountId: null, // All accounts
+    dateFrom: subDays(new Date(), 30),
+    dateTo: new Date()
+  })
+}
+```
+
+### Error Handling & Validation:
+
+#### Navigation Validation:
+```typescript
+// Validate account access when coming from URL params
+async function validateAccountAccess(accountId: string): Promise<boolean> {
+  try {
+    const account = await $fetch(`/api/accounts/${accountId}`)
+    
+    // Check if account belongs to current user
+    if (!account || account.userId !== currentUser.id) {
+      console.warn(`Account ${accountId} not found or access denied`)
+      return false
+    }
+    
+    // Check if account is active
+    if (!account.isActive) {
+      console.warn(`Account ${accountId} is inactive`)
+      return false
+    }
+    
+    return true
+  } catch (error) {
+    console.error('Account validation failed:', error)
+    return false
+  }
+}
+
+// Handle invalid account ID in URL
+async function handleInvalidAccount(accountId: string) {
+  // Show error notification
+  notificationStore.addNotification({
+    type: 'warning',
+    title: 'Tài khoản không tồn tại',
+    message: 'Tài khoản được chọn không tồn tại hoặc đã bị xóa. Hiển thị tất cả giao dịch.',
+    duration: 5000
+  })
+  
+  // Fallback to show all transactions
+  await handleDirectNavigation()
+  
+  // Clean up URL
+  router.replace('/transactions')
+}
+```
+
+#### Loading States:
+```typescript
+const loadingState = reactive({
+  accounts: false,
+  transactions: false,
+  validation: false
+})
+
+// Show appropriate loading indicators
+const isLoading = computed(() => 
+  loadingState.accounts || loadingState.transactions || loadingState.validation
+)
+
+// Loading skeleton for different contexts
+const loadingMessage = computed(() => {
+  if (loadingState.validation) return 'Đang kiểm tra quyền truy cập...'
+  if (loadingState.accounts) return 'Đang tải danh sách tài khoản...'
+  if (loadingState.transactions) return 'Đang tải giao dịch...'
+  return 'Đang tải...'
+})
+```
+
+#### Edge Cases:
+```typescript
+// Handle edge cases in navigation
+async function handleNavigationEdgeCases() {
+  // Case 1: User has no accounts
+  if (accounts.value.length === 0) {
+    showEmptyAccountsState()
+    return
+  }
+  
+  // Case 2: Account ID exists but account is deleted/inactive
+  if (route.query.accountId) {
+    const isValid = await validateAccountAccess(route.query.accountId as string)
+    if (!isValid) {
+      await handleInvalidAccount(route.query.accountId as string)
+      return
+    }
+  }
+  
+  // Case 3: No transactions found
+  if (transactions.value.length === 0) {
+    showEmptyTransactionsState()
+  }
+}
+
+function showEmptyAccountsState() {
+  // Show empty state with "Create Account" CTA
+  emptyStateStore.setEmptyState({
+    type: 'no-accounts',
+    title: 'Chưa có tài khoản nào',
+    message: 'Tạo tài khoản đầu tiên để bắt đầu quản lý giao dịch',
+    actionLabel: 'Tạo tài khoản',
+    actionHandler: () => router.push('/accounts?action=create')
+  })
+}
+
+function showEmptyTransactionsState() {
+  const isFiltered = !!filterStore.selectedAccountId
+  
+  emptyStateStore.setEmptyState({
+    type: 'no-transactions',
+    title: isFiltered 
+      ? `Không có giao dịch cho ${filterStore.selectedAccountName}`
+      : 'Chưa có giao dịch nào',
+    message: 'Thêm giao dịch đầu tiên để bắt đầu theo dõi tài chính',
+    actionLabel: 'Thêm giao dịch',
+    actionHandler: () => openTransactionForm()
+  })
+}
+```
+
+---
+
+## 🔌 10. API Integration Patterns
+
+### Transaction Loading Logic:
+
+#### API Call for Account-Specific Transactions:
+```typescript
+// From Account page navigation
+async function loadAccountTransactions(accountId: string) {
+  const dateFrom = subDays(new Date(), 30) // 30 ngày gần nhất
+  const dateTo = new Date()
+  
+  const response = await $fetch('/api/core-finance/transaction', {
+    query: {
+      accountId: accountId,
+      dateFrom: dateFrom.toISOString(),
+      dateTo: dateTo.toISOString(),
+      sortBy: 'transactionDate',
+      sortOrder: 'desc',
+      pageSize: 50 // Pagination
+    }
+  })
+  
+  return response
+}
+```
+
+#### API Call for All Transactions:
+```typescript
+// From Menu direct access
+async function loadAllTransactions() {
+  const dateFrom = subDays(new Date(), 30) // 30 ngày gần nhất
+  const dateTo = new Date()
+  
+  const response = await $fetch('/api/core-finance/transaction', {
+    query: {
+      // accountId: null/undefined - load all accounts
+      dateFrom: dateFrom.toISOString(),
+      dateTo: dateTo.toISOString(),
+      sortBy: 'transactionDate',
+      sortOrder: 'desc',
+      pageSize: 50
+    }
+  })
+  
+  return response
+}
+```
+
+### Backend API Response Structure:
+
+#### Endpoint: GET /api/core-finance/transaction
+```csharp
+[HttpGet]
+public async Task<ActionResult<PaginatedResponse<TransactionDto>>> GetTransactions(
+    [FromQuery] TransactionFilterRequest request)
+{
+    // Default to last 30 days if no date range provided
+    if (!request.DateFrom.HasValue)
+        request.DateFrom = DateTime.Now.AddDays(-30);
+    
+    if (!request.DateTo.HasValue)
+        request.DateTo = DateTime.Now;
+    
+    var query = _context.Transactions
+        .Where(t => t.UserId == CurrentUserId)
+        .Where(t => t.TransactionDate >= request.DateFrom 
+                 && t.TransactionDate <= request.DateTo);
+    
+    // Filter by account if specified
+    if (!string.IsNullOrEmpty(request.AccountId))
+    {
+        query = query.Where(t => t.AccountId == Guid.Parse(request.AccountId));
+    }
+    
+    // Apply sorting
+    query = request.SortBy?.ToLower() switch
+    {
+        "transactiondate" => request.SortOrder?.ToLower() == "asc" 
+            ? query.OrderBy(t => t.TransactionDate)
+            : query.OrderByDescending(t => t.TransactionDate),
+        _ => query.OrderByDescending(t => t.TransactionDate)
+    };
+    
+    var totalCount = await query.CountAsync();
+    var transactions = await query
+        .Skip((request.Page - 1) * request.PageSize)
+        .Take(request.PageSize)
+        .Include(t => t.Account)
+        .Include(t => t.Category)
+        .Select(t => new TransactionDto
+        {
+            Id = t.Id,
+            AccountId = t.AccountId,
+            AccountName = t.Account.Name,
+            Amount = t.Amount,
+            Direction = t.Direction,
+            TransactionDate = t.TransactionDate,
+            Description = t.Description,
+            Balance = t.Balance,
+            CategoryName = t.Category.Name
+        })
+        .ToListAsync();
+    
+    return Ok(new PaginatedResponse<TransactionDto>
+    {
+        Data = transactions,
+        TotalCount = totalCount,
+        Page = request.Page,
+        PageSize = request.PageSize,
+        TotalPages = (int)Math.Ceiling((double)totalCount / request.PageSize)
+    });
+}
+```
+
+### Filter Request Model:
+```csharp
+public class TransactionFilterRequest
+{
+    public string? AccountId { get; set; }
+    public DateTime? DateFrom { get; set; }
+    public DateTime? DateTo { get; set; }
+    public string? Direction { get; set; } // "revenue", "spent", or null for all
+    public string SortBy { get; set; } = "transactionDate";
+    public string SortOrder { get; set; } = "desc";
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 50;
+}
+```
+
+### Performance Optimization:
+
+#### Caching Strategy:
+```typescript
+// Cache transaction data based on filter criteria
+const cacheKey = computed(() => {
+  const accountKey = selectedAccountId.value || 'all'
+  const dateKey = `${filterStore.dateFrom}_${filterStore.dateTo}`
+  return `transactions_${accountKey}_${dateKey}`
+})
+
+// Cache với expiry time
+const { data: transactions, refresh } = await useCachedAsyncData(
+  cacheKey.value,
+  () => loadTransactions(filterStore.currentFilter),
+  {
+    default: () => [],
+    expires: 5 * 60 * 1000 // 5 minutes cache
+  }
+)
+```
+
+#### Intelligent Loading:
+```typescript
+// Chỉ reload khi filter thay đổi thật sự
+watch(
+  () => filterStore.currentFilter,
+  async (newFilter, oldFilter) => {
+    // So sánh deep để tránh unnecessary API calls
+    if (!isEqual(newFilter, oldFilter)) {
+      await refresh()
+    }
+  },
+  { deep: true }
+)
+```
+
+---
