@@ -190,8 +190,8 @@ public class IdentityDbContext : DbContext
                 Description = "Nuxt.js web application client",
                 Type = OAuthClientType.Public,
                 Platform = ClientPlatform.Web,
-                RedirectUris = "http://localhost:3333/auth/callback,https://app.tihomo.vn/auth/callback",
-                PostLogoutRedirectUris = "http://localhost:3333,https://app.tihomo.vn",
+                RedirectUris = "http://localhost:3500/auth/callback,https://app.tihomo.vn/auth/callback",
+                PostLogoutRedirectUris = "http://localhost:3500,https://app.tihomo.vn",
                 AllowedScopes = "openid,profile,email,offline_access",
                 IsActive = true,
                 AccessTokenLifetime = 3600, // 1 hour

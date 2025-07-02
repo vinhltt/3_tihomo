@@ -31,7 +31,7 @@ Frontend-only Nuxt 3 application for CoreFinance Personal Finance Management sys
    ```
 
 4. **Access application**:
-   - Frontend: http://localhost:3333
+   - Frontend: http://localhost:3500
    - Backend API should be running on: https://localhost:7293
 
 ## Project Structure
@@ -166,7 +166,7 @@ interface ApiResponse<T> {
 
 ## Next Steps
 
-1. **CORS Configuration**: Ensure .NET API allows requests from localhost:3333
+1. **CORS Configuration**: Ensure .NET API allows requests from localhost:3500
 2. **Authentication**: Implement user authentication flow
 3. **Error Boundaries**: Add global error handling
 4. **Testing**: Add unit tests for composables and components
