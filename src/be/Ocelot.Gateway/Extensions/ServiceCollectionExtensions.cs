@@ -17,30 +17,47 @@ public static class HealthCheckExtensions
     public static IServiceCollection AddDownstreamHealthChecks(this IServiceCollection services,
         IConfiguration configuration)
     {
-        var healthChecksBuilder = services.AddHealthChecks(); // Add health check for Identity SSO service
+        var healthChecksBuilder = services.AddHealthChecks();
+        
+        // Get environment to determine host configuration
+        var environment = configuration["ASPNETCORE_ENVIRONMENT"] ?? "Development";
+        
+        // Configure health check URLs based on environment
+        // Use Docker service names for Docker environment, localhost for others
+        string identityUrl, coreFinanceUrl, excelUrl;
+        
+        if (environment.Equals("Docker", StringComparison.OrdinalIgnoreCase))
+        {
+            // Docker environment - use service names
+            identityUrl = "http://identity-api:8080/health";
+            coreFinanceUrl = "http://corefinance-api:8080/health";
+            excelUrl = "http://excel-api:8080/health";
+        }
+        else
+        {
+            // Local development - use localhost
+            identityUrl = "http://localhost:5001/health";
+            coreFinanceUrl = "http://localhost:5004/health";
+            excelUrl = "http://localhost:5005/health";
+        }
+        
+        // Add health check for Identity service
         healthChecksBuilder.AddTypeActivatedCheck<DownstreamServiceHealthCheck>(
-            "Identity.Sso",
-            ["Identity.Sso", "https://localhost:5001/health"]);
+            "Identity.Api",
+            ["Identity.Api", identityUrl]);
 
         // Add health check for Core Finance service
         healthChecksBuilder.AddTypeActivatedCheck<DownstreamServiceHealthCheck>(
             "CoreFinance.Api",
-            ["CoreFinance.Api", "https://localhost:5004/health"]);
+            ["CoreFinance.Api", coreFinanceUrl]);
 
-        // Add health check for Money Management service
+        // Add health check for Excel service
         healthChecksBuilder.AddTypeActivatedCheck<DownstreamServiceHealthCheck>(
-            "MoneyManagement.Api",
-            [
-                "MoneyManagement.Api", "https://localhost:5002/health"
-            ]); // Add health check for Planning Investment service
-        healthChecksBuilder.AddTypeActivatedCheck<DownstreamServiceHealthCheck>(
-            "PlanningInvestment.Api",
-            ["PlanningInvestment.Api", "https://localhost:5206/health"]);
+            "Excel.Api",
+            ["Excel.Api", excelUrl]);
 
-        // Add health check for Reporting service (when available)
-        healthChecksBuilder.AddTypeActivatedCheck<DownstreamServiceHealthCheck>(
-            "Reporting.Api",
-            ["Reporting.Api", "https://localhost:5004/health"]);
+        // Note: MoneyManagement and PlanningInvestment services are not yet dockerized
+        // They will be added when Docker support is implemented
 
         // Configure HttpClient for health checks
         services.AddHttpClient<DownstreamServiceHealthCheck>(client =>

@@ -80,7 +80,7 @@ export default defineNuxtConfig({
     },
 
     devServer: {
-        port: 3333, // Force Nuxt to run on port 3333 for consistency with OAuth configuration
+        port: process.env.FRONTEND_PORT ? parseInt(process.env.FRONTEND_PORT) : 3500, // Use FRONTEND_PORT env var or default to 3500
     },
 
     runtimeConfig: {
@@ -89,7 +89,7 @@ export default defineNuxtConfig({
         // Public keys (exposed to client-side)
         public: {
             apiBase: process.env.NUXT_PUBLIC_API_BASE || 'https://localhost:5000', // API Gateway port
-            appBase: process.env.NUXT_PUBLIC_APP_BASE || 'http://localhost:3333', // Frontend port
+            appBase: process.env.NUXT_PUBLIC_APP_BASE || process.env.FRONTEND_BASE_URL || 'http://localhost:3500', // Frontend base URL
             identityApiBase: process.env.NUXT_PUBLIC_IDENTITY_API_BASE || 'https://localhost:5228',
             googleClientId: process.env.NUXT_PUBLIC_GOOGLE_CLIENT_ID,
             facebookAppId: process.env.NUXT_PUBLIC_FACEBOOK_APP_ID,

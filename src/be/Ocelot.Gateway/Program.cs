@@ -145,7 +145,7 @@ try
             var path = context.Request.Path.Value?.ToLower();
             // Only use Ocelot for specific API paths that need to be proxied
             return path != null &&
-                   !path.StartsWith("/health") &&
+                   !path.Equals("/health") &&  // Exclude only the exact /health path, not paths that start with /health
                    !path.StartsWith("/swagger") &&
                    !path.StartsWith("/api/health") &&
                    (path.StartsWith("/identity") ||
@@ -156,7 +156,8 @@ try
                     path.StartsWith("/api/core-finance") ||
                     path.StartsWith("/api/money-management") ||
                     path.StartsWith("/api/planning-investment") ||
-                    path.StartsWith("/api/excel"));
+                    path.StartsWith("/api/excel") ||
+                    path.StartsWith("/health/"));  // Explicitly include health sub-paths for Ocelot routing
         },
         appBuilder => { appBuilder.UseOcelot().Wait(); });
 

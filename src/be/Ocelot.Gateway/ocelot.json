@@ -6,7 +6,7 @@
       "DownstreamHostAndPorts": [
         {
           "Host": "localhost",
-          "Port": "${IdentitySsoPort}"
+          "Port": "${IDENTITY_API_PORT}"
         }
       ],
       "UpstreamPathTemplate": "/identity/{everything}",
@@ -26,7 +26,7 @@
       "DownstreamHostAndPorts": [
         {
           "Host": "localhost",
-          "Port": "${IdentitySsoPort}"
+          "Port": "${IDENTITY_API_PORT}"
         }
       ],
       "UpstreamPathTemplate": "/api/users/{everything}",
@@ -50,7 +50,7 @@
       "DownstreamHostAndPorts": [
         {
           "Host": "localhost",
-          "Port": "${IdentitySsoPort}"
+          "Port": "${IDENTITY_API_PORT}"
         }
       ],
       "UpstreamPathTemplate": "/api/admin/{everything}",
@@ -75,7 +75,7 @@
       "DownstreamHostAndPorts": [
         {
           "Host": "localhost",
-          "Port": "${CoreFinanceApiPort}"
+          "Port": "${COREFINANCE_API_PORT}"
         }
       ],
       "UpstreamPathTemplate": "/api/core-finance/{everything}",
@@ -101,7 +101,7 @@
       "DownstreamHostAndPorts": [
         {
           "Host": "localhost",
-          "Port": "${MoneyManagementApiPort}"
+          "Port": "${MONEYMANAGEMENT_API_PORT}"
         }
       ],
       "UpstreamPathTemplate": "/api/money-management/{everything}",
@@ -126,7 +126,7 @@
       "DownstreamHostAndPorts": [
         {
           "Host": "localhost",
-          "Port": "${ExcelApiPort}"
+          "Port": "${EXCEL_API_PORT}"
         }
       ],
       "UpstreamPathTemplate": "/api/excel/{everything}",
@@ -152,7 +152,7 @@
       "DownstreamHostAndPorts": [
         {
           "Host": "localhost",
-          "Port": "${PlanningInvestmentApiPort}"
+          "Port": "${PLANNINGINVESTMENT_API_PORT}"
         }
       ],
       "UpstreamPathTemplate": "/api/planning-investment/{everything}",
@@ -172,10 +172,70 @@
         "PeriodTimespan": 60,
         "Limit": 200
       }
+    },
+    {
+      "DownstreamPathTemplate": "/health",
+      "DownstreamScheme": "https",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "localhost",
+          "Port": "${IDENTITY_API_PORT}"
+        }
+      ],
+      "UpstreamPathTemplate": "/identity/health",
+      "UpstreamHttpMethod": [ "GET" ]
+    },
+    {
+      "DownstreamPathTemplate": "/health",
+      "DownstreamScheme": "https",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "localhost",
+          "Port": "${COREFINANCE_API_PORT}"
+        }
+      ],
+      "UpstreamPathTemplate": "/health/core-finance",
+      "UpstreamHttpMethod": [ "GET" ]
+    },
+    {
+      "DownstreamPathTemplate": "/health",
+      "DownstreamScheme": "https",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "localhost",
+          "Port": "${EXCEL_API_PORT}"
+        }
+      ],
+      "UpstreamPathTemplate": "/health/excel",
+      "UpstreamHttpMethod": [ "GET" ]
+    },
+    {
+      "DownstreamPathTemplate": "/health",
+      "DownstreamScheme": "https",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "localhost",
+          "Port": "${MONEYMANAGEMENT_API_PORT}"
+        }
+      ],
+      "UpstreamPathTemplate": "/health/money-management",
+      "UpstreamHttpMethod": [ "GET" ]
+    },
+    {
+      "DownstreamPathTemplate": "/health",
+      "DownstreamScheme": "https",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "localhost",
+          "Port": "${PLANNINGINVESTMENT_API_PORT}"
+        }
+      ],
+      "UpstreamPathTemplate": "/health/planning-investment",
+      "UpstreamHttpMethod": [ "GET" ]
     }
   ],
   "GlobalConfiguration": {
-    "BaseUrl": "https://localhost:${GatewayPort}",
+    "BaseUrl": "https://localhost:${GATEWAY_PORT}",
     "RateLimitOptions": {
       "DisableRateLimitHeaders": false,
       "QuotaExceededMessage": "Rate limit exceeded. Please try again later.",
