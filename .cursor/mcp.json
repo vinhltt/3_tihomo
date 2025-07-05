@@ -21,7 +21,7 @@
         "openmemory@latest"
       ],
       "env": {
-        "OPENMEMORY_API_KEY": "om-rwm0dcj32k4v9pb4dqecn4w4o14wo7dh",
+        "OPENMEMORY_API_KEY": "",
         "USER_ID": "VinhLTT"
       },
       "disabled": false
