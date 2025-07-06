@@ -1,204 +1,498 @@
 # System Architecture Flowcharts v4
 
 ## Overview
-This document contains the detailed flowcharts for TiHoMo (Tiny House Money) personal finance management system architecture version 4.
+This document contains the detailed flowcharts for TiHoMo (Tiny House Money) personal finance management system architecture version 4. **Enhanced with API Key Management** for comprehensive third-party integration support.
 
-## 1. High-Level System Architecture
+## 1. Enhanced High-Level System Architecture
 
 ```mermaid
 graph TB
-    UI[Frontend - Nuxt.js] --> GW[API Gateway - Ocelot]
+    subgraph Client Layer
+        WEB[Web Frontend - Nuxt.js]
+        MOBILE[Mobile Apps - Native]
+        THIRD[Third-party Applications]
+        AUTO[Automation Scripts]
+        DEV[Developer Tools]
+    end
     
-    GW --> ID[Identity Service]
-    GW --> CF[CoreFinance Service]
-    GW --> MM[MoneyManagement Service]
-    GW --> PI[PlanningInvestment Service]
-    GW --> RI[ReportingIntegration Service]
-    GW --> EA[ExcelApi Service]
+    subgraph API Gateway Layer
+        GW[Enhanced API Gateway - Ocelot]
+        AUTH_MW[API Key Auth Middleware]
+        RATE_LIM[Rate Limiting Service]
+        IP_WHITE[IP Whitelisting Service]
+    end
     
-    ID --> IDB[(Identity DB)]
-    CF --> CFDB[(CoreFinance DB)]
-    MM --> MMDB[(MoneyManagement DB)]
-    PI --> PIDB[(PlanningInvestment DB)]
-    RI --> RIDB[(Reporting DB)]
+    subgraph Microservices Layer
+        ID[Identity Service + API Key Mgmt]
+        CF[CoreFinance Service]
+        MM[MoneyManagement Service]
+        PI[PlanningInvestment Service]
+        RI[ReportingIntegration Service]
+        EA[ExcelApi Service]
+        WEBHOOK[Webhook Service]
+    end
     
-    CF --> MQ[RabbitMQ]
+    subgraph Data Layer
+        IDB[(Identity + API Keys DB)]
+        CFDB[(CoreFinance DB)]
+        MMDB[(MoneyManagement DB)]
+        PIDB[(PlanningInvestment DB)]
+        RIDB[(Reporting DB)]
+    end
+    
+    subgraph Infrastructure Layer
+        MQ[RabbitMQ Message Queue]
+        REDIS[Redis Cache + Rate Limiting]
+        STORAGE[MinIO File Storage]
+    end
+    
+    subgraph Monitoring Layer
+        LOG[Loki Logging + API Metrics]
+        PROM[Prometheus Metrics]
+        GRAF[Grafana Dashboard]
+    end
+    
+    %% Client connections
+    WEB --> GW
+    MOBILE --> GW
+    THIRD --> GW
+    AUTO --> GW
+    DEV --> GW
+    
+    %% API Gateway flow
+    GW --> AUTH_MW
+    AUTH_MW --> RATE_LIM
+    RATE_LIM --> IP_WHITE
+    IP_WHITE --> ID
+    IP_WHITE --> CF
+    IP_WHITE --> MM
+    IP_WHITE --> PI
+    IP_WHITE --> RI
+    IP_WHITE --> EA
+    
+    %% API Key Management
+    AUTH_MW --> ID
+    RATE_LIM --> REDIS
+    
+    %% Database connections
+    ID --> IDB
+    CF --> CFDB
+    MM --> MMDB
+    PI --> PIDB
+    RI --> RIDB
+    
+    %% Infrastructure connections
+    CF --> MQ
     MM --> MQ
     PI --> MQ
     RI --> MQ
     EA --> MQ
+    WEBHOOK --> MQ
     
-    MQ --> LOG[Loki Logging]
-    CF --> PROM[Prometheus Metrics]
+    ID --> REDIS
+    CF --> REDIS
+    EA --> STORAGE
+    
+    %% Monitoring connections
+    GW --> LOG
+    ID --> LOG
+    CF --> LOG
+    MM --> LOG
+    PI --> LOG
+    RI --> LOG
+    
+    GW --> PROM
+    ID --> PROM
+    CF --> PROM
     MM --> PROM
     PI --> PROM
     RI --> PROM
     
-    PROM --> GRAF[Grafana Dashboard]
     LOG --> GRAF
+    PROM --> GRAF
 ```
 
-## 2. Authentication & Authorization Flow
+## 2. Enhanced Authentication & Authorization Flow
 
 ```mermaid
 sequenceDiagram
-    participant U as User
-    participant FE as Frontend
-    participant GW as API Gateway
-    participant ID as Identity Service
-    participant S as Services
+    participant Client as Client App
+    participant Gateway as API Gateway
+    participant AuthMW as Auth Middleware
+    participant ApiKeySvc as API Key Service
+    participant Redis as Redis Cache
+    participant TargetSvc as Target Service
+    participant AuditSvc as Audit Service
     
-    U->>FE: Login Request
-    FE->>GW: Auth Request
-    GW->>ID: Validate Credentials
-    ID->>ID: Check User & Password
-    ID->>GW: JWT Token
-    GW->>FE: JWT Token
-    FE->>U: Login Success
+    Note over Client,AuditSvc: API Key Authentication Flow
     
-    U->>FE: API Request
-    FE->>GW: Request + JWT
-    GW->>GW: Validate JWT
-    GW->>S: Forward Request
-    S->>GW: Response
-    GW->>FE: Response
-    FE->>U: Display Data
+    Client->>Gateway: API Request + X-API-Key Header
+    Gateway->>AuthMW: Validate Request
+    
+    %% Rate Limiting Check
+    AuthMW->>Redis: Check Rate Limit (Key Hash)
+    Redis-->>AuthMW: Rate Limit Status
+    
+    alt Rate Limit Exceeded
+        AuthMW-->>Gateway: 429 Too Many Requests
+        Gateway-->>Client: 429 + Rate Limit Headers
+    else Rate Limit OK
+        %% API Key Validation
+        AuthMW->>ApiKeySvc: Validate API Key
+        ApiKeySvc->>ApiKeySvc: Hash Incoming Key
+        ApiKeySvc->>ApiKeySvc: Lookup in Database
+        ApiKeySvc->>ApiKeySvc: Check Expiration
+        ApiKeySvc->>ApiKeySvc: Verify IP Whitelist
+        ApiKeySvc->>ApiKeySvc: Validate Scopes
+        
+        alt API Key Invalid
+            ApiKeySvc-->>AuthMW: Validation Failed
+            AuthMW->>AuditSvc: Log Security Event (Async)
+            AuthMW-->>Gateway: 401 Unauthorized
+            Gateway-->>Client: 401 Unauthorized
+        else API Key Valid
+            ApiKeySvc-->>AuthMW: Validation Success + User Context
+            AuthMW->>TargetSvc: Forward Request + User Context
+            TargetSvc->>TargetSvc: Process Business Logic
+            TargetSvc-->>AuthMW: Service Response
+            
+            %% Usage Logging
+            AuthMW->>ApiKeySvc: Log Usage (Async)
+            AuthMW->>Redis: Update Rate Limit Counter
+            
+            AuthMW-->>Gateway: Response + API Headers
+            Gateway-->>Client: Success Response
+        end
+    end
 ```
 
-## 3. Account Management Flow
+## 3. API Key Management Lifecycle Flow
 
 ```mermaid
 flowchart TD
-    A[User Creates Account] --> B{Account Type?}
-    B -->|Savings| C[Create Savings Account]
-    B -->|Checking| D[Create Checking Account]
-    B -->|Investment| E[Create Investment Account]
-    B -->|Credit| F[Create Credit Account]
+    A[User Request API Key] --> B[API Key Creation Form]
+    B --> C{Validation OK?}
+    C -->|No| D[Show Validation Errors]
+    D --> B
+    C -->|Yes| E[Generate Secure Key]
     
-    C --> G[Store in CoreFinance DB]
-    D --> G
-    E --> H[Store in PlanningInvestment DB]
-    F --> G
+    E --> F[Hash Key SHA-256]
+    F --> G[Store Hashed Key + Metadata]
+    G --> H[Cache Key Info in Redis]
+    H --> I[Return Full Key - One Time Only]
     
-    G --> I[Publish Account Created Event]
-    H --> I
-    I --> J[RabbitMQ Message Queue]
-    J --> K[Update MoneyManagement Cache]
-    J --> L[Log to Loki]
-    J --> M[Update Metrics in Prometheus]
+    I --> J[User Configures Security Settings]
+    J --> K[Set Scopes & Permissions]
+    K --> L[Configure Rate Limits]
+    L --> M[Set IP Whitelist]
+    M --> N[Enable/Disable HTTPS Requirement]
+    
+    N --> O[API Key Active & Ready]
+    O --> P[Monitor Usage & Security]
+    
+    P --> Q{Security Issue?}
+    Q -->|Yes| R[Alert & Potential Auto-Disable]
+    Q -->|No| S[Continue Monitoring]
+    
+    R --> T[User Reviews Security Alert]
+    S --> U{User Action?}
+    
+    U -->|Regenerate| V[Generate New Key]
+    U -->|Update Settings| W[Modify Configuration]
+    U -->|Revoke| X[Disable Key]
+    U -->|View Analytics| Y[Display Usage Stats]
+    
+    V --> F
+    W --> J
+    X --> Z[Key Revoked - Audit Log]
+    Y --> S
+    
+    T --> AA{Resolve Issue?}
+    AA -->|Yes| BB[Re-enable Key]
+    AA -->|No| X
+    BB --> S
 ```
 
-## 4. Transaction Processing Flow
+## 4. Enhanced Transaction Processing with API Key Support
 
 ```mermaid
 flowchart TD
     A[Transaction Input] --> B{Input Source?}
-    B -->|Manual Entry| C[Frontend Form]
-    B -->|Excel Import| D[ExcelApi Service]
-    B -->|Recurring| E[Scheduled Job]
+    B -->|Web UI| C[Frontend Form + JWT]
+    B -->|Mobile App| D[Native App + API Key]
+    B -->|Third-party| E[External App + API Key]
+    B -->|Excel Import| F[ExcelApi Service + API Key]
+    B -->|Recurring| G[Scheduled Job + Internal Auth]
     
-    C --> F[Validate Transaction Data]
-    D --> F
-    E --> F
+    C --> H[Validate User Session]
+    D --> I[Validate API Key + Mobile Scope]
+    E --> J[Validate API Key + Transaction Scope]
+    F --> K[Validate API Key + Import Scope]
+    G --> L[Internal Service Auth]
     
-    F --> G{Validation OK?}
-    G -->|No| H[Return Error]
-    G -->|Yes| I[Store Transaction]
+    H --> M[Check User Permissions]
+    I --> N[Check API Key Scopes]
+    J --> N
+    K --> N
+    L --> M
     
-    I --> J{Account Type?}
-    J -->|Regular| K[CoreFinance DB]
-    J -->|Investment| L[PlanningInvestment DB]
-    
-    K --> M[Update Account Balance]
-    L --> N[Update Investment Portfolio]
-    
-    M --> O[Publish Transaction Event]
+    M --> O{Authorization OK?}
     N --> O
+    O -->|No| P[Return 403 Forbidden]
+    O -->|Yes| Q[Validate Transaction Data]
     
-    O --> P[RabbitMQ Queue]
-    P --> Q[Update MoneyManagement Summary]
-    P --> R[Generate Notifications]
-    P --> S[Log Transaction]
-    P --> T[Update Metrics]
+    Q --> R{Validation OK?}
+    R -->|No| S[Return Validation Errors]
+    R -->|Yes| T[Determine Account Type]
+    
+    T --> U{Account Type?}
+    U -->|Regular| V[Store in CoreFinance DB]
+    U -->|Investment| W[Store in PlanningInvestment DB]
+    
+    V --> X[Update Account Balance]
+    W --> Y[Update Investment Portfolio]
+    
+    X --> Z[Publish Transaction Event]
+    Y --> Z
+    
+    Z --> AA[RabbitMQ Message Queue]
+    AA --> BB[Update MoneyManagement Summary]
+    AA --> CC[Trigger Notifications]
+    AA --> DD[Log Transaction Activity]
+    AA --> EE[Update API Usage Metrics]
+    AA --> FF[Webhook Notifications]
+    
+    %% API Key specific logging
+    I --> GG[Log API Key Usage]
+    J --> GG
+    K --> GG
+    GG --> HH[Update Rate Limit Counters]
+    GG --> II[Security Monitoring]
 ```
 
-## 5. Excel Import Processing Flow
-
-```mermaid
-sequenceDiagram
-    participant U as User
-    participant FE as Frontend
-    participant EA as ExcelApi
-    participant MQ as RabbitMQ
-    participant CF as CoreFinance
-    participant MM as MoneyManagement
-    
-    U->>FE: Upload Excel File
-    FE->>EA: POST /excel/upload
-    EA->>EA: Parse Excel File
-    EA->>EA: Validate Data Format
-    
-    loop For Each Transaction
-        EA->>MQ: Publish Transaction Message
-        MQ->>CF: Process Transaction
-        CF->>CF: Store Transaction
-        CF->>MQ: Publish Processed Event
-        MQ->>MM: Update Summary
-    end
-    
-    EA->>FE: Import Summary
-    FE->>U: Display Results
-```
-
-## 6. Reporting & Analytics Flow
+## 5. API Key Security & Monitoring Flow
 
 ```mermaid
 flowchart LR
-    A[Data Sources] --> B[ReportingIntegration Service]
+    subgraph API Key Security
+        A[API Request] --> B[Extract API Key]
+        B --> C[Hash Key SHA-256]
+        C --> D[Database Lookup]
+        D --> E{Key Exists?}
+        E -->|No| F[Log Security Event]
+        E -->|Yes| G[Check Key Status]
+        G --> H{Active?}
+        H -->|No| F
+        H -->|Yes| I[Validate IP Address]
+        I --> J{IP Allowed?}
+        J -->|No| F
+        J -->|Yes| K[Check Rate Limits]
+        K --> L{Within Limits?}
+        L -->|No| M[Return 429 Rate Limited]
+        L -->|Yes| N[Validate Scopes]
+        N --> O{Scope Match?}
+        O -->|No| P[Return 403 Forbidden]
+        O -->|Yes| Q[Allow Request]
+    end
     
-    subgraph A [Data Sources]
+    subgraph Monitoring & Analytics
+        F --> R[Security Alert System]
+        M --> S[Rate Limit Monitoring]
+        P --> T[Authorization Monitoring]
+        Q --> U[Usage Analytics]
+        
+        R --> V[Real-time Alerts]
+        S --> W[Rate Limit Dashboard]
+        T --> X[Security Dashboard]
+        U --> Y[Usage Dashboard]
+        
+        V --> Z[Admin Notifications]
+        W --> AA[Performance Metrics]
+        X --> BB[Security Metrics]
+        Y --> CC[Business Metrics]
+    end
+    
+    subgraph Audit & Compliance
+        F --> DD[Audit Log]
+        M --> DD
+        P --> DD
+        Q --> DD
+        
+        DD --> EE[Immutable Log Storage]
+        EE --> FF[Compliance Reporting]
+        EE --> GG[Security Analysis]
+        EE --> HH[Forensic Investigation]
+    end
+```
+
+## 6. Enhanced Excel Import Processing with API Key Authentication
+
+```mermaid
+sequenceDiagram
+    participant Client as API Client/Web UI
+    participant Gateway as API Gateway
+    participant AuthMW as Auth Middleware
+    participant EA as ExcelApi Service
+    participant Storage as MinIO Storage
+    participant MQ as RabbitMQ
+    participant CF as CoreFinance Service
+    participant MM as MoneyManagement Service
+    participant Webhook as Webhook Service
+    participant ApiKey as API Key Service
+    
+    Note over Client,ApiKey: Enhanced Excel Import with API Key Support
+    
+    Client->>Gateway: POST /excel/upload + File + API Key
+    Gateway->>AuthMW: Validate API Key
+    AuthMW->>ApiKey: Check Key + Import Scope
+    ApiKey-->>AuthMW: Validation Success
+    AuthMW->>EA: Forward Upload Request
+    
+    EA->>EA: Validate File Format
+    EA->>Storage: Store File Temporarily
+    EA->>EA: Parse Excel Structure
+    EA->>EA: Validate Data Schema
+    
+    alt Validation Success
+        EA->>MQ: Publish Import Job Started
+        EA-->>Gateway: Return Job ID + Status
+        Gateway-->>Client: 202 Accepted + Job ID
+        
+        loop For Each Valid Transaction
+            EA->>MQ: Publish Transaction Message
+            MQ->>CF: Process Transaction
+            CF->>CF: Store Transaction
+            CF->>MQ: Publish Transaction Created
+            MQ->>MM: Update Budget Impact
+        end
+        
+        EA->>MQ: Publish Import Job Completed
+        MQ->>Webhook: Trigger Completion Webhook
+        
+        alt Client Has Webhook URL
+            Webhook->>Client: POST Completion Notification
+        end
+        
+        %% API Key Usage Logging
+        AuthMW->>ApiKey: Log Import Usage
+        CF->>ApiKey: Log Transaction API Usage
+        
+    else Validation Failed
+        EA-->>Gateway: 400 Bad Request + Errors
+        Gateway-->>Client: 400 Bad Request
+        AuthMW->>ApiKey: Log Failed Request
+    end
+```
+
+## 7. Comprehensive Reporting & Analytics with API Access
+
+```mermaid
+flowchart TB
+    subgraph Data Sources
         A1[CoreFinance DB]
         A2[MoneyManagement DB]
         A3[PlanningInvestment DB]
+        A4[API Usage Logs]
+        A5[Security Audit Logs]
     end
     
-    B --> C[Data Aggregation]
-    C --> D[Report Generation]
-    D --> E{Report Type?}
+    subgraph ReportingIntegration Service
+        B[Data Aggregation Engine]
+        B --> C[Financial Report Generator]
+        B --> D[API Usage Analytics]
+        B --> E[Security Report Generator]
+        B --> F[Custom Report Builder]
+    end
     
-    E -->|Financial Summary| F[Monthly/Annual Reports]
-    E -->|Investment Analysis| G[Portfolio Performance]
-    E -->|Budget Analysis| H[Spending Categories]
-    E -->|Custom Reports| I[User-Defined Reports]
+    subgraph Report Types
+        C --> G[Monthly Financial Summary]
+        C --> H[Investment Performance]
+        C --> I[Budget vs Actual Analysis]
+        C --> J[Cash Flow Projections]
+        
+        D --> K[API Usage Statistics]
+        D --> L[Rate Limiting Analysis]
+        D --> M[Third-party Integration Metrics]
+        
+        E --> N[Security Incident Reports]
+        E --> O[API Key Audit Reports]
+        E --> P[Compliance Reports]
+        
+        F --> Q[User-defined Reports]
+    end
     
-    F --> J[Store in Reporting DB]
-    G --> J
-    H --> J
-    I --> J
+    subgraph API Access Layer
+        G --> R[Financial Reports API]
+        H --> R
+        I --> R
+        J --> R
+        
+        K --> S[Analytics API]
+        L --> S
+        M --> S
+        
+        N --> T[Security API]
+        O --> T
+        P --> T
+        
+        Q --> U[Custom Reports API]
+    end
     
-    J --> K[Cache Results]
-    K --> L[API Response]
-    L --> M[Frontend Display]
+    subgraph Client Access
+        R --> V[Web Dashboard]
+        R --> W[Mobile Apps]
+        R --> X[Third-party Tools]
+        
+        S --> Y[Admin Dashboard]
+        S --> Z[Monitoring Tools]
+        
+        T --> AA[Security Dashboard]
+        T --> BB[Compliance Tools]
+        
+        U --> CC[Business Intelligence]
+        U --> DD[Custom Integrations]
+    end
+    
+    %% Data flow
+    A1 --> B
+    A2 --> B
+    A3 --> B
+    A4 --> B
+    A5 --> B
+    
+    %% Caching layer
+    B --> EE[Redis Cache]
+    EE --> R
+    EE --> S
+    EE --> T
+    EE --> U
 ```
 
-## 7. Message Queue Event Flow
+## 8. Enhanced Message Queue Event Flow with API Key Events
 
 ```mermaid
 graph TD
-    subgraph Publishers
-        CF[CoreFinance]
-        MM[MoneyManagement]
-        PI[PlanningInvestment]
-        RI[ReportingIntegration]
-        EA[ExcelApi]
+    subgraph Event Publishers
+        CF[CoreFinance Service]
+        MM[MoneyManagement Service]
+        PI[PlanningInvestment Service]
+        RI[ReportingIntegration Service]
+        EA[ExcelApi Service]
+        ID[Identity Service - API Keys]
+        WEBHOOK[Webhook Service]
     end
     
-    subgraph RabbitMQ
+    subgraph RabbitMQ Exchange System
         EX1[Account Exchange]
         EX2[Transaction Exchange]
         EX3[Investment Exchange]
         EX4[Notification Exchange]
-        
+        EX5[API Key Exchange - NEW]
+        EX6[Security Exchange - NEW]
+        EX7[Webhook Exchange - NEW]
+    end
+    
+    subgraph Message Queues
         Q1[Account.Created Queue]
         Q2[Account.Updated Queue]
         Q3[Transaction.Created Queue]
@@ -206,20 +500,32 @@ graph TD
         Q5[Investment.Updated Queue]
         Q6[Notification.Email Queue]
         Q7[Notification.SMS Queue]
+        Q8[ApiKey.Created Queue - NEW]
+        Q9[ApiKey.Used Queue - NEW]
+        Q10[Security.Alert Queue - NEW]
+        Q11[Webhook.Trigger Queue - NEW]
     end
     
-    subgraph Consumers
+    subgraph Event Consumers
         MM2[MoneyManagement Consumer]
         RI2[Reporting Consumer]
         NS[Notification Service]
         LS[Logging Service]
+        AS[Analytics Service - NEW]
+        SS[Security Service - NEW]
+        WS[Webhook Service - NEW]
     end
     
+    %% Publishers to Exchanges
     CF --> EX1
     CF --> EX2
     PI --> EX3
     EA --> EX2
+    ID --> EX5
+    ID --> EX6
+    WEBHOOK --> EX7
     
+    %% Exchanges to Queues
     EX1 --> Q1
     EX1 --> Q2
     EX2 --> Q3
@@ -227,7 +533,12 @@ graph TD
     EX3 --> Q5
     EX4 --> Q6
     EX4 --> Q7
+    EX5 --> Q8
+    EX5 --> Q9
+    EX6 --> Q10
+    EX7 --> Q11
     
+    %% Queues to Consumers
     Q1 --> MM2
     Q2 --> MM2
     Q3 --> MM2
@@ -236,114 +547,173 @@ graph TD
     Q5 --> RI2
     Q6 --> NS
     Q7 --> NS
+    Q8 --> AS
+    Q9 --> AS
+    Q9 --> LS
+    Q10 --> SS
+    Q10 --> NS
+    Q11 --> WS
+    
+    %% New API Key specific flows
+    Q8 --> LS
+    Q9 --> SS
+    Q10 --> LS
+    Q11 --> LS
 ```
 
-## 8. Monitoring & Observability Flow
+## 9. Enhanced Monitoring & Observability with API Key Metrics
 
 ```mermaid
 flowchart TB
-    subgraph Services
-        S1[CoreFinance]
-        S2[MoneyManagement]
-        S3[PlanningInvestment]
-        S4[ReportingIntegration]
-        S5[ExcelApi]
-        S6[Identity]
-        S7[API Gateway]
+    subgraph Service Metrics
+        S1[CoreFinance + API Metrics]
+        S2[MoneyManagement + API Metrics]
+        S3[PlanningInvestment + API Metrics]
+        S4[ReportingIntegration + API Metrics]
+        S5[ExcelApi + API Metrics]
+        S6[Identity + API Key Metrics]
+        S7[Enhanced API Gateway]
     end
     
-    subgraph Logging
-        S1 --> L[Loki]
+    subgraph API Key Specific Metrics
+        AK1[API Key Usage Counters]
+        AK2[Rate Limiting Metrics]
+        AK3[Security Event Counters]
+        AK4[Authentication Success/Failure Rates]
+        AK5[Scope Validation Metrics]
+        AK6[IP Whitelisting Metrics]
+    end
+    
+    subgraph Logging Infrastructure
+        S1 --> L[Enhanced Loki]
         S2 --> L
         S3 --> L
         S4 --> L
         S5 --> L
         S6 --> L
         S7 --> L
+        
+        AK1 --> L
+        AK2 --> L
+        AK3 --> L
+        AK4 --> L
+        AK5 --> L
+        AK6 --> L
     end
     
-    subgraph Metrics
-        S1 --> P[Prometheus]
+    subgraph Metrics Collection
+        S1 --> P[Enhanced Prometheus]
         S2 --> P
         S3 --> P
         S4 --> P
         S5 --> P
         S6 --> P
         S7 --> P
+        
+        AK1 --> P
+        AK2 --> P
+        AK3 --> P
+        AK4 --> P
+        AK5 --> P
+        AK6 --> P
     end
     
-    subgraph Visualization
-        L --> G[Grafana]
+    subgraph Visualization & Alerting
+        L --> G[Enhanced Grafana]
         P --> G
-    end
-    
-    subgraph Alerting
+        
         G --> A1[Performance Alerts]
         G --> A2[Error Rate Alerts]
         G --> A3[Business Metric Alerts]
+        G --> A4[API Key Security Alerts - NEW]
+        G --> A5[Rate Limiting Alerts - NEW]
+        G --> A6[Third-party Integration Alerts - NEW]
+    end
+    
+    subgraph Dashboards
+        G --> D1[System Performance Dashboard]
+        G --> D2[Business Metrics Dashboard]
+        G --> D3[API Usage Dashboard - NEW]
+        G --> D4[Security Monitoring Dashboard - NEW]
+        G --> D5[Third-party Integration Dashboard - NEW]
+        G --> D6[Developer Analytics Dashboard - NEW]
     end
 ```
 
-## 9. Development & Deployment Flow
+## 10. API Key Integration Security Architecture
 
 ```mermaid
 flowchart LR
-    A[Developer] --> B[Git Commit]
-    B --> C[GitHub Actions]
-    C --> D{Tests Pass?}
-    D -->|No| E[Build Failed]
-    D -->|Yes| F[Build Docker Images]
-    F --> G[Push to Registry]
-    G --> H[Deploy to Environment]
-    
-    subgraph Environments
-        H1[Development]
-        H2[Staging]
-        H3[Production]
+    subgraph Security Layers
+        A[Request Ingress] --> B[HTTPS Termination]
+        B --> C[Rate Limiting]
+        C --> D[API Key Validation]
+        D --> E[IP Whitelisting]
+        E --> F[Scope Authorization]
+        F --> G[Request Processing]
     end
     
-    H --> H1
-    H1 --> I{Manual Approval?}
-    I -->|Yes| H2
-    H2 --> J{Manual Approval?}
-    J -->|Yes| H3
+    subgraph Security Services
+        H[Key Generation Service]
+        I[Hash Validation Service]
+        J[Rate Limit Service]
+        K[IP Validation Service]
+        L[Scope Validation Service]
+        M[Audit Logging Service]
+        N[Security Monitoring Service]
+    end
     
-    H1 --> K[Run Integration Tests]
-    H2 --> L[Run E2E Tests]
-    H3 --> M[Monitor Production]
-```
-
-## 10. Data Synchronization Flow
-
-```mermaid
-sequenceDiagram
-    participant CF as CoreFinance
-    participant MQ as RabbitMQ
-    participant MM as MoneyManagement
-    participant RI as ReportingIntegration
-    participant Cache as Redis Cache
+    subgraph Security Storage
+        O[Hashed Keys Database]
+        P[Security Settings Database]
+        Q[Rate Limit Cache]
+        R[Audit Log Storage]
+        S[Security Event Storage]
+    end
     
-    CF->>MQ: Account Balance Updated
-    MQ->>MM: Process Balance Update
-    MM->>MM: Update Summary Tables
-    MM->>Cache: Invalidate Cache
+    subgraph Security Monitoring
+        T[Real-time Alerts]
+        U[Anomaly Detection]
+        V[Threat Intelligence]
+        W[Compliance Reporting]
+        X[Forensic Analysis]
+    end
     
-    CF->>MQ: Transaction Created
-    MQ->>MM: Process Transaction
-    MM->>MM: Update Categories Summary
-    MQ->>RI: Process for Reporting
-    RI->>RI: Update Aggregated Data
+    %% Security flow connections
+    D --> I
+    C --> J
+    E --> K
+    F --> L
+    G --> M
     
-    MM->>Cache: Store Updated Summary
-    RI->>Cache: Store Report Cache
+    I --> O
+    J --> Q
+    K --> P
+    L --> P
+    M --> R
+    
+    %% Monitoring connections
+    M --> N
+    N --> T
+    N --> U
+    N --> V
+    N --> W
+    N --> X
+    
+    %% Storage connections
+    N --> S
+    R --> W
+    S --> X
 ```
 
 ## Notes
 
-- All services communicate through the API Gateway for external requests
-- Internal service communication happens via RabbitMQ message queues
-- Each service has its own database following microservices principles
-- Monitoring is implemented using Prometheus for metrics and Loki for logs
-- Grafana provides unified dashboards for observability
-- Redis is used for caching frequently accessed data
-- All flows include proper error handling and retry mechanisms
+- **Enhanced Authentication**: Dual authentication strategy with JWT tokens for web users and API keys for third-party integrations
+- **Comprehensive Security**: Multi-layer security with rate limiting, IP whitelisting, scope-based authorization, and comprehensive audit logging
+- **API-First Architecture**: All services designed with API access in mind, supporting web, mobile, and third-party integrations
+- **Real-time Monitoring**: Enhanced monitoring with API-specific metrics, security event tracking, and comprehensive alerting
+- **Developer Experience**: Complete developer portal with documentation, testing tools, and analytics
+- **Scalable Design**: Redis-based caching and rate limiting for high-performance API key validation
+- **Compliance Ready**: Comprehensive audit logging and compliance reporting for financial data protection regulations
+
+*Updated: December 28, 2024 - Enhanced with comprehensive API Key Management architecture*
