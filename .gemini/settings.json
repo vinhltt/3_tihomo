@@ -15,8 +15,16 @@
       ],
       "env": {}
     },
-    "mem0": {
-      "url": "http://0.0.0.0:8080/sse"
+    "openmemory-mcp": {
+      "command": "npx",
+      "args": [
+        "openmemory@latest"
+      ],
+      "env": {
+        "OPENMEMORY_API_KEY": "om-rwm0dcj32k4v9pb4dqecn4w4o14wo7dh",
+        "USER_ID": "VinhLTT"
+      },
+      "disabled": false
     }
   }
 }

@@ -118,7 +118,7 @@ export const useFacebookAuth = () => {
     console.log('🔐 Authenticating with API via Gateway (Facebook token)')
     
     // Call through API Gateway instead of direct service call
-    const response = await $fetch<SocialLoginResponse>('/api/auth/social-login', {
+    const response = await $fetch<SocialLoginResponse>('/api/identity/auth/social-login', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'

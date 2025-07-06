@@ -145,7 +145,7 @@ export const useGoogleAuth = () => {
     })
     
     try {      // Call through API Gateway instead of direct service call
-      const response = await $fetch<SocialLoginResponse>('/identity/auth/social-login', {
+      const response = await $fetch<SocialLoginResponse>('/api/identity/auth/social-login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

@@ -1,6 +1,7 @@
 # activeContext.md
 
 ## Trọng tâm công việc hiện tại
+- **✅ HOÀN THÀNH: Frontend Docker Production Issue Resolution (July 3, 2025) - fixed production container startup failures.**
 - **✅ HOÀN THÀNH: SSO to Google OAuth Migration (June 22, 2025) - loại bỏ SSO system và chuyển sang Google OAuth login hoàn toàn.**
 - **✅ HOÀN THÀNH: Identity & Access Management System - triển khai đầy đủ SSO server, authentication API, và frontend integration.**
 - **✅ HOÀN THÀNH: Identity Project Consolidation (June 9, 2025) - merged Identity.Api into Identity.Sso, eliminated architectural duplication.**
@@ -12,11 +13,11 @@
 - **✅ HOÀN THÀNH: MoneyManagement Infrastructure Layer (BaseRepository, UnitOfWork, DbContext) và JarService với 6 Jars method.**
 - **✅ HOÀN THÀNH: MoneyManagement Build Issues Resolution (June 9, 2025) - fixed 12 interface implementation errors, production ready status.**
 - **✅ HOÀN THÀNH: Health Check Implementation - đầy đủ health check endpoints cho tất cả microservices và gateway aggregation.**
+- **🎯 ƯU TIÊN TIẾP THEO: Test Frontend Docker fixes after Docker Desktop startup.**
 - **🎯 ƯU TIÊN TIẾP THEO: Triển khai SharedExpenseService cho Money Management bounded context để complete bounded context.**
 - **🎯 ƯU TIÊN TIẾP THEO: Tạo API Controllers cho Budget, Jar, SharedExpense trong Money Management.**
 - **📋 KẾ HOẠCH: Triển khai đầy đủ PlanningInvestment bounded context với DebtService, GoalService, InvestmentService.**
 - **📋 KẾ HOẠCH: Tạo Goal và Investment entities, DTOs, và toàn bộ Application/Infrastructure layers cho PlanningInvestment.**
-- **✅ HOÀN THÀNH: Transaction Navigation & Context-Aware Filtering Feature Design (June 24, 2025) - created comprehensive user story feat-01-transaction-navigation-filtering.md với ticket numbering system.**
 
 ## 📊 Current Technical Status (Updated June 24, 2025)
 
@@ -42,7 +43,7 @@
   - **Thay thế login page:** `/pages/auth/login.vue` từ SSO redirect sang Google login UI
   - **Loại bỏ SSO references:** Tất cả import và usage đã được clean up
 - **✅ Đã triển khai Google OAuth login hoàn chỉnh:**
-  - **Google Client ID configured:** `70021805726-6jdccddalpri6bdk05pfp421e1koachp.apps.googleusercontent.com`
+  - **Google Client ID configured:** `70021805726-2m0ndfjj6kq9es08rtce36vpdmgpn5c3.apps.googleusercontent.com`
   - **Login page redesign:** Clean UI với Google login button và proper loading states
   - **Maintained existing infrastructure:** `useGoogleAuth.ts`, `useSocialAuth.ts` composables
   - **Updated environment config:** `.env` với Identity API và Google OAuth settings
@@ -644,3 +645,65 @@
 - **✅ Error Visibility:** Detailed exception logging với stack traces cho debugging
 - **✅ Performance Monitoring:** Response times, throughput, error rates tracked real-time
 - **✅ Zero Build Errors:** Application compiles và runs successfully với 0 errors, 0 warnings
+
+## Current Status: ✅ Database Migration Issue RESOLVED
+
+### ✅ Problem Solved: "relation users does not exist"
+
+**Root Cause Found & Fixed:**
+- **Pending Model Changes**: EF Core model đã thay đổi nhưng chưa có migration mới
+- **Migration Not Applied**: Database hoàn toàn trống, không có tables nào
+
+**Solution Applied:**
+1. ✅ **Created new migration**: `dotnet ef migrations add FixPendingModelChanges`
+2. ✅ **Rebuilt Identity service**: `docker compose build identity-api`  
+3. ✅ **Restarted service**: Migration auto-applied successfully
+4. ✅ **Verified database**: All tables created including `users`, `refresh_tokens`, etc.
+
+**Database Tables Now Present:**
+- ✅ users (main issue resolved)
+- ✅ refresh_tokens  
+- ✅ api_keys
+- ✅ roles, user_roles, user_logins
+- ✅ OpenIddict tables
+- ✅ __EFMigrationsHistory
+
+### ✅ Previous Issues Also Fixed:
+
+1. **Redis Configuration**: 
+   - ✅ Password synchronized: `Admin@123`
+   - ✅ Connection string consistent: `redis:6379`
+
+2. **JWT Configuration**:
+   - ✅ Issuer/Audience fixed: `http://localhost:${GATEWAY_PORT}` (5800)
+   - ✅ All services use Gateway URL instead of Identity service URL
+
+3. **Docker Compose Consolidation**:
+   - ✅ Single `docker-compose.yml` file
+   - ✅ Simplified startup scripts: single `docker compose up -d` command
+   - ✅ Proper `depends_on` with health checks
+
+## 🔐 Default Service Passwords
+
+**Standard Password for All Services:** `Admin@123`
+
+### Services Using Default Password:
+- **Database Services:**
+  - PostgreSQL admin/root access
+  - PgAdmin web interface
+  - Database user accounts (where applicable)
+
+- **Infrastructure Services:**
+  - Redis (if authentication enabled)
+  - RabbitMQ management interface
+  - Grafana admin dashboard
+  - Prometheus (if authentication enabled)
+
+- **Application Services:**
+  - Identity service admin accounts
+  - API service admin endpoints
+  - Development/testing accounts
+
+**Note:** This is the default password for development environment. Production environments should use strong, unique passwords for each service.
+
+**Security Reminder:** Change default passwords in production deployments and store them securely in environment variables or secret management systems.

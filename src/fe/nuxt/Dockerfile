@@ -43,8 +43,8 @@ FROM node:20-alpine AS development
 # Set working directory  
 WORKDIR /app
 
-# Install curl for health checks
-RUN apk add --no-cache curl python3 make g++ && \
+# Install curl for health checks and su-exec for user switching
+RUN apk add --no-cache curl python3 make g++ su-exec && \
     ln -sf python3 /usr/bin/python
 
 # Copy package files
@@ -57,11 +57,16 @@ RUN npm install --legacy-peer-deps
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nuxt -u 1001
 
+# Copy entrypoint script
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
+
 # Change ownership of app directory
 RUN chown -R nuxt:nodejs /app
 
-# Switch to non-root user
-USER nuxt
+# For development mode, we'll handle user switching in entrypoint
+# to avoid permission issues with volume mounts
+# USER nuxt
 
 # Expose port
 EXPOSE 3000
@@ -71,8 +76,8 @@ ENV NODE_ENV=development
 ENV NUXT_HOST=0.0.0.0
 ENV NUXT_PORT=3000
 
-# Start the application in development mode
-CMD ["npm", "run", "dev"]
+# Start the application in development mode using our entrypoint script
+ENTRYPOINT ["/docker-entrypoint.sh"]
 
 # Stage 3: Production stage
 FROM node:20-alpine AS production
@@ -93,8 +98,12 @@ COPY --from=builder --chown=nuxt:nodejs /app/.output /app/.output
 # Copy package.json for runtime dependencies (without package-lock.json to avoid postinstall)
 COPY --from=builder --chown=nuxt:nodejs /app/package.json /app/
 
+# Copy entrypoint script
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
+
 # Install only production dependencies without running scripts
-RUN npm install --only=production --ignore-scripts --legacy-peer-deps && npm cache clean --force
+RUN npm install --only=production --ignore-scripts --legacy-peer_deps && npm cache clean --force
 
 # Switch to non-root user
 USER nuxt
@@ -102,14 +111,10 @@ USER nuxt
 # Expose port
 EXPOSE 3000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:3000/api/health || curl -f http://localhost:3000/ || exit 1
-
-# Set environment variables
+# Set production environment variables
 ENV NODE_ENV=production
 ENV NUXT_HOST=0.0.0.0
 ENV NUXT_PORT=3000
 
-# Start the application
-CMD ["node", ".output/server/index.mjs"]
+# Start the application using our entrypoint script
+ENTRYPOINT ["/docker-entrypoint.sh"]

@@ -67,17 +67,9 @@ export default defineNuxtConfig({
 
     router: {
         options: { linkExactActiveClass: 'active' },
-    },    compatibilityDate: '2024-09-21',
-
-    nitro: {
-        devProxy: {
-            '/identity': {
-                target: 'https://localhost:5000/identity',
-                changeOrigin: true,
-                secure: false // Allow self-signed certificates
-            }
-        }
     },
+
+    compatibilityDate: '2024-09-21',
 
     devServer: {
         port: process.env.FRONTEND_PORT ? parseInt(process.env.FRONTEND_PORT) : 3500, // Use FRONTEND_PORT env var or default to 3500
@@ -88,9 +80,9 @@ export default defineNuxtConfig({
 
         // Public keys (exposed to client-side)
         public: {
-            apiBase: process.env.NUXT_PUBLIC_API_BASE || 'https://localhost:5000', // API Gateway port
-            appBase: process.env.NUXT_PUBLIC_APP_BASE || process.env.FRONTEND_BASE_URL || 'http://localhost:3500', // Frontend base URL
-            identityApiBase: process.env.NUXT_PUBLIC_IDENTITY_API_BASE || 'https://localhost:5228',
+            apiBase: process.env.NUXT_PUBLIC_API_BASE || 'http://localhost:5800', // API Gateway port
+            appBase: process.env.FRONTEND_BASE_URL || 'http://localhost:3500', // Frontend base URL
+            identityApiBase: process.env.NUXT_PUBLIC_IDENTITY_API_BASE || 'http://localhost:5800', // Use Gateway
             googleClientId: process.env.NUXT_PUBLIC_GOOGLE_CLIENT_ID,
             facebookAppId: process.env.NUXT_PUBLIC_FACEBOOK_APP_ID,
         },

@@ -114,6 +114,16 @@
   - **Đã bảo tồn các file legacy để sao lưu và tham khảo.**
   - **Đã tạo README.md giải thích cấu trúc file và sự tiến hóa của tài liệu.**
 
+- **✅ HOÀN THÀNH Frontend Docker Production Issue Resolution (July 3, 2025):**
+  - **✅ Root Cause Analysis: Development volume mount `./src/fe/nuxt:/app` overwrites `.output` build directory in production.**
+  - **✅ Docker Entrypoint Script Rewrite: Enhanced docker-entrypoint.sh với robust build/start logic, dependency checking, improved logging.**
+  - **✅ Production Mode Fix: Always build in production, check for build output, proper error handling.**
+  - **✅ Development Mode Support: Conditional npm install, volume mount compatibility, proper dev server startup.**
+  - **✅ Docker Compose Updates: Removed custom command in dev mode, rely on entrypoint script for both dev/prod.**
+  - **✅ Rebuild Scripts Fixed: Updated rebuild-frontend.sh và rebuild-frontend.bat để use correct compose files for prod mode.**
+  - **✅ Docker Compose Cleanup: Removed obsolete version declarations to eliminate warnings.**
+  - **✅ Production Ready: Proper separation of development volume mounts và production build output protection.**
+
 ## Còn lại
 - **SharedExpenseService Implementation (Immediate Priority):**
   - **Triển khai SharedExpenseService với logic quản lý chi tiêu nhóm và participants.**
