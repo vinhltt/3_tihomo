@@ -13,13 +13,13 @@ This system operates with **four integrated layers**:
 
 1. **Memory Bank** (Session persistence): Real-time context và immediate insights
 2. **Design Documentation** (Project structure): Long-term architectural decisions
-3. **MCP openmemory** (Dynamic context): Save and retrieve context across sessions  
+3. **MCP mem0** (Dynamic context): Save and retrieve context across sessions  
 4. **Sequential Thinking** (Problem-solving): Methodical analysis và decision processes
 
 ```mermaid
 flowchart TD
     MB[Memory Bank] --> DD[Design Documentation]
-    DD --> MCP[MCP openmemory]
+    DD --> MCP[MCP mem0]
     MCP --> ST[Sequential Thinking]
     ST --> MB
     

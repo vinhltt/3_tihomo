@@ -404,8 +404,8 @@ services:
       - RabbitMQ__Host=rabbitmq
       - RabbitMQ__Username=tihomo
       - RabbitMQ__Password=${RABBITMQ_PASSWORD}
-    ports:
-      - "${IDENTITY_API_PORT}:8080"  # Identity API port - Docker Dev environment
+    # ports:
+    #   - "${IDENTITY_API_PORT}:8080"  # Identity API port - Closed, access via API Gateway only
     volumes:
       - ./logs/identity:/app/logs
     networks:
@@ -443,8 +443,8 @@ services:
       - RabbitMQ__Username=tihomo
       - RabbitMQ__Password=${RABBITMQ_PASSWORD}
       - IdentityService__BaseUrl=http://identity-api:8080
-    ports:
-      - "${COREFINANCE_API_PORT}:8080"  # CoreFinance API port - Docker Dev environment
+    # ports:
+    #   - "${COREFINANCE_API_PORT}:8080"  # CoreFinance API port - Closed, access via API Gateway only
     volumes:
       - ./logs/corefinance:/app/logs
     networks:
@@ -480,8 +480,8 @@ services:
       - Redis__ConnectionString=redis:6379
       - Redis__Password=${REDIS_PASSWORD}
       - UploadPath=/app/uploads
-    ports:
-      - "${EXCEL_API_PORT}:8080"  # Excel API port - Docker Dev environment
+    # ports:
+    #   - "${EXCEL_API_PORT}:8080"  # Excel API port - Closed, access via API Gateway only
     volumes:
       - ./uploads:/app/uploads
       - ./logs/excel:/app/logs

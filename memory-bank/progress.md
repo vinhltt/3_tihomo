@@ -124,6 +124,15 @@
   - **✅ Docker Compose Cleanup: Removed obsolete version declarations to eliminate warnings.**
   - **✅ Production Ready: Proper separation of development volume mounts và production build output protection.**
 
+- **✅ HOÀN THÀNH Docker Compose API Services Port Security (December 28, 2024):**
+  - **✅ API Services Port Closure: Đóng tất cả port exposure của Identity, CoreFinance, Excel API services.**
+  - **✅ Gateway-Only Access Pattern: Tất cả API requests phải đi qua Ocelot Gateway (localhost:5800).**
+  - **✅ Security Implementation: Comment out port mappings trong docker-compose.yml với security annotations.**
+  - **✅ Startup Scripts Update: Cập nhật start-full-service.sh và start-full-service.bat để reflect Gateway-only access.**
+  - **✅ Internal Communication Preserved: Services vẫn giao tiếp qua Docker network names.**
+  - **✅ Development Tools Access: Infrastructure services (Grafana, pgAdmin, RabbitMQ) vẫn có direct port access.**
+  - **✅ Architecture Benefits: Single entry point, centralized authentication, no direct service bypass, simplified monitoring.**
+
 ## Còn lại
 - **SharedExpenseService Implementation (Immediate Priority):**
   - **Triển khai SharedExpenseService với logic quản lý chi tiêu nhóm và participants.**

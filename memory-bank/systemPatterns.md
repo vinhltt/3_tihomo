@@ -10,6 +10,7 @@
 - Ưu tiên tích hợp qua API REST, Webhook, hoặc message bus.
 - Sử dụng môi trường tách biệt cho phát triển, staging, production.
 - Tất cả giao tiếp giữa các service phải qua API Gateway hoặc RabbitMQ (không gọi trực tiếp giữa các service).
+- **✅ API Gateway Security Pattern (December 28, 2024): Tất cả API services (Identity, CoreFinance, Excel) không expose ports ra bên ngoài, chỉ có thể truy cập qua API Gateway để tăng cường bảo mật.**
 - Sử dụng event-driven cho đồng bộ dữ liệu, ưu tiên publish/subscribe, CDC, dual-write pattern với fallback.
 - Authentication: OpenID Connect, JWT, OAuth2, RBAC, policy-based authorization.
 - Logging tập trung (ELK/EFK), metrics Prometheus, dashboard Grafana, correlation ID.
@@ -49,6 +50,12 @@
 - **ExcelApi** đã được di chuyển từ `src/ExcelApi/` vào `src/BE/ExcelApi/` để thống nhất cấu trúc
 - **TiHoMo.sln** trong `src/BE/` quản lý tất cả backend projects
 - **Docker configuration** đã được cập nhật để phù hợp với cấu trúc mới
+- **✅ Docker Compose Security Pattern (December 28, 2024):**
+  - **API Services Port Closure**: Identity, CoreFinance, Excel API services không còn expose ports ra localhost
+  - **Gateway-Only Access**: Tất cả API requests phải đi qua Ocelot Gateway (localhost:5800)
+  - **Internal Communication**: Services vẫn giao tiếp qua Docker network names (identity-api:8080, corefinance-api:8080, excel-api:8080)
+  - **Development Tools Access**: Infrastructure services (Grafana, pgAdmin, RabbitMQ) vẫn có direct port access
+  - **Security Benefits**: Single entry point, centralized authentication, no direct service bypass, simplified monitoring
 - **✅ Identity Architecture Consolidation (June 9, 2025)**: Successfully merged Identity.Api into Identity.Sso
   - **Eliminated duplication**: Single project handles both SSO web interface and API functionality
   - **Dual authentication**: Cookie-based (SSO) + JWT-based (API) trong cùng application

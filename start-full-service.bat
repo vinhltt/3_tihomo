@@ -41,9 +41,7 @@ echo.
 echo 🌐 Access URLs:
 echo    Frontend (Nuxt):     http://localhost:%FRONTEND_PORT%
 echo    API Gateway:         http://localhost:5800
-echo    Identity API:        http://localhost:5801
-echo    CoreFinance API:     http://localhost:5802
-echo    Excel API:           http://localhost:5805
+echo    📌 API Services (Identity, CoreFinance, Excel) are only accessible via API Gateway
 echo.
 echo 🛠️  Development Tools:
 echo    Grafana:             http://localhost:3000 (admin/admin123)

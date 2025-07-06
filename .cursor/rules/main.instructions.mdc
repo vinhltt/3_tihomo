@@ -15,13 +15,13 @@ This system operates with **four integrated layers**:
 
 1. **Memory Bank** (Session persistence): Real-time context và immediate insights
 2. **Design Documentation** (Project structure): Long-term architectural decisions
-3. **MCP Memory** (Dynamic context): Cross-session knowledge persistence  
+3. **MCP mem0** (Dynamic context): Save and retrieve context across sessions  
 4. **Sequential Thinking** (Problem-solving): Methodical analysis và decision processes
 
 ```mermaid
 flowchart TD
     MB[Memory Bank] --> DD[Design Documentation]
-    DD --> MCP[MCP Memory]
+    DD --> MCP[MCP mem0]
     MCP --> ST[Sequential Thinking]
     ST --> MB
     
@@ -227,14 +227,14 @@ For database changes:
 
 ### Port Management & OAuth Configuration
 ```bash
-# Kill processes on port 3000 (Nuxt)
-netstat -ano | findstr :3000
+# Kill processes on port 3500 (Nuxt)
+netstat -ano | findstr :3500
 taskkill /PID <PID> /F
 # Or use npx kill-port
-npx kill-port 3000
+npx kill-port 3500
 
 # Standard port allocation:
-# Frontend (Nuxt): 3000
+# Frontend (Nuxt): 3500
 # Backend SSO: 5217  
 # Backend API: 7293
 

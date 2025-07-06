@@ -1,6 +1,8 @@
 # activeContext.md
 
 ## Trọng tâm công việc hiện tại
+- **🎯 FOCUS MỚI: Enhanced API Key Management System (December 28, 2024) - Phân tích và thiết kế comprehensive API key management system với enhanced security features.**
+- **✅ HOÀN THÀNH: Docker Compose API Services Port Security (December 28, 2024) - đóng tất cả port exposure của API services, chỉ cho phép truy cập qua API Gateway.**
 - **✅ HOÀN THÀNH: Frontend Docker Production Issue Resolution (July 3, 2025) - fixed production container startup failures.**
 - **✅ HOÀN THÀNH: SSO to Google OAuth Migration (June 22, 2025) - loại bỏ SSO system và chuyển sang Google OAuth login hoàn toàn.**
 - **✅ HOÀN THÀNH: Identity & Access Management System - triển khai đầy đủ SSO server, authentication API, và frontend integration.**
@@ -13,13 +15,13 @@
 - **✅ HOÀN THÀNH: MoneyManagement Infrastructure Layer (BaseRepository, UnitOfWork, DbContext) và JarService với 6 Jars method.**
 - **✅ HOÀN THÀNH: MoneyManagement Build Issues Resolution (June 9, 2025) - fixed 12 interface implementation errors, production ready status.**
 - **✅ HOÀN THÀNH: Health Check Implementation - đầy đủ health check endpoints cho tất cả microservices và gateway aggregation.**
-- **🎯 ƯU TIÊN TIẾP THEO: Test Frontend Docker fixes after Docker Desktop startup.**
+- **🎯 ƯU TIÊN TIẾP THEO: Implement Enhanced API Key Management System - Phase 1 backend foundation với database migrations, enhanced services, API controllers.**
 - **🎯 ƯU TIÊN TIẾP THEO: Triển khai SharedExpenseService cho Money Management bounded context để complete bounded context.**
 - **🎯 ƯU TIÊN TIẾP THEO: Tạo API Controllers cho Budget, Jar, SharedExpense trong Money Management.**
 - **📋 KẾ HOẠCH: Triển khai đầy đủ PlanningInvestment bounded context với DebtService, GoalService, InvestmentService.**
 - **📋 KẾ HOẠCH: Tạo Goal và Investment entities, DTOs, và toàn bộ Application/Infrastructure layers cho PlanningInvestment.**
 
-## 📊 Current Technical Status (Updated June 24, 2025)
+## 📊 Current Technical Status (Updated December 28, 2024)
 
 ### ✅ Build Success Rate: 100% (All projects compile)
 | Project | Status | Errors | Warnings | Notes |
@@ -36,6 +38,52 @@
 - **Operational Excellence**: 99.9% uptime capability, zero-downtime deployments, comprehensive monitoring
 
 ## Thay đổi gần đây
+
+### 🎯 Enhanced API Key Management System Analysis (December 28, 2024 - MỚI)
+- **📋 DISCOVERY COMPLETED: Existing API Key Infrastructure Analysis:**
+  - **✅ Đã có ApiKey entity**: UserId, Name, KeyHash, KeyPrefix, Description, Scopes, Status, ExpiresAt, LastUsedAt, UsageCount
+  - **✅ Đã có ApiKeyService**: CreateApiKeyAsync, GetApiKeyByIdAsync, GetUserApiKeysAsync, UpdateApiKeyAsync, RevokeApiKeyAsync, DeleteApiKeyAsync, VerifyApiKeyAsync
+  - **✅ Đã có ApiKeyRepository**: Database operations với GetByKeyHashAsync, GetByUserIdAsync, GetActiveKeyByHashAsync
+  - **✅ Đã có ApiKeyHasher**: Secure key generation với SHA-256 hashing và "pfm_" prefix
+  - **✅ Đã có Authentication Middleware**: Gateway-level API key validation
+  - **✅ Đã có DTOs**: CreateApiKeyRequest, CreateApiKeyResponse, ApiKeyInfo với proper structure
+- **📋 GAP ANALYSIS COMPLETED: Missing Components Identified:**
+  - **❌ Thiếu Frontend UI**: Không có interface cho users quản lý API keys
+  - **❌ Thiếu API Controllers**: Không có REST endpoints để expose API key operations
+  - **❌ Thiếu Enhanced Security**: Không có rate limiting, IP whitelisting, scope enforcement
+  - **❌ Thiếu Audit Logging**: Không có comprehensive tracking của API key usage
+  - **❌ Thiếu Usage Analytics**: Không có usage statistics và monitoring
+  - **❌ Thiếu Documentation**: Không có integration guides cho third-party developers
+- **📋 DESIGN DOCUMENT CREATED: `/design-docs/07-features/feat-02-enhanced-api-key-management.md`**
+  - **Complete 5-Phase Implementation Plan**: Backend foundation → Security & Middleware → Frontend → Documentation & Testing → Deployment
+  - **Enhanced Security Architecture**: Rate limiting, IP whitelisting, scope validation, comprehensive audit logging
+  - **Database Schema Enhancements**: New properties cho ApiKey entity và ApiKeyUsageLog table
+  - **Frontend UX Design**: Complete UI/UX design với components, composables, và user flows
+  - **API Design**: RESTful endpoints với enhanced DTOs và proper error handling
+  - **Security Implementation**: Multi-layer security validation với Redis-based rate limiting
+  - **Testing Strategy**: Unit tests, integration tests, security tests với comprehensive coverage
+  - **Success Metrics**: Technical metrics, UX metrics, security metrics với clear KPIs
+
+### ✅ Docker Compose API Services Port Security (December 28, 2024 - Mới hoàn thành)
+- **✅ Đã đóng tất cả port exposure của API services:**
+  - **Identity API Service:** Comment out `"${IDENTITY_API_PORT}:8080"` port mapping
+  - **CoreFinance API Service:** Comment out `"${COREFINANCE_API_PORT}:8080"` port mapping  
+  - **Excel API Service:** Comment out `"${EXCEL_API_PORT}:8080"` port mapping
+  - **Lý do:** Tăng cường bảo mật, tuân thủ kiến trúc microservices với API Gateway pattern
+- **✅ Đã cập nhật startup scripts:**
+  - **start-full-service.sh:** Loại bỏ URLs của individual API services, thêm note về Gateway-only access
+  - **start-full-service.bat:** Loại bỏ URLs của individual API services, thêm note về Gateway-only access
+  - **Thông báo mới:** "📌 API Services (Identity, CoreFinance, Excel) are only accessible via API Gateway"
+- **✅ Kiến trúc bảo mật đã đạt được:**
+  - **Single Entry Point:** Tất cả API requests phải đi qua Gateway (localhost:5800)
+  - **Centralized Security:** Authentication/Authorization tập trung tại Gateway level
+  - **No Direct Access:** Không thể bypass Gateway để truy cập trực tiếp services
+  - **Simplified Monitoring:** Tất cả API traffic đi qua một điểm để logging/monitoring
+- **✅ Services vẫn hoạt động bình thường:**
+  - **Internal Communication:** Services giao tiếp qua Docker network names
+  - **Health Checks:** Vẫn hoạt động internal trong containers
+  - **Development Tools:** Grafana, pgAdmin, RabbitMQ Management vẫn có ports riêng
+  - **Infrastructure:** PostgreSQL databases, Redis vẫn expose ports cho development
 
 ### ✅ SSO to Google OAuth Migration (June 22, 2025 - Mới hoàn thành)
 - **✅ Đã loại bỏ hoàn toàn SSO system từ frontend:**
