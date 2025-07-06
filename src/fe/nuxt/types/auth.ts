@@ -187,7 +187,7 @@ export type SocialLoginResponse = {
 export type UserInfo = {
   id: string
   email: string
-  name: string
+  name?: string
   pictureUrl?: string
   isActive: boolean
   createdAt: string

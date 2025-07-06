@@ -215,7 +215,9 @@ export const useAuthStore = defineStore('auth', {
         this.refreshToken = socialResponse.refreshToken
         
         // Convert UserInfo to User format for auth store
-        const nameParts = socialResponse.user.name.split(' ')
+        // Handle cases where name might be undefined or null
+        const userName = socialResponse.user.name || socialResponse.user.email || 'User'
+        const nameParts = userName.split(' ')
         this.user = {
           id: socialResponse.user.id,
           email: socialResponse.user.email,
@@ -252,6 +254,7 @@ export const useAuthStore = defineStore('auth', {
           hasUser: !!this.user,
           hasToken: !!this.token,
           userEmail: this.user?.email,
+          userName: userName,
           isAuthenticated: this.isAuthenticated
         })
 
