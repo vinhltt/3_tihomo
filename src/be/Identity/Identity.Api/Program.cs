@@ -5,6 +5,7 @@ using Identity.Api.HealthChecks;
 using Identity.Api.Middleware;
 using Identity.Api.Services;
 using Identity.Application.Services.RefreshTokens;
+using Identity.Infrastructure;
 using Identity.Infrastructure.Data;
 using Identity.Infrastructure.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -98,6 +99,10 @@ builder.Services.AddDbContext<IdentityDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"));
     options.UseSnakeCaseNamingConvention();
 });
+
+// ✅ Add Infrastructure services and repositories
+// Thêm Infrastructure services và repositories
+builder.Services.AddInfrastructure(builder.Configuration);
 
 // ✅ Add caching services for performance optimization
 // Thêm caching services để tối ưu hiệu suất
@@ -284,3 +289,7 @@ app.MapHealthChecks("/health", new HealthCheckOptions
 await MigrateDatabaseAsync(app);
 
 app.Run();
+
+// Make Program class accessible for integration tests
+// Làm cho Program class có thể truy cập được cho integration tests
+public partial class Program { }

@@ -21,7 +21,7 @@ show_menu() {
 
 start_all() {
     echo "Starting tất cả services..."
-    docker-compose -f docker-compose.dev.yml up -d
+    docker-compose -f docker-compose.yml up -d
     echo
     echo "✅ Tất cả services đã được start!"
     echo
@@ -36,25 +36,25 @@ start_all() {
 
 start_db() {
     echo "Starting databases..."
-    docker-compose -f docker-compose.dev.yml up -d identity-postgres corefinance-postgres moneymanagement-postgres planninginvestment-postgres reporting-postgres
+    docker-compose -f docker-compose.yml up -d identity-postgres corefinance-postgres moneymanagement-postgres planninginvestment-postgres reporting-postgres
     echo "✅ Databases đã được start!"
 }
 
 start_monitoring() {
     echo "Starting monitoring stack..."
-    docker-compose -f docker-compose.dev.yml up -d prometheus grafana loki
+    docker-compose -f docker-compose.yml up -d prometheus grafana loki
     echo "✅ Monitoring stack đã được start!"
 }
 
 start_queue() {
     echo "Starting message queue services..."
-    docker-compose -f docker-compose.dev.yml up -d rabbitmq redis
+    docker-compose -f docker-compose.yml up -d rabbitmq redis
     echo "✅ Message queue services đã được start!"
 }
 
 stop_all() {
     echo "Stopping tất cả services..."
-    docker-compose -f docker-compose.dev.yml down
+    docker-compose -f docker-compose.yml down
     echo "✅ Tất cả services đã được stop!"
 }
 
@@ -66,13 +66,13 @@ stop_clean() {
         return
     fi
     echo "Stopping và xóa data..."
-    docker-compose -f docker-compose.dev.yml down -v
+    docker-compose -f docker-compose.yml down -v
     echo "✅ Services đã được stop và data đã được xóa!"
 }
 
 show_status() {
     echo "Trạng thái services:"
-    docker-compose -f docker-compose.dev.yml ps
+    docker-compose -f docker-compose.yml ps
     echo
 }
 
@@ -80,9 +80,9 @@ show_logs() {
     echo
     read -p "Nhập tên service để xem logs (hoặc Enter để xem tất cả): " service
     if [[ -z "$service" ]]; then
-        docker-compose -f docker-compose.dev.yml logs --tail=50
+        docker-compose -f docker-compose.yml logs --tail=50
     else
-        docker-compose -f docker-compose.dev.yml logs --tail=50 "$service"
+        docker-compose -f docker-compose.yml logs --tail=50 "$service"
     fi
     echo
 }

@@ -9,4 +9,5 @@ public interface IApiKeyRepository : IBaseRepository<ApiKey, Guid>
     Task<ApiKey?> GetActiveKeyByHashAsync(string keyHash, CancellationToken cancellationToken = default);
     Task UpdateLastUsedAsync(Guid apiKeyId, DateTime lastUsedAt, CancellationToken cancellationToken = default);
     Task IncrementUsageCountAsync(Guid apiKeyId, CancellationToken cancellationToken = default);
+    Task<IEnumerable<ApiKeyUsageLog>> GetUsageLogsAsync(Guid apiKeyId, DateTime startDate, DateTime endDate, CancellationToken cancellationToken = default);
 }

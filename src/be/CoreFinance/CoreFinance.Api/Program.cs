@@ -18,6 +18,7 @@ async Task CreateDbIfNotExistsAsync(IHost host)
     try
     {
         var context = services.GetRequiredService<CoreFinanceDbContext>();
+        await context.Database.EnsureCreatedAsync();
         await context.Database.MigrateAsync();
         //var dbInitializer = services.GetService<DbInitializer>();
         //if (dbInitializer == null)

@@ -175,7 +175,7 @@
     }
   ],
   "GlobalConfiguration": {
-    "BaseUrl": "https://localhost:5000",
+    "BaseUrl": "http://localhost:5000",
     "RateLimitOptions": {
       "DisableRateLimitHeaders": false,
       "QuotaExceededMessage": "Rate limit exceeded. Please try again later.",

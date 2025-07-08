@@ -1,10 +1,10 @@
-using Identity.Domain.Dtos.ApiKeys;
+using Identity.Contracts;
 
 namespace Identity.Application.Services.ApiKeys;
 
 public interface IApiKeyService
 {
-    Task<ApiKeyResponse> CreateApiKeyAsync(Guid userId, CreateApiKeyRequest request,
+    Task<CreateApiKeyResponse> CreateApiKeyAsync(Guid userId, CreateApiKeyRequest request,
         CancellationToken cancellationToken = default);
 
     Task<ApiKeyResponse> GetApiKeyByIdAsync(Guid apiKeyId, CancellationToken cancellationToken = default);

@@ -1,0 +1,609 @@
+{
+  "info": {
+    "name": "TiHoMo - Enhanced API Key Management",
+    "description": "Comprehensive testing collection for Enhanced API Key Management endpoints with security features, rate limiting, and analytics",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "enhanced-api-key-management",
+    "version": {
+      "major": 1,
+      "minor": 0,
+      "patch": 0
+    }
+  },
+  "variables": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5217",
+      "description": "Base URL for Identity.Api service"
+    },
+    {
+      "key": "authToken",
+      "value": "",
+      "description": "JWT token for authentication (will be set after login)"
+    },
+    {
+      "key": "apiKeyId",
+      "value": "",
+      "description": "Created API Key ID (will be set after creation)"
+    },
+    {
+      "key": "rawApiKey",
+      "value": "",
+      "description": "Raw API Key value (will be set after creation)"
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{authToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "Authentication",
+      "description": "Authentication endpoints for obtaining JWT tokens",
+      "item": [
+        {
+          "name": "Login (Get JWT Token)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Extract JWT token and set it as collection variable",
+                  "if (pm.response.to.have.status(200)) {",
+                  "    const responseJson = pm.response.json();",
+                  "    if (responseJson.access_token) {",
+                  "        pm.collectionVariables.set('authToken', responseJson.access_token);",
+                  "        console.log('JWT token saved to collection variable');",
+                  "    }",
+                  "}",
+                  "",
+                  "pm.test('Login successful', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response contains access_token', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('access_token');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@tihomo.com\",\n  \"password\": \"Admin@123\",\n  \"rememberMe\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Enhanced API Key Management",
+      "description": "Complete Enhanced API Key Management endpoints",
+      "item": [
+        {
+          "name": "Create API Key (Basic)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Save created API key details",
+                  "if (pm.response.to.have.status(201)) {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.collectionVariables.set('apiKeyId', responseJson.id);",
+                  "    pm.collectionVariables.set('rawApiKey', responseJson.key);",
+                  "    console.log('API Key created:', responseJson.key);",
+                  "}",
+                  "",
+                  "pm.test('API Key created successfully', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('Response contains key and metadata', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('id');",
+                  "    pm.expect(jsonData).to.have.property('key');",
+                  "    pm.expect(jsonData).to.have.property('name');",
+                  "    pm.expect(jsonData).to.have.property('scopes');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Test API Key - Basic\",\n  \"description\": \"Basic API key for testing purposes\",\n  \"scopes\": [\"read:transactions\", \"write:transactions\"],\n  \"expiresAt\": null,\n  \"rateLimitPerMinute\": 100,\n  \"dailyUsageQuota\": 10000,\n  \"ipWhitelist\": [\"127.0.0.1\", \"::1\"],\n  \"securitySettings\": {\n    \"requireHttps\": false,\n    \"allowCorsRequests\": true,\n    \"allowedOrigins\": [\"*\"],\n    \"sessionTimeout\": 3600,\n    \"enableAuditLogging\": true\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/api-keys",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "api-keys"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create API Key (Advanced Security)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Production API Key - High Security\",\n  \"description\": \"High security API key for production environment\",\n  \"scopes\": [\"read:accounts\", \"read:transactions\", \"write:reports\"],\n  \"expiresAt\": \"2025-12-31T23:59:59Z\",\n  \"rateLimitPerMinute\": 50,\n  \"dailyUsageQuota\": 5000,\n  \"ipWhitelist\": [\"192.168.1.0/24\", \"10.0.0.0/8\"],\n  \"securitySettings\": {\n    \"requireHttps\": true,\n    \"allowCorsRequests\": false,\n    \"allowedOrigins\": [],\n    \"sessionTimeout\": 1800,\n    \"enableAuditLogging\": true\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/api-keys",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "api-keys"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get API Key by ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/api-keys/{{apiKeyId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "api-keys", "{{apiKeyId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "List User API Keys",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/api-keys?status=Active&limit=10&includeUsage=true",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "api-keys"],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "Active"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "includeUsage",
+                  "value": "true"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update API Key",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated API Key Name\",\n  \"description\": \"Updated description with new security settings\",\n  \"scopes\": [\"read:transactions\", \"write:transactions\", \"read:reports\"],\n  \"rateLimitPerMinute\": 200,\n  \"dailyUsageQuota\": 20000,\n  \"ipWhitelist\": [\"127.0.0.1\", \"::1\", \"192.168.1.100\"],\n  \"securitySettings\": {\n    \"requireHttps\": false,\n    \"allowCorsRequests\": true,\n    \"allowedOrigins\": [\"http://localhost:3000\", \"https://app.tihomo.com\"],\n    \"sessionTimeout\": 7200,\n    \"enableAuditLogging\": true\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/api-keys/{{apiKeyId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "api-keys", "{{apiKeyId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Verify API Key",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('API Key verification successful', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response contains validation details', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('isValid');",
+                  "    pm.expect(jsonData).to.have.property('userId');",
+                  "    pm.expect(jsonData).to.have.property('scopes');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "\"{{rawApiKey}}\""
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/api-keys/verify",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "api-keys", "verify"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Rotate API Key",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Update the raw API key with new rotated key",
+                  "if (pm.response.to.have.status(200)) {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.collectionVariables.set('rawApiKey', responseJson.newKey);",
+                  "    console.log('API Key rotated:', responseJson.newKey);",
+                  "}",
+                  "",
+                  "pm.test('API Key rotation successful', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response contains new key', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('newKey');",
+                  "    pm.expect(jsonData).to.have.property('rotatedAt');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/api-keys/{{apiKeyId}}/rotate",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "api-keys", "{{apiKeyId}}", "rotate"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Usage Analytics",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/api-keys/{{apiKeyId}}/analytics?startDate=2025-01-01&endDate=2025-12-31&groupBy=day",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "api-keys", "{{apiKeyId}}", "analytics"],
+              "query": [
+                {
+                  "key": "startDate",
+                  "value": "2025-01-01"
+                },
+                {
+                  "key": "endDate",
+                  "value": "2025-12-31"
+                },
+                {
+                  "key": "groupBy",
+                  "value": "day"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Revoke API Key",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/api-keys/{{apiKeyId}}/revoke",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "api-keys", "{{apiKeyId}}", "revoke"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete API Key",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/api-keys/{{apiKeyId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "api-keys", "{{apiKeyId}}"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Security & Rate Limiting Tests",
+      "description": "Test security features including rate limiting, IP validation, and HTTPS enforcement",
+      "item": [
+        {
+          "name": "Test Rate Limiting",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// This test will be run multiple times to trigger rate limiting",
+                  "const testRun = pm.environment.get('rateLimitTestRun') || 0;",
+                  "pm.environment.set('rateLimitTestRun', testRun + 1);",
+                  "console.log('Rate limit test run:', testRun + 1);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const testRun = pm.environment.get('rateLimitTestRun');",
+                  "",
+                  "if (testRun <= 50) {",
+                  "    pm.test('Request within rate limit', function () {",
+                  "        pm.response.to.have.status(200);",
+                  "    });",
+                  "} else {",
+                  "    pm.test('Rate limit exceeded', function () {",
+                  "        pm.response.to.have.status(429);",
+                  "    });",
+                  "}",
+                  "",
+                  "// Check rate limit headers",
+                  "pm.test('Rate limit headers present', function () {",
+                  "    pm.expect(pm.response.headers.has('X-RateLimit-Limit')).to.be.true;",
+                  "    pm.expect(pm.response.headers.has('X-RateLimit-Remaining')).to.be.true;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{rawApiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "\"{{rawApiKey}}\""
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/api-keys/verify",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "api-keys", "verify"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Test IP Whitelist (Valid IP)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{rawApiKey}}"
+              },
+              {
+                "key": "X-Forwarded-For",
+                "value": "127.0.0.1"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "\"{{rawApiKey}}\""
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/api-keys/verify",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "api-keys", "verify"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Test IP Whitelist (Invalid IP)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('IP not in whitelist should be rejected', function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});",
+                  "",
+                  "pm.test('Error message indicates IP restriction', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.detail).to.include('IP address not allowed');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{rawApiKey}}"
+              },
+              {
+                "key": "X-Forwarded-For",
+                "value": "192.168.100.100"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "\"{{rawApiKey}}\""
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/api-keys/verify",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "api-keys", "verify"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Test Invalid API Key",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Invalid API key should be rejected', function () {",
+                  "    pm.response.to.have.status(401);",
+                  "});",
+                  "",
+                  "pm.test('Error message indicates invalid key', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.detail).to.include('Invalid API key');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "pfm_invalid_key_for_testing_12345"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "\"pfm_invalid_key_for_testing_12345\""
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/api-keys/verify",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "api-keys", "verify"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Health & Monitoring",
+      "description": "Health check and monitoring endpoints",
+      "item": [
+        {
+          "name": "API Keys Health Summary",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/api-keys/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "api-keys", "health"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Identity Service Health Check",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["health"]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Global pre-request script",
+          "console.log('Running request to:', pm.request.url);"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Global test script",
+          "console.log('Response status:', pm.response.status);",
+          "console.log('Response time:', pm.response.responseTime + 'ms');"
+        ]
+      }
+    }
+  ]
+} 

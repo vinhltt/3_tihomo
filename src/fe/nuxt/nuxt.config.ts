@@ -80,9 +80,9 @@ export default defineNuxtConfig({
 
         // Public keys (exposed to client-side)
         public: {
-            apiBase: process.env.NUXT_PUBLIC_API_BASE || 'http://localhost:5800', // API Gateway port
+            apiBase: process.env.NUXT_PUBLIC_API_BASE || 'http://localhost:5000', // API Gateway port
             appBase: process.env.FRONTEND_BASE_URL || 'http://localhost:3500', // Frontend base URL
-            identityApiBase: process.env.NUXT_PUBLIC_IDENTITY_API_BASE || 'http://localhost:5800', // Use Gateway
+            identityApiBase: process.env.NUXT_PUBLIC_IDENTITY_API_BASE || 'http://localhost:5000', // Use Gateway
             googleClientId: process.env.NUXT_PUBLIC_GOOGLE_CLIENT_ID,
             facebookAppId: process.env.NUXT_PUBLIC_FACEBOOK_APP_ID,
         },

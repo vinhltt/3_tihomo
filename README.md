@@ -251,6 +251,6 @@ For support and questions:
 - ✅ Database setup and migrations
 - ✅ API Gateway configuration
 ```bash
-docker-compose -f docker-compose.dev.yml build --parallel
-docker-compose -f docker-compose.dev.yml up -d
+docker-compose -f docker-compose.yml build --parallel
+docker-compose -f docker-compose.yml up -d
 ```

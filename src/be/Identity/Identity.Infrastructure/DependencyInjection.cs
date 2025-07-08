@@ -3,6 +3,7 @@ using Identity.Application.Services.ApiKeys;
 using Identity.Application.Services.Authentication;
 using Identity.Application.Services.Roles;
 using Identity.Application.Services.Users;
+using Identity.Application.Services.Security;
 using Identity.Domain.Repositories;
 using Identity.Infrastructure.Data;
 using Identity.Infrastructure.Repositories;
@@ -46,6 +47,12 @@ public static class DependencyInjection
         services.AddScoped<IUserService, UserService>();
         services.AddScoped<IRoleService, RoleService>();
         services.AddScoped<IApiKeyService, ApiKeyService>();
+
+        // ✅ Enhanced API Key services for advanced security features
+        // Thêm Enhanced API Key services cho advanced security features
+        services.AddScoped<IEnhancedApiKeyService, EnhancedApiKeyService>();
+        services.AddScoped<IRateLimitingService, RateLimitingService>();
+        services.AddScoped<IIpValidationService, IpValidationService>();
 
         // OpenIddict configuration for SSO
         services.AddOpenIddict()

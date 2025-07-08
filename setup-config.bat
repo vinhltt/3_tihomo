@@ -174,7 +174,7 @@ echo.
 echo 🎉 Configuration setup completed!
 echo.
 echo Next steps:
-echo 1. Run: docker-compose -f docker-compose.dev.yml up -d
+echo 1. Run: docker-compose -f docker-compose.yml up -d
 echo 2. Access services at the URLs provided in DEVELOPMENT_SETUP.md
 echo 3. Start your API services using Visual Studio or dotnet CLI
 echo.

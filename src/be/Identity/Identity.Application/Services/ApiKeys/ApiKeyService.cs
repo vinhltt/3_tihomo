@@ -1,6 +1,6 @@
 using System.Security.Cryptography;
 using Identity.Application.Common.Interfaces;
-using Identity.Domain.Dtos.ApiKeys;
+using Identity.Contracts;
 using Identity.Domain.Entities;
 using Identity.Domain.Enums;
 using Identity.Domain.Repositories;
@@ -28,7 +28,7 @@ public class ApiKeyService(
     IUserRepository userRepository,
     IApiKeyHasher apiKeyHasher) : IApiKeyService
 {
-    public async Task<ApiKeyResponse> CreateApiKeyAsync(Guid userId, CreateApiKeyRequest request,
+    public async Task<CreateApiKeyResponse> CreateApiKeyAsync(Guid userId, CreateApiKeyRequest request,
         CancellationToken cancellationToken = default)
     {
         // Verify user exists
@@ -40,29 +40,68 @@ public class ApiKeyService(
         const int maxKeysPerUser = 10; // This should come from configuration
         if (userApiKeys.Count() >= maxKeysPerUser)
             throw new InvalidOperationException(
-                $"User has reached the maximum limit of {maxKeysPerUser} API keys"); // Generate new API key
+                $"User has reached the maximum limit of {maxKeysPerUser} API keys");
 
+        // Generate new API key
         var rawApiKey = GenerateApiKey();
         var hashedKey = apiKeyHasher.HashApiKey(rawApiKey);
+        var keyPrefix = rawApiKey.Substring(0, Math.Min(10, rawApiKey.Length));
 
         var apiKey = new ApiKey
         {
             Id = Guid.NewGuid(),
             UserId = userId,
             Name = request.Name,
+            Description = request.Description,
             KeyHash = hashedKey,
-            Scopes = request.Scopes.ToList(),
+            KeyPrefix = keyPrefix,
+            Scopes = request.Scopes,
             Status = ApiKeyStatus.Active,
+            RateLimitPerMinute = request.RateLimitPerMinute,
+            DailyUsageQuota = request.DailyUsageQuota,
+            IpWhitelist = request.IpWhitelist,
+            SecuritySettings = new ApiKeySecuritySettings
+            {
+                RequireHttps = request.SecuritySettings.RequireHttps,
+                AllowCorsRequests = request.SecuritySettings.AllowCorsRequests,
+                AllowedOrigins = request.SecuritySettings.AllowedOrigins,
+                EnableUsageAnalytics = request.SecuritySettings.EnableUsageAnalytics,
+                MaxRequestsPerSecond = request.SecuritySettings.MaxRequestsPerSecond,
+                EnableIpValidation = request.SecuritySettings.EnableIpValidation,
+                EnableRateLimiting = request.SecuritySettings.EnableRateLimiting
+            },
             ExpiresAt = request.ExpiresAt,
             CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
+            UpdatedAt = DateTime.UtcNow,
+            LastResetDate = DateTime.UtcNow.Date
         };
 
         await apiKeyRepository.AddAsync(apiKey, cancellationToken);
 
-        var response = MapToApiKeyResponse(apiKey);
-        response.RawKey = rawApiKey; // Only return raw key during creation
-        return response;
+        return new CreateApiKeyResponse
+        {
+            Id = apiKey.Id,
+            Name = apiKey.Name,
+            Description = apiKey.Description,
+            ApiKey = rawApiKey, // Only shown during creation
+            KeyPrefix = apiKey.KeyPrefix,
+            Scopes = apiKey.Scopes,
+            RateLimitPerMinute = apiKey.RateLimitPerMinute,
+            DailyUsageQuota = apiKey.DailyUsageQuota,
+            IpWhitelist = apiKey.IpWhitelist,
+            SecuritySettings = new ApiKeySecuritySettingsDto
+            {
+                RequireHttps = apiKey.SecuritySettings.RequireHttps,
+                AllowCorsRequests = apiKey.SecuritySettings.AllowCorsRequests,
+                AllowedOrigins = apiKey.SecuritySettings.AllowedOrigins,
+                EnableUsageAnalytics = apiKey.SecuritySettings.EnableUsageAnalytics,
+                MaxRequestsPerSecond = apiKey.SecuritySettings.MaxRequestsPerSecond,
+                EnableIpValidation = apiKey.SecuritySettings.EnableIpValidation,
+                EnableRateLimiting = apiKey.SecuritySettings.EnableRateLimiting
+            },
+            CreatedAt = apiKey.CreatedAt ?? DateTime.UtcNow,
+            ExpiresAt = apiKey.ExpiresAt
+        };
     }
 
     public async Task<ApiKeyResponse> GetApiKeyByIdAsync(Guid apiKeyId, CancellationToken cancellationToken = default)
@@ -90,11 +129,37 @@ public class ApiKeyService(
         if (!string.IsNullOrEmpty(request.Name))
             apiKey.Name = request.Name;
 
+        if (!string.IsNullOrEmpty(request.Description))
+            apiKey.Description = request.Description;
+
         if (request.Scopes != null)
-            apiKey.Scopes = request.Scopes.ToList();
+            apiKey.Scopes = request.Scopes;
 
         if (request.ExpiresAt.HasValue)
             apiKey.ExpiresAt = request.ExpiresAt;
+
+        if (request.RateLimitPerMinute.HasValue)
+            apiKey.RateLimitPerMinute = request.RateLimitPerMinute.Value;
+
+        if (request.DailyUsageQuota.HasValue)
+            apiKey.DailyUsageQuota = request.DailyUsageQuota.Value;
+
+        if (request.IpWhitelist != null)
+            apiKey.IpWhitelist = request.IpWhitelist;
+
+        if (request.SecuritySettings != null)
+        {
+            apiKey.SecuritySettings = new ApiKeySecuritySettings
+            {
+                RequireHttps = request.SecuritySettings.RequireHttps,
+                AllowCorsRequests = request.SecuritySettings.AllowCorsRequests,
+                AllowedOrigins = request.SecuritySettings.AllowedOrigins,
+                EnableUsageAnalytics = request.SecuritySettings.EnableUsageAnalytics,
+                MaxRequestsPerSecond = request.SecuritySettings.MaxRequestsPerSecond,
+                EnableIpValidation = request.SecuritySettings.EnableIpValidation,
+                EnableRateLimiting = request.SecuritySettings.EnableRateLimiting
+            };
+        }
 
         apiKey.UpdatedAt = DateTime.UtcNow;
         await apiKeyRepository.UpdateAsync(apiKey, cancellationToken);
@@ -127,13 +192,14 @@ public class ApiKeyService(
         var apiKeyEntity = await apiKeyRepository.GetActiveKeyByHashAsync(hashedKey, cancellationToken);
 
         if (apiKeyEntity == null)
-            return new VerifyApiKeyResponse
-            {
-                IsValid = false,
-                UserId = null,
-                Scopes = [],
-                Message = "Invalid API key"
-            };
+                    return new VerifyApiKeyResponse
+        {
+            IsValid = false,
+            UserId = null,
+            Scopes = [],
+            Message = "Invalid API key",
+            ErrorMessage = "Invalid API key"
+        };
 
         // Check if key is expired
         if (apiKeyEntity.ExpiresAt.HasValue && apiKeyEntity.ExpiresAt <= DateTime.UtcNow)
@@ -142,7 +208,8 @@ public class ApiKeyService(
                 IsValid = false,
                 UserId = null,
                 Scopes = [],
-                Message = "API key has expired"
+                Message = "API key has expired",
+                ErrorMessage = "API key has expired"
             };
 
         // Check if key is revoked
@@ -152,7 +219,8 @@ public class ApiKeyService(
                 IsValid = false,
                 UserId = null,
                 Scopes = [],
-                Message = "API key has been revoked"
+                Message = "API key has been revoked",
+                ErrorMessage = "API key has been revoked"
             };
 
         // Update usage
@@ -167,13 +235,15 @@ public class ApiKeyService(
                 IsValid = false,
                 UserId = null,
                 Scopes = [],
-                Message = "User account is disabled or not found"
+                Message = "User account is disabled or not found",
+                ErrorMessage = "User account is disabled or not found"
             };
 
         return new VerifyApiKeyResponse
         {
             IsValid = true,
             UserId = apiKeyEntity.UserId,
+            ApiKeyId = apiKeyEntity.Id,
             Scopes = apiKeyEntity.Scopes,
             Message = "API key is valid"
         };
@@ -201,14 +271,34 @@ public class ApiKeyService(
         {
             Id = apiKey.Id,
             Name = apiKey.Name,
+            Description = apiKey.Description,
+            KeyPrefix = apiKey.KeyPrefix,
             Scopes = apiKey.Scopes,
             Status = apiKey.Status.ToString(),
+            RateLimitPerMinute = apiKey.RateLimitPerMinute,
+            DailyUsageQuota = apiKey.DailyUsageQuota,
+            TodayUsageCount = apiKey.TodayUsageCount,
+            UsageCount = apiKey.UsageCount,
+            IpWhitelist = apiKey.IpWhitelist,
+            SecuritySettings = new ApiKeySecuritySettingsDto
+            {
+                RequireHttps = apiKey.SecuritySettings.RequireHttps,
+                AllowCorsRequests = apiKey.SecuritySettings.AllowCorsRequests,
+                AllowedOrigins = apiKey.SecuritySettings.AllowedOrigins,
+                EnableUsageAnalytics = apiKey.SecuritySettings.EnableUsageAnalytics,
+                MaxRequestsPerSecond = apiKey.SecuritySettings.MaxRequestsPerSecond,
+                EnableIpValidation = apiKey.SecuritySettings.EnableIpValidation,
+                EnableRateLimiting = apiKey.SecuritySettings.EnableRateLimiting
+            },
+            CreatedAt = apiKey.CreatedAt ?? DateTime.UtcNow,
+            UpdatedAt = apiKey.UpdatedAt ?? (apiKey.CreatedAt ?? DateTime.UtcNow),
             ExpiresAt = apiKey.ExpiresAt,
             LastUsedAt = apiKey.LastUsedAt,
-            UsageCount = apiKey.UsageCount,
-            CreatedAt = apiKey.CreatedAt,
-            UpdatedAt = apiKey.CreatedAt
-            // Note: RawKey is only set during creation and not persisted
+            RevokedAt = apiKey.RevokedAt,
+            IsActive = apiKey.IsActive,
+            IsExpired = apiKey.IsExpired,
+            IsRevoked = apiKey.IsRevoked,
+            IsRateLimited = apiKey.IsRateLimited
         };
     }
 }

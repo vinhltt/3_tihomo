@@ -30,6 +30,7 @@ public class IdentityDbContext : DbContext
     public DbSet<UserRole> UserRoles { get; set; }
     public DbSet<UserLogin> UserLogins { get; set; }
     public DbSet<ApiKey> ApiKeys { get; set; }
+    public DbSet<ApiKeyUsageLog> ApiKeyUsageLogs { get; set; }
     public DbSet<RefreshToken> RefreshTokens { get; set; }
     public DbSet<OAuthClient> OAuthClients { get; set; }
 
@@ -76,9 +77,15 @@ public class IdentityDbContext : DbContext
 
         // ApiKey configuration
         modelBuilder.Entity<ApiKey>(entity =>
-        {            entity.HasKey(e => e.Id);
+        {
+            entity.HasKey(e => e.Id);
             entity.HasIndex(e => e.KeyHash).IsUnique();
-            entity.HasIndex(e => e.KeyPrefix);entity.Property(e => e.Name).HasMaxLength(100).IsRequired();
+            entity.HasIndex(e => e.KeyPrefix);
+            entity.HasIndex(e => e.UserId);
+            entity.HasIndex(e => e.Status);
+            entity.HasIndex(e => e.ExpiresAt);
+
+            entity.Property(e => e.Name).HasMaxLength(100).IsRequired();
             entity.Property(e => e.KeyHash).HasMaxLength(255).IsRequired();
             entity.Property(e => e.KeyPrefix).HasMaxLength(32).IsRequired();
             entity.Property(e => e.Description).HasMaxLength(500);
@@ -88,9 +95,68 @@ public class IdentityDbContext : DbContext
                     v => JsonSerializer.Deserialize<List<string>>(v, (JsonSerializerOptions?)null) ??
                          new List<string>());
 
+            // Enhanced properties
+            entity.Property(e => e.IpWhitelist)
+                .HasConversion(
+                    v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
+                    v => JsonSerializer.Deserialize<List<string>>(v, (JsonSerializerOptions?)null) ??
+                         new List<string>());
+
+            entity.Property(e => e.RateLimitPerMinute).HasDefaultValue(100);
+            entity.Property(e => e.DailyUsageQuota).HasDefaultValue(10000);
+            entity.Property(e => e.TodayUsageCount).HasDefaultValue(0);
+            entity.Property(e => e.UsageCount).HasDefaultValue(0);
+
+            // Security Settings as JSON
+            entity.Property(e => e.SecuritySettings)
+                .HasConversion(
+                    v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
+                    v => JsonSerializer.Deserialize<ApiKeySecuritySettings>(v, (JsonSerializerOptions?)null) ??
+                         new ApiKeySecuritySettings());
+
+            // Navigation properties
             entity.HasOne(e => e.User)
                 .WithMany(u => u.ApiKeys)
                 .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasMany(e => e.UsageLogs)
+                .WithOne(ul => ul.ApiKey)
+                .HasForeignKey(ul => ul.ApiKeyId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ApiKeyUsageLog configuration
+        modelBuilder.Entity<ApiKeyUsageLog>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.ApiKeyId);
+            entity.HasIndex(e => e.Timestamp);
+            entity.HasIndex(e => e.IpAddress);
+            entity.HasIndex(e => e.Method);
+            entity.HasIndex(e => e.StatusCode);
+            entity.HasIndex(e => new { e.ApiKeyId, e.Timestamp });
+
+            entity.Property(e => e.Method).HasMaxLength(10).IsRequired();
+            entity.Property(e => e.Endpoint).HasMaxLength(500).IsRequired();
+            entity.Property(e => e.IpAddress).HasMaxLength(45).IsRequired(); // IPv6 max length
+            entity.Property(e => e.UserAgent).HasMaxLength(1000);
+            entity.Property(e => e.RequestId).HasMaxLength(100);
+            entity.Property(e => e.ErrorMessage).HasMaxLength(1000);
+            entity.Property(e => e.ResponseTime).HasDefaultValue(0);
+            entity.Property(e => e.RequestSize).HasDefaultValue(0);
+            entity.Property(e => e.ResponseSize).HasDefaultValue(0);
+
+            // ScopesUsed as JSON
+            entity.Property(e => e.ScopesUsed)
+                .HasConversion(
+                    v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
+                    v => JsonSerializer.Deserialize<List<string>>(v, (JsonSerializerOptions?)null) ??
+                         new List<string>());
+
+            entity.HasOne(e => e.ApiKey)
+                .WithMany(ak => ak.UsageLogs)
+                .HasForeignKey(e => e.ApiKeyId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 

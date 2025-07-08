@@ -30,6 +30,9 @@ public class CoreFinanceDbContext : DbContext
     public CoreFinanceDbContext()
     {
     }
+    public CoreFinanceDbContext(DbContextOptions<CoreFinanceDbContext> options)
+    {
+    }
 
     /// <summary>
     ///     (EN) Initializes a new instance of the <see cref="CoreFinanceDbContext" /> class with specified options and

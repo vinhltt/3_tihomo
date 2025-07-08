@@ -38,34 +38,8 @@ public class LoginResponse
 }
 
 /// <summary>
-/// Request model for API key creation
-/// Model yêu cầu để tạo API key
-/// </summary>
-public class CreateApiKeyRequest
-{
-    public string Name { get; set; } = string.Empty;
-    public string? Description { get; set; }
-    public DateTime? ExpiresAt { get; set; }
-    public List<string>? Scopes { get; set; }
-}
-
-/// <summary>
-/// Response model for API key creation
-/// Model phản hồi để tạo API key
-/// </summary>
-public class CreateApiKeyResponse
-{
-    public Guid Id { get; set; }
-    public string Name { get; set; } = string.Empty;
-    public string ApiKey { get; set; } = string.Empty; // The actual key (only shown once)
-    public string KeyPrefix { get; set; } = string.Empty;
-    public DateTime CreatedAt { get; set; }
-    public DateTime? ExpiresAt { get; set; }
-}
-
-/// <summary>
-/// API key information (without the actual key)
-/// Thông tin API key (không bao gồm key thực tế)
+/// API key information (without the actual key) - Legacy format for backward compatibility (EN)<br/>
+/// Thông tin API key (không bao gồm key thực tế) - Định dạng cũ để tương thích ngược (VI)
 /// </summary>
 public class ApiKeyInfo
 {

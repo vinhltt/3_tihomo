@@ -52,4 +52,14 @@ public class ApiKeyRepository(IdentityDbContext context) : BaseRepository<ApiKey
             await Context.SaveChangesAsync(cancellationToken);
         }
     }
+
+    public async Task<IEnumerable<ApiKeyUsageLog>> GetUsageLogsAsync(Guid apiKeyId, DateTime startDate, DateTime endDate, CancellationToken cancellationToken = default)
+    {
+        return await Context.Set<ApiKeyUsageLog>()
+            .Where(log => log.ApiKeyId == apiKeyId && 
+                         log.Timestamp >= startDate && 
+                         log.Timestamp <= endDate)
+            .OrderByDescending(log => log.Timestamp)
+            .ToListAsync(cancellationToken);
+    }
 }

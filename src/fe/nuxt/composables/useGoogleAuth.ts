@@ -163,13 +163,8 @@ export const useGoogleAuth = () => {
 
       return response
     } catch (error: any) {
-      console.error('❌ API Authentication failed:', {
-        status: error.status || error.statusCode,
-        message: error.message,
-        data: error.data,
-        url: '/api/auth/social-login (via Gateway)'
-      })
-      throw error
+      console.error('❌ API Authentication failed:', error)
+      throw error;
     }
   }
 

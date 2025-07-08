@@ -37,6 +37,12 @@ namespace Identity.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
+                    b.Property<int>("DailyUsageQuota")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(10000)
+                        .HasColumnName("daily_usage_quota");
+
                     b.Property<string>("Description")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)")
@@ -45,6 +51,11 @@ namespace Identity.Infrastructure.Migrations
                     b.Property<DateTime?>("ExpiresAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("expires_at");
+
+                    b.Property<string>("IpWhitelist")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("ip_whitelist");
 
                     b.Property<string>("IsDeleted")
                         .HasColumnType("text")
@@ -62,6 +73,10 @@ namespace Identity.Infrastructure.Migrations
                         .HasColumnType("character varying(32)")
                         .HasColumnName("key_prefix");
 
+                    b.Property<DateTime?>("LastResetDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_reset_date");
+
                     b.Property<DateTime?>("LastUsedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("last_used_at");
@@ -72,14 +87,35 @@ namespace Identity.Infrastructure.Migrations
                         .HasColumnType("character varying(100)")
                         .HasColumnName("name");
 
+                    b.Property<int>("RateLimitPerMinute")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(100)
+                        .HasColumnName("rate_limit_per_minute");
+
+                    b.Property<DateTime?>("RevokedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("revoked_at");
+
                     b.Property<string>("Scopes")
                         .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("scopes");
 
+                    b.Property<string>("SecuritySettings")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("security_settings");
+
                     b.Property<int>("Status")
                         .HasColumnType("integer")
                         .HasColumnName("status");
+
+                    b.Property<int>("TodayUsageCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("today_usage_count");
 
                     b.Property<string>("UpdateBy")
                         .HasColumnType("text")
@@ -89,8 +125,10 @@ namespace Identity.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
-                    b.Property<int>("UsageCount")
-                        .HasColumnType("integer")
+                    b.Property<long>("UsageCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasDefaultValue(0L)
                         .HasColumnName("usage_count");
 
                     b.Property<Guid>("UserId")
@@ -99,6 +137,9 @@ namespace Identity.Infrastructure.Migrations
 
                     b.HasKey("Id")
                         .HasName("pk_api_keys");
+
+                    b.HasIndex("ExpiresAt")
+                        .HasDatabaseName("ix_api_keys_expires_at");
 
                     b.HasIndex("Id")
                         .HasDatabaseName("ix_api_keys_id");
@@ -110,10 +151,135 @@ namespace Identity.Infrastructure.Migrations
                     b.HasIndex("KeyPrefix")
                         .HasDatabaseName("ix_api_keys_key_prefix");
 
+                    b.HasIndex("Status")
+                        .HasDatabaseName("ix_api_keys_status");
+
                     b.HasIndex("UserId")
                         .HasDatabaseName("ix_api_keys_user_id");
 
                     b.ToTable("api_keys", (string)null);
+                });
+
+            modelBuilder.Entity("Identity.Domain.Entities.ApiKeyUsageLog", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("ApiKeyId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("api_key_id");
+
+                    b.Property<string>("CreateBy")
+                        .HasColumnType("text")
+                        .HasColumnName("create_by");
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Endpoint")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("endpoint");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("error_message");
+
+                    b.Property<string>("IpAddress")
+                        .IsRequired()
+                        .HasMaxLength(45)
+                        .HasColumnType("character varying(45)")
+                        .HasColumnName("ip_address");
+
+                    b.Property<string>("IsDeleted")
+                        .HasColumnType("text")
+                        .HasColumnName("is_deleted");
+
+                    b.Property<string>("Method")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("method");
+
+                    b.Property<string>("RequestId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("request_id");
+
+                    b.Property<long>("RequestSize")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasDefaultValue(0L)
+                        .HasColumnName("request_size");
+
+                    b.Property<long>("ResponseSize")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasDefaultValue(0L)
+                        .HasColumnName("response_size");
+
+                    b.Property<int>("ResponseTime")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("response_time");
+
+                    b.Property<string>("ScopesUsed")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("scopes_used");
+
+                    b.Property<int>("StatusCode")
+                        .HasColumnType("integer")
+                        .HasColumnName("status_code");
+
+                    b.Property<DateTime>("Timestamp")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("timestamp");
+
+                    b.Property<string>("UpdateBy")
+                        .HasColumnType("text")
+                        .HasColumnName("update_by");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("UserAgent")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("user_agent");
+
+                    b.HasKey("Id")
+                        .HasName("pk_api_key_usage_logs");
+
+                    b.HasIndex("ApiKeyId")
+                        .HasDatabaseName("ix_api_key_usage_logs_api_key_id");
+
+                    b.HasIndex("Id")
+                        .HasDatabaseName("ix_api_key_usage_logs_id");
+
+                    b.HasIndex("IpAddress")
+                        .HasDatabaseName("ix_api_key_usage_logs_ip_address");
+
+                    b.HasIndex("Method")
+                        .HasDatabaseName("ix_api_key_usage_logs_method");
+
+                    b.HasIndex("StatusCode")
+                        .HasDatabaseName("ix_api_key_usage_logs_status_code");
+
+                    b.HasIndex("Timestamp")
+                        .HasDatabaseName("ix_api_key_usage_logs_timestamp");
+
+                    b.HasIndex("ApiKeyId", "Timestamp")
+                        .HasDatabaseName("ix_api_key_usage_logs_api_key_id_timestamp");
+
+                    b.ToTable("api_key_usage_logs", (string)null);
                 });
 
             modelBuilder.Entity("Identity.Domain.Entities.OAuthClient", b =>
@@ -946,6 +1112,18 @@ namespace Identity.Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("Identity.Domain.Entities.ApiKeyUsageLog", b =>
+                {
+                    b.HasOne("Identity.Domain.Entities.ApiKey", "ApiKey")
+                        .WithMany("UsageLogs")
+                        .HasForeignKey("ApiKeyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_api_key_usage_logs_api_keys_api_key_id");
+
+                    b.Navigation("ApiKey");
+                });
+
             modelBuilder.Entity("Identity.Domain.Entities.RefreshToken", b =>
                 {
                     b.HasOne("Identity.Domain.Entities.User", "User")
@@ -1016,6 +1194,11 @@ namespace Identity.Infrastructure.Migrations
                     b.Navigation("Application");
 
                     b.Navigation("Authorization");
+                });
+
+            modelBuilder.Entity("Identity.Domain.Entities.ApiKey", b =>
+                {
+                    b.Navigation("UsageLogs");
                 });
 
             modelBuilder.Entity("Identity.Domain.Entities.Role", b =>

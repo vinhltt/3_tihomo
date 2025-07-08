@@ -26,7 +26,7 @@ export async function createApiProxy(event: H3Event, options: ProxyOptions) {
   
   // Get the API base URL from environment
   const apiBaseUrl = process.env.API_BASE_URL || config.public.apiBase
-  
+  console.log('apiBaseUrl', apiBaseUrl, process.env.API_BASE_URL, config.public.apiBase);
   // Construct the target URL
   const targetUrl = `${apiBaseUrl}/${options.basePath}/${path}`
   
@@ -55,7 +55,7 @@ export async function createApiProxy(event: H3Event, options: ProxyOptions) {
     if (['POST', 'PUT', 'PATCH'].includes(getMethod(event))) {
       body = await readBody(event)
     }
-    
+    console.log('targetUrl', targetUrl);
     // Make the proxy request
     const response = await $fetch(targetUrl, {
       method: getMethod(event),
