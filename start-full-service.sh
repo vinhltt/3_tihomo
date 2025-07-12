@@ -51,7 +51,7 @@ mkdir -p config/{grafana/dashboards,nginx/conf.d,ssl}
 # Start all services with proper dependency resolution
 echo "🚀 Starting all TiHoMo services..."
 echo "📋 Docker Compose will handle service dependencies automatically"
-docker compose up -d
+docker compose up -d --build
 
 echo ""
 echo "✅ TiHoMo Development Environment is ready!"
