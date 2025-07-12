@@ -286,6 +286,7 @@ services:
       target: ${NUXT_BUILD_TARGET:-development}  # Changed default to development for dev mode
     container_name: tihomo-frontend-nuxt
     restart: unless-stopped
+    user: "0:0"  # Start as root to fix permissions, then switch to nuxt user in entrypoint
     environment:
       # Core Nuxt Configuration
       - NODE_ENV=${NODE_ENV:-development}
@@ -298,10 +299,6 @@ services:
       - IDENTITY_SERVICE_URL=http://identity-api:8080
       - COREFINANCE_SERVICE_URL=http://corefinance-api:8080
       - EXCEL_SERVICE_URL=http://excel-api:8080
-      
-      # Public API Configuration (for client-side calls)
-      - NUXT_PUBLIC_API_BASE=http://localhost:5800
-      - NUXT_PUBLIC_IDENTITY_API_BASE=http://localhost:5800
       
       # Authentication & Security
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
@@ -364,8 +361,8 @@ services:
       - ConnectionStrings__Redis=redis:6379
       - Redis__Password=${REDIS_PASSWORD}
       - JWT__SecretKey=${JWT_SECRET_KEY}
-      - JWT__Issuer=http://localhost:${GATEWAY_PORT}
-      - JWT__Audience=http://localhost:${GATEWAY_PORT}
+      - JWT__Issuer=${JWT_ISSUER}
+      - JWT__Audience=${JWT_AUDIENCE_OCELOT_GATEWAY}
     ports:
       - "${GATEWAY_PORT}:8080"  # API Gateway port - Docker Dev environment
     volumes:
@@ -398,8 +395,8 @@ services:
       - Redis__ConnectionString=redis:6379
       - Redis__Password=${REDIS_PASSWORD}
       - JWT__SecretKey=${JWT_SECRET_KEY}
-      - JWT__Issuer=http://localhost:${GATEWAY_PORT}
-      - JWT__Audience=http://localhost:${GATEWAY_PORT}
+      - JWT__Issuer=${JWT_ISSUER}
+      - JWT__Audience=${JWT_AUDIENCE_IDENTITY_API}
       - OAuth__Google__ClientId=${NUXT_PUBLIC_GOOGLE_CLIENT_ID}
       - RabbitMQ__Host=rabbitmq
       - RabbitMQ__Username=tihomo
@@ -437,8 +434,8 @@ services:
       - ConnectionStrings__Redis=redis:6379
       - Redis__Password=${REDIS_PASSWORD}
       - JWT__SecretKey=${JWT_SECRET_KEY}
-      - JWT__Issuer=http://localhost:${GATEWAY_PORT}
-      - JWT__Audience=http://localhost:${GATEWAY_PORT}
+      - JWT__Issuer=${JWT_ISSUER}
+      - JWT__Audience=${JWT_AUDIENCE_COREFINANCE_API}
       - RabbitMQ__Host=rabbitmq
       - RabbitMQ__Username=tihomo
       - RabbitMQ__Password=${RABBITMQ_PASSWORD}

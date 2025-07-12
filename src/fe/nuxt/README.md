@@ -23,7 +23,7 @@ Frontend-only Nuxt 3 application for CoreFinance Personal Finance Management sys
 
 2. **Environment Configuration**:
    - Default API endpoint: `https://localhost:7293`
-   - To change, set environment variable: `NUXT_PUBLIC_API_BASE=your_api_url`
+   - To change, set environment variable: `API_BASE_URL=your_api_url`
 
 3. **Start development server**:
    ```bash
@@ -179,7 +179,7 @@ interface ApiResponse<T> {
 1. **API Connection Failed**:
    - Ensure .NET API is running on localhost:7293
    - Check CORS configuration in .NET API
-   - Verify `NUXT_PUBLIC_API_BASE` environment variable
+   - Verify `API_BASE_URL` environment variable
 
 2. **TypeScript Errors**:
    - Run `npm run build` to check for type errors

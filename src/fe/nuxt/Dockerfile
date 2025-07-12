@@ -64,6 +64,11 @@ RUN chmod +x /docker-entrypoint.sh
 # Change ownership of app directory
 RUN chown -R nuxt:nodejs /app
 
+# Create .nuxt directory with proper permissions
+RUN mkdir -p /app/.nuxt /app/.output /app/logs /app/uploads && \
+    chown -R nuxt:nodejs /app/.nuxt /app/.output /app/logs /app/uploads && \
+    chmod -R 755 /app/.nuxt /app/.output /app/logs /app/uploads
+
 # For development mode, we'll handle user switching in entrypoint
 # to avoid permission issues with volume mounts
 # USER nuxt
