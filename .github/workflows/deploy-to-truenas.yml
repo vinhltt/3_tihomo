@@ -308,6 +308,65 @@ jobs:
           EOF
         shell: bash
 
+      - name: Check and Fix Docker Permissions
+        run: |
+          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << EOF
+            echo "[CHECK] Kiểm tra quyền Docker..."
+            
+            # Kiểm tra Docker daemon có chạy không
+            if systemctl is-active --quiet docker 2>/dev/null || service docker status >/dev/null 2>&1; then
+              echo "[OK] Docker daemon đang chạy"
+            else
+              echo "[ERROR] Docker daemon không chạy"
+              sudo systemctl start docker || sudo service docker start || echo "[WARNING] Không thể start Docker daemon"
+            fi
+            
+            # Kiểm tra user hiện tại có trong docker group không
+            CURRENT_USER=\$(whoami)
+            echo "[INFO] Current user: \$CURRENT_USER"
+            
+            if groups \$CURRENT_USER | grep -q docker; then
+              echo "[OK] User \$CURRENT_USER đã trong docker group"
+              USE_SUDO=""
+            else
+              echo "[WARNING] User \$CURRENT_USER chưa trong docker group"
+              echo "[FIX] Thử thêm user vào docker group..."
+              
+              # Thử add user vào docker group
+              if sudo usermod -aG docker \$CURRENT_USER 2>/dev/null; then
+                echo "[OK] Đã thêm user vào docker group"
+                echo "[INFO] Cần logout/login lại để group có hiệu lực"
+                echo "[INFO] Sử dụng sudo cho session này"
+                USE_SUDO="sudo"
+              else
+                echo "[WARNING] Không thể thêm user vào docker group, sử dụng sudo"
+                USE_SUDO="sudo"
+              fi
+            fi
+            
+            # Test Docker access
+            echo "[TEST] Test Docker access..."
+            if docker ps >/dev/null 2>&1; then
+              echo "[OK] Docker access thành công (không cần sudo)"
+              USE_SUDO=""
+            elif sudo docker ps >/dev/null 2>&1; then
+              echo "[OK] Docker access thành công (cần sudo)"
+              USE_SUDO="sudo"
+            else
+              echo "[ERROR] Không thể truy cập Docker daemon"
+              echo "[DEBUG] Docker socket permissions:"
+              ls -l /var/run/docker.sock
+              echo "[DEBUG] Current user groups:"
+              groups
+              exit 1
+            fi
+            
+            # Save sudo preference to environment for next steps
+            echo "USE_SUDO=\$USE_SUDO" >> /tmp/docker_config
+            echo "[OK] Docker permissions đã được kiểm tra và cấu hình"
+          EOF
+        shell: bash
+
       - name: Prepare application directories on TrueNAS
         run: |
           ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << EOF
@@ -378,37 +437,55 @@ jobs:
             # Load environment variables
             source .env
             
+            # Load Docker sudo preference from previous step
+            if [ -f /tmp/docker_config ]; then
+              source /tmp/docker_config
+              echo "[INFO] Using Docker with sudo preference: '\$USE_SUDO'"
+            else
+              echo "[WARNING] Docker config not found, testing Docker access..."
+              if docker ps >/dev/null 2>&1; then
+                USE_SUDO=""
+                echo "[OK] Docker access without sudo"
+              elif sudo docker ps >/dev/null 2>&1; then
+                USE_SUDO="sudo"
+                echo "[OK] Docker access with sudo"
+              else
+                echo "[ERROR] No Docker access available"
+                exit 1
+              fi
+            fi
+            
             echo "[PULL] Đang pull images mới nhất..."
-            docker compose pull
+            \$USE_SUDO docker compose pull
             echo "[OK] Đã pull images thành công"
             
             echo "[BUILD] Đang build images cho tất cả các dịch vụ (nếu có thay đổi)..."
-            docker compose build --no-cache
+            \$USE_SUDO docker compose build --no-cache
             echo "[OK] Đã build images thành công"
             
             echo "[STOP] Dừng containers hiện tại (nếu đang chạy)..."
-            docker compose down --remove-orphans --volumes || true 
+            \$USE_SUDO docker compose down --remove-orphans --volumes || true 
             echo "[OK] Đã dừng các containers hiện tại"
             
             echo "[CLEAN] Dọn dẹp unused Docker resources..."
-            docker system prune -f
+            \$USE_SUDO docker system prune -f
             echo "[OK] Đã dọn dẹp Docker resources"
             
             echo "[START] Khởi động TiHoMo system..."
-            docker compose up -d
+            \$USE_SUDO docker compose up -d
             echo "[OK] Đã khởi động containers thành công"
             
             echo "[WAIT] Đang đợi services khởi động (60 giây)..."
             sleep 60
             
             echo "[STATUS] Kiểm tra trạng thái các container..."
-            docker compose ps
+            \$USE_SUDO docker compose ps
             
             echo "[CHECK] Kiểm tra logs gần đây..."
-            docker compose logs --tail=10 ocelot-gateway
-            docker compose logs --tail=10 frontend-nuxt
-            docker compose logs --tail=10 identity-api
-            docker compose logs --tail=10 corefinance-api
+            \$USE_SUDO docker compose logs --tail=10 ocelot-gateway
+            \$USE_SUDO docker compose logs --tail=10 frontend-nuxt
+            \$USE_SUDO docker compose logs --tail=10 identity-api
+            \$USE_SUDO docker compose logs --tail=10 corefinance-api
           EOF
         shell: bash
 
@@ -422,6 +499,18 @@ jobs:
             # Load environment variables
             source .env
             
+            # Load Docker sudo preference
+            if [ -f /tmp/docker_config ]; then
+              source /tmp/docker_config
+            else
+              # Fallback check
+              if docker ps >/dev/null 2>&1; then
+                USE_SUDO=""
+              else
+                USE_SUDO="sudo"
+              fi
+            fi
+            
             echo "[HEALTH] Kiểm tra health của các services..."
             
             # Function to check service health
@@ -434,7 +523,7 @@ jobs:
               echo "[CHECK] Checking \$service_name health..."
               
               while [ \$attempt -le \$max_attempts ]; do
-                if docker compose exec -T \$service_name curl -f \$health_url > /dev/null 2>&1; then
+                if \$USE_SUDO docker compose exec -T \$service_name curl -f \$health_url > /dev/null 2>&1; then
                   echo "[OK] \$service_name is healthy"
                   return 0
                 else
@@ -453,7 +542,7 @@ jobs:
               echo "[OK] Gateway is healthy"
             else
               echo "[ERROR] Gateway health check failed"
-              docker compose logs --tail=20 ocelot-gateway
+              \$USE_SUDO docker compose logs --tail=20 ocelot-gateway
             fi
             
             # Check Frontend health
@@ -461,7 +550,7 @@ jobs:
               echo "[OK] Frontend is healthy"
             else
               echo "[ERROR] Frontend health check failed"
-              docker compose logs --tail=20 frontend-nuxt
+              \$USE_SUDO docker compose logs --tail=20 frontend-nuxt
             fi
             
             # Check Identity API health
@@ -469,7 +558,7 @@ jobs:
               echo "[OK] Identity API is healthy"
             else
               echo "[ERROR] Identity API health check failed"
-              docker compose logs --tail=20 identity-api
+              \$USE_SUDO docker compose logs --tail=20 identity-api
             fi
             
             # Check CoreFinance API health
@@ -477,11 +566,11 @@ jobs:
               echo "[OK] CoreFinance API is healthy"
             else
               echo "[ERROR] CoreFinance API health check failed"
-              docker compose logs --tail=20 corefinance-api
+              \$USE_SUDO docker compose logs --tail=20 corefinance-api
             fi
             
             echo "[CHECK] Tổng quan trạng thái tất cả services:"
-            docker compose ps
+            \$USE_SUDO docker compose ps
             
             echo "[DISK] Disk usage after deployment:"
             df -h .
