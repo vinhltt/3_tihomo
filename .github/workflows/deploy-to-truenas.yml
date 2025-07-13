@@ -250,8 +250,8 @@ jobs:
           GENERIC_TIMEZONE=${{ vars.GENERIC_TIMEZONE || 'Asia/Ho_Chi_Minh' }}
           TZ=${{ vars.TZ || 'Asia/Ho_Chi_Minh' }}
           
-          # Build Configuration
-          NUXT_BUILD_TARGET=${{ vars.NUXT_BUILD_TARGET || 'production' }}
+          # Build Configuration - Force production stage for deployment
+          NUXT_BUILD_TARGET=production
           NUXT_DEV_SSR=${{ vars.NUXT_DEV_SSR || 'false' }}
           NUXT_DEBUG=${{ vars.NUXT_DEBUG || 'false' }}
           NUXT_DEV_TOOLS=${{ vars.NUXT_DEV_TOOLS || 'false' }}
@@ -455,6 +455,15 @@ jobs:
               fi
             fi
             
+            # Validate NUXT_BUILD_TARGET to prevent build errors
+            if [ "\$NUXT_BUILD_TARGET" != "development" ] && [ "\$NUXT_BUILD_TARGET" != "production" ]; then
+              echo "[WARNING] Invalid NUXT_BUILD_TARGET: '\$NUXT_BUILD_TARGET'. Using 'production' instead."
+              export NUXT_BUILD_TARGET=production
+              # Update .env file with corrected value
+              sed -i 's/^NUXT_BUILD_TARGET=.*/NUXT_BUILD_TARGET=production/' .env
+            fi
+            echo "[INFO] Using NUXT_BUILD_TARGET: '\$NUXT_BUILD_TARGET'"
+            
             echo "[PULL] Đang pull images mới nhất..."
             \$USE_SUDO docker compose pull || {
               echo "[ERROR] Failed to pull images"
@@ -471,6 +480,10 @@ jobs:
               echo "[ERROR] Failed to build images"
               echo "[DEBUG] Docker compose file check:"
               cat docker-compose.yml | head -20
+              echo "[DEBUG] Environment variables:"
+              echo "NUXT_BUILD_TARGET=\$NUXT_BUILD_TARGET"
+              echo "[DEBUG] Frontend service config:"
+              grep -A 10 "frontend-nuxt:" docker-compose.yml
               exit 1
             }
             echo "[OK] Đã build images thành công"

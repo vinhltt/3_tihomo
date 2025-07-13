@@ -283,7 +283,8 @@ services:
     build:
       context: ./src/fe/nuxt
       dockerfile: Dockerfile
-      target: ${NUXT_BUILD_TARGET:-development}  # Changed default to development for dev mode
+      # Ensure only valid stage names are used: builder, development, production
+      target: ${NUXT_BUILD_TARGET:-development}
     container_name: tihomo-frontend-nuxt
     restart: unless-stopped
     user: "0:0"  # Start as root to fix permissions, then switch to nuxt user in entrypoint
