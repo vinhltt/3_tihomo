@@ -172,7 +172,7 @@ jobs:
 
       - name: Create .env file on TrueNAS
         run: |
-          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel "cat > ${{ env.TRUENAS_DEPLOY_DIR }}/.env <<EOF
+          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel "cat > ${{ env.TRUENAS_DEPLOY_DIR }}/.env << 'EOF'
           # Project name
           COMPOSE_PROJECT_NAME=${{ vars.COMPOSE_PROJECT_NAME || 'tihomo' }}
           
@@ -269,8 +269,8 @@ jobs:
           DEPLOY_BRANCH=${{ github.ref_name }}
           DEPLOY_COMMIT=${{ github.sha }}
           DEPLOY_TIME=\$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-          EOF
-          echo '[OK] .env file created on TrueNAS at ${{ env.TRUENAS_DEPLOY_DIR }}/.env'"
+          EOF"
+          echo "[OK] .env file created on TrueNAS at ${{ env.TRUENAS_DEPLOY_DIR }}/.env"
         shell: bash
 
       - name: Debug Environment Configuration
@@ -456,11 +456,23 @@ jobs:
             fi
             
             echo "[PULL] Đang pull images mới nhất..."
-            \$USE_SUDO docker compose pull
+            \$USE_SUDO docker compose pull || {
+              echo "[ERROR] Failed to pull images"
+              echo "[DEBUG] Docker compose version:"
+              \$USE_SUDO docker compose version
+              echo "[DEBUG] Available images:"
+              \$USE_SUDO docker images
+              exit 1
+            }
             echo "[OK] Đã pull images thành công"
             
             echo "[BUILD] Đang build images cho tất cả các dịch vụ (nếu có thay đổi)..."
-            \$USE_SUDO docker compose build --no-cache
+            \$USE_SUDO docker compose build --no-cache || {
+              echo "[ERROR] Failed to build images"
+              echo "[DEBUG] Docker compose file check:"
+              cat docker-compose.yml | head -20
+              exit 1
+            }
             echo "[OK] Đã build images thành công"
             
             echo "[STOP] Dừng containers hiện tại (nếu đang chạy)..."
