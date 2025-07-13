@@ -10,7 +10,7 @@ Cannot find module '.output/server/index.mjs'
 ```
 
 ### Root Cause Analysis
-The issue was caused by the development volume mount in `docker-compose.yml`:
+The issue was caused by the development volume mount in `docker-compose.dev.yml`:
 ```yaml
 volumes:
   - ./src/fe/nuxt:/app  # This overwrites .output directory
@@ -108,7 +108,7 @@ fi
 
 ### 2. Docker Compose Configuration Fixes
 
-#### Development Mode (`docker-compose.yml`)
+#### Development Mode (`docker-compose.dev.yml`)
 - **Removed custom command** - rely on entrypoint script
 - **Keep volume mounts** for development hot reload
 - **Let entrypoint handle** build and start logic
@@ -128,7 +128,7 @@ Updated both `rebuild-frontend.sh` and `rebuild-frontend.bat`:
 
 ### File Changes Summary
 1. **`src/fe/nuxt/docker-entrypoint.sh`** - Complete rewrite with robust logic
-2. **`docker-compose.yml`** - Removed custom command override
+2. **`docker-compose.dev.yml`** - Removed custom command override
 3. **`docker-compose.prod.yml`** - Removed obsolete version declaration
 4. **`rebuild-frontend.sh`** - Fixed production mode compose file usage
 5. **`rebuild-frontend.bat`** - Fixed production mode compose file usage
@@ -158,7 +158,7 @@ Updated both `rebuild-frontend.sh` and `rebuild-frontend.bat`:
 ./rebuild-frontend.sh
 
 # Or using Docker Compose directly
-docker-compose -f docker-compose.yml up --build frontend-nuxt
+docker-compose -f docker-compose.dev.yml up --build frontend-nuxt
 ```
 
 ### Production Mode Testing
@@ -199,7 +199,7 @@ docker-compose -f docker-compose.prod.yml up --build frontend-nuxt
 
 #### Development hot reload not working
 - **Cause**: Volume mount issues or dev server not starting
-- **Solution**: Verify volume mounts in docker-compose.yml
+- **Solution**: Verify volume mounts in docker-compose.dev.yml
 - **Check**: Ensure `npm run dev` is executed for development mode
 
 ## Benefits Achieved

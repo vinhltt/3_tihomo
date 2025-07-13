@@ -6,8 +6,6 @@ echo "🚀 Starting TiHoMo Frontend (Nuxt) container..."
 echo "NODE_ENV: ${NODE_ENV:-development}"
 echo "Working directory: $(pwd)"
 echo "User: $(whoami)"
-echo "User ID: $(id -u)"
-echo "Group ID: $(id -g)"
 echo "Node version: $(node -v)"
 echo "NPM version: $(npm -v)"
 
@@ -16,88 +14,6 @@ export TERM=xterm-256color
 
 # Ensure we're in the correct directory
 cd /app
-
-# Fix permissions for development mode
-if [ "${NODE_ENV:-development}" != "production" ]; then
-  echo "🔧 Fixing permissions for development mode..."
-  
-  # Get current user info
-  CURRENT_USER=$(whoami)
-  echo "Current user: $CURRENT_USER"
-  
-  # If running as root, fix ownership and switch to nuxt user
-  if [ "$CURRENT_USER" = "root" ]; then
-    echo "🔄 Running as root, fixing permissions and switching to nuxt user..."
-    
-    # Ensure nuxt user exists
-    if ! id -u nuxt >/dev/null 2>&1; then
-      echo "Creating nuxt user..."
-      addgroup -g 1001 -S nodejs && adduser -S nuxt -u 1001 -G nodejs
-    fi
-    
-    # Fix ownership of entire app directory
-    echo "Fixing ownership of /app directory..."
-    chown -R nuxt:nodejs /app
-    
-    # Ensure critical directories exist and have correct permissions
-    for dir in ".nuxt" ".output" ".nitro" "dist" "node_modules" "logs" "uploads"; do
-      if [ ! -d "$dir" ]; then
-        echo "Creating directory: $dir"
-        mkdir -p "$dir"
-      fi
-      echo "Setting permissions for: $dir"
-      chown -R nuxt:nodejs "$dir"
-      chmod -R 755 "$dir"
-    done
-    
-    # Make sure package files are readable
-    chown nuxt:nodejs package*.json 2>/dev/null || true
-    
-    echo "✅ Permissions fixed, switching to nuxt user..."
-    # Re-run this script as nuxt user
-    exec su-exec nuxt "$0" "$@"
-  fi
-  
-  # If we're here, we're running as nuxt user or non-root
-  echo "🔧 Running as non-root user: $CURRENT_USER"
-  
-  # Ensure critical directories exist and are writable
-  for dir in ".nuxt" ".output" ".nitro" "dist"; do
-    if [ ! -d "$dir" ]; then
-      echo "Creating directory: $dir"
-      mkdir -p "$dir"
-    elif [ -d "$dir" ]; then
-      echo "Cleaning existing directory: $dir"
-      rm -rf "$dir"
-      mkdir -p "$dir"
-    fi
-    chmod 755 "$dir" 2>/dev/null || echo "⚠️ Could not set permissions for $dir"
-  done
-  
-  # Handle logs directory separately (might be volume mounted)
-  if [ ! -d "logs" ]; then
-    echo "Creating logs directory"
-    mkdir -p "logs"
-  fi
-  chmod 755 "logs" 2>/dev/null || echo "⚠️ Could not set permissions for logs"
-  
-  # Special handling for node_modules (might be a named volume)
-  if [ ! -d "node_modules" ]; then
-    echo "Creating node_modules directory..."
-    mkdir -p node_modules
-  fi
-  
-  # Test write permissions
-  echo "🧪 Testing write permissions..."
-  if ! touch .nuxt/test-write 2>/dev/null; then
-    echo "❌ Cannot write to .nuxt directory"
-    ls -la .nuxt/
-    exit 1
-  else
-    echo "✅ Write permissions OK"
-    rm -f .nuxt/test-write
-  fi
-fi
 
 # Check if package.json exists
 if [ ! -f "package.json" ]; then
@@ -121,7 +37,7 @@ if [ "${NODE_ENV:-development}" != "production" ]; then
     mkdir -p node_modules
     
     # Clear any partial installations
-    rm -rf node_modules/.bin 2>/dev/null || true
+    rm -rf node_modules/.bin
     
     # Install dependencies with debugging output
     echo "📦 Running npm install with --legacy-peer-deps flag..."

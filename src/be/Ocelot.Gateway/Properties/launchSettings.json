@@ -37,8 +37,7 @@
         "NGINX_HTTPS_PORT": "8443",
         "JwtSettings__SecretKey": "ThisIsAVerySecretKeyForJWTTokenGenerationAndValidation123456789",
         "JwtSettings__ExpirationMinutes": "60",
-        "NUXT_PUBLIC_GOOGLE_CLIENT_ID": "your-local-google-client-id",
-        "DOCKER_NETWORK_SUBNET": "172.20.0.0/16"
+        "APP_PUBLIC_GOOGLE_CLIENT_ID": "your-local-google-client-id",
       }
     },
     "Docker": {
@@ -83,7 +82,7 @@
         "NGINX_HTTPS_PORT": "8443",
         "JwtSettings__SecretKey": "ThisIsAVerySecretKeyForJWTTokenGenerationAndValidation123456789",
         "JwtSettings__ExpirationMinutes": "60",
-        "NUXT_PUBLIC_GOOGLE_CLIENT_ID": "your-docker-google-client-id",
+        "APP_PUBLIC_GOOGLE_CLIENT_ID": "your-docker-google-client-id",
         "DOCKER_NETWORK_SUBNET": "172.20.0.0/16"
       }
     }

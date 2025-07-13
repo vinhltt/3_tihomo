@@ -2,8 +2,8 @@
 .bk/
 bk_*
 bk/
-.env*
-!.env.template
+# .env*
+# !.env.template
 *.key
 *.pem
 

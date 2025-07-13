@@ -1,6 +1,9 @@
 name: Auto Deploy TiHoMo to TrueNAS
 
+# Updated: Enable manual workflow dispatch with environment options
 on:
+  push:
+    branches: [ master, develop ]
   workflow_dispatch:
     # Cho phép kích hoạt thủ công với tùy chọn environment
     inputs:
@@ -18,8 +21,6 @@ on:
         required: false
         default: false
         type: boolean
-  push:
-    branches: [ master, develop ]
 
 # Chia group concurrency theo từng branch (mỗi branch sẽ có hàng đợi riêng)
 # Nếu có workflow mới trên cùng một branch, workflow cũ sẽ bị cancel, chỉ giữ lại workflow mới nhất
@@ -92,7 +93,7 @@ jobs:
 
       - name: Setup Cloudflared and SSH Config
         run: |
-          echo "Runner HOME directory is: $HOME"
+          echo "Runner HOME directory is: $HOME" # In thư mục nhà
           # Cài đặt cloudflared
           sudo wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -O /usr/local/bin/cloudflared
           sudo chmod +x /usr/local/bin/cloudflared
@@ -108,7 +109,7 @@ jobs:
             User ${{ secrets.TRUENAS_USER }}
             StrictHostKeyChecking no
             UserKnownHostsFile /dev/null
-            LogLevel ERROR" > "$HOME/.ssh/config"
+            LogLevel ERROR" > "$HOME/.ssh/config" # Sử dụng $HOME
           
           chmod 600 "$HOME/.ssh/config"
           echo "[OK] SSH config for Cloudflared created at $HOME/.ssh/config"
@@ -132,15 +133,18 @@ jobs:
             echo "------------------------------------"
           else
             echo "[ERROR] SSH Config file NOT FOUND at $HOME/.ssh/config"
+            # Cố gắng liệt kê thư mục $HOME nếu có thể để xem cấu trúc
             echo "--- Listing $HOME directory ---"
             ls -la "$HOME"
             echo "-------------------------------"
-            exit 1
+            exit 1 # Gây lỗi nếu tệp không tồn tại
           fi
         shell: bash
 
       - name: Prepare deploy directory on TrueNAS
         run: |
+          # Sử dụng alias 'truenas-cf-tunnel' đã cấu hình
+          # Thêm -F "$HOME/.ssh/config" vào lệnh ssh để chỉ định rõ ràng
           ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << EOF
             mkdir -p ${{ env.TRUENAS_DEPLOY_DIR }}
             mkdir -p ${{ env.TRUENAS_DEPLOY_DIR }}/uploads
@@ -152,6 +156,8 @@ jobs:
 
       - name: Sync project files to TrueNAS
         run: |
+          # Sử dụng alias 'truenas-cf-tunnel' và chỉ định tệp cấu hình SSH rõ ràng cho rsync
+          # với $HOME
           rsync -avz -e "ssh -F $HOME/.ssh/config" \
             --exclude '.git/' \
             --exclude '.github/' \
@@ -277,7 +283,7 @@ jobs:
         run: |
           ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << EOF
             cd ${{ env.TRUENAS_DEPLOY_DIR }}
-            echo "[CHECK] Kiểm tra cấu hình environment..."
+            echo "�[CHECK] Kiểm tra cấu hình environment..."
             
             # Kiểm tra JWT_SECRET_KEY có tồn tại trong .env không
             if grep -q "JWT_SECRET_KEY=" .env; then
@@ -299,7 +305,7 @@ jobs:
             echo "[INFO] Các biến môi trường chính trong .env:"
             grep -E "(GATEWAY_PORT|FRONTEND_PORT|IDENTITY_DB|COREFINANCE_DB|REDIS|RABBITMQ)" .env || echo "Không có biến môi trường chính"
             
-            echo "[CHECK] Kiểm tra Docker Compose file:"
+            echo "�[CHECK] Kiểm tra Docker Compose file:"
             if [ -f "docker-compose.yml" ]; then
               echo "[OK] docker-compose.yml exists"
             else
@@ -336,7 +342,7 @@ jobs:
           ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << EOF
             cd ${{ env.TRUENAS_DEPLOY_DIR }}
             
-            echo "[CHECK] Pre-deployment health checks..."
+            echo "�[CHECK] Pre-deployment health checks..."
             
             # Check Docker availability
             if command -v docker &> /dev/null; then
@@ -357,11 +363,11 @@ jobs:
             fi
             
             # Check disk space
-            echo "[DISK] Disk space check:"
+            echo "�[DISK] Disk space check:"
             df -h .
             
             # Check memory
-            echo "[MEMORY] Memory check:"
+            echo "�[MEMORY] Memory check:"
             free -h
             
             echo "[OK] Pre-deployment checks completed"
@@ -373,38 +379,38 @@ jobs:
           ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << EOF
             set -e 
             cd ${{ env.TRUENAS_DEPLOY_DIR }}
-            echo "[DOCKER] Working with Docker Compose in ${{ env.TRUENAS_DEPLOY_DIR }}"
+            echo "�[DOCKER] Working with Docker Compose in ${{ env.TRUENAS_DEPLOY_DIR }}"
             
             # Load environment variables
             source .env
             
-            echo "[PULL] Đang pull images mới nhất..."
+            echo "�[PULL] Đang pull images mới nhất..."
             docker compose pull
             echo "[OK] Đã pull images thành công"
             
-            echo "[BUILD] Đang build images cho tất cả các dịch vụ (nếu có thay đổi)..."
+            echo "�[BUILD] Đang build images cho tất cả các dịch vụ (nếu có thay đổi)..."
             docker compose build --no-cache
             echo "[OK] Đã build images thành công"
             
-            echo "[STOP] Dừng containers hiện tại (nếu đang chạy)..."
+            echo "[STOP]  Dừng containers hiện tại (nếu đang chạy)..."
             docker compose down --remove-orphans --volumes || true 
             echo "[OK] Đã dừng các containers hiện tại"
             
-            echo "[CLEAN] Dọn dẹp unused Docker resources..."
+            echo "�[CLEAN] Dọn dẹp unused Docker resources..."
             docker system prune -f
             echo "[OK] Đã dọn dẹp Docker resources"
             
-            echo "[START] Khởi động TiHoMo system..."
+            echo "�[START] Khởi động TiHoMo system..."
             docker compose up -d
             echo "[OK] Đã khởi động containers thành công"
             
             echo "[WAIT] Đang đợi services khởi động (60 giây)..."
             sleep 60
             
-            echo "[STATUS] Kiểm tra trạng thái các container..."
+            echo "�[STATUS] Kiểm tra trạng thái các container..."
             docker compose ps
             
-            echo "[CHECK] Kiểm tra logs gần đây..."
+            echo "�[CHECK] Kiểm tra logs gần đây..."
             docker compose logs --tail=10 ocelot-gateway
             docker compose logs --tail=10 frontend-nuxt
             docker compose logs --tail=10 identity-api
@@ -422,7 +428,7 @@ jobs:
             # Load environment variables
             source .env
             
-            echo "[HEALTH] Kiểm tra health của các services..."
+            echo "�[HEALTH] Kiểm tra health của các services..."
             
             # Function to check service health
             check_service_health() {
@@ -431,7 +437,7 @@ jobs:
               local max_attempts=5
               local attempt=1
               
-              echo "[CHECK] Checking \$service_name health..."
+              echo "�[CHECK] Checking \$service_name health..."
               
               while [ \$attempt -le \$max_attempts ]; do
                 if docker compose exec -T \$service_name curl -f \$health_url > /dev/null 2>&1; then
@@ -480,36 +486,42 @@ jobs:
               docker compose logs --tail=20 corefinance-api
             fi
             
-            echo "[CHECK] Tổng quan trạng thái tất cả services:"
+            echo "�[CHECK] Tổng quan trạng thái tất cả services:"
             docker compose ps
             
-            echo "[DISK] Disk usage after deployment:"
+            echo "�[DISK] Disk usage after deployment:"
             df -h .
             
-            echo "[MEMORY] Memory usage after deployment:"
+            echo "�[MEMORY] Memory usage after deployment:"
             free -h
           EOF
         shell: bash
 
       - name: Display deployment information
         run: |
-          echo "[DEPLOY] TiHoMo system đã được triển khai thành công trên TrueNAS."
+          echo "�[DEPLOY] TiHoMo system đã được triển khai thành công trên TrueNAS."
           echo ""
-          echo "[STATUS] Thông tin triển khai:"
-          echo "  - Environment: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || (github.ref_name == 'master' && 'production' || github.ref_name == 'develop' && 'development' || github.ref_name == 'staging' && 'staging' || 'development') }}"
-          echo "  - Trigger Type: ${{ github.event_name == 'workflow_dispatch' && 'Manual Run' || 'Automatic (Push)' }}"
-          echo "  - Frontend: http://<TRUENAS_IP>:${{ vars.FRONTEND_PORT || '3500' }}"
-          echo "  - API Gateway: http://<TRUENAS_IP>:${{ vars.GATEWAY_PORT || '5000' }}"
-          echo "  - Grafana Dashboard: http://<TRUENAS_IP>:${{ vars.GRAFANA_PORT || '3002' }}"
-          echo "  - RabbitMQ Management: http://<TRUENAS_IP>:${{ vars.RABBITMQ_MANAGEMENT_PORT || '15672' }}"
-          echo "  - pgAdmin: http://<TRUENAS_IP>:${{ vars.PGADMIN_PORT || '8081' }}"
-          echo "  - Prometheus: http://<TRUENAS_IP>:${{ vars.PROMETHEUS_PORT || '9090' }}"
+          echo "�[STATUS] Thông tin triển khai:"
+          echo "  - **Environment:** ${{ github.event_name == 'workflow_dispatch' && inputs.environment || (github.ref_name == 'master' && 'production' || github.ref_name == 'develop' && 'development' || github.ref_name == 'staging' && 'staging' || 'development') }}"
+          echo "  - **Trigger Type:** ${{ github.event_name == 'workflow_dispatch' && 'Manual Run' || 'Automatic (Push)' }}"
+          echo "  - Frontend:"
+          echo "     Truy cập tại: http://<TRUENAS_IP>:${{ vars.FRONTEND_PORT || '3500' }}"
+          echo "  - API Gateway:"
+          echo "     Truy cập tại: http://<TRUENAS_IP>:${{ vars.GATEWAY_PORT || '5000' }}"
+          echo "  - Grafana Dashboard:"
+          echo "     Truy cập tại: http://<TRUENAS_IP>:${{ vars.GRAFANA_PORT || '3002' }}"
+          echo "  - RabbitMQ Management:"
+          echo "     Truy cập tại: http://<TRUENAS_IP>:${{ vars.RABBITMQ_MANAGEMENT_PORT || '15672' }}"
+          echo "  - pgAdmin:"
+          echo "     Truy cập tại: http://<TRUENAS_IP>:${{ vars.PGADMIN_PORT || '8081' }}"
+          echo "  - Prometheus:"
+          echo "     Truy cập tại: http://<TRUENAS_IP>:${{ vars.PROMETHEUS_PORT || '9090' }}"
           echo ""
-          echo "[INFO] Thông tin deployment:"
-          echo "  - Nhánh: ${{ github.ref_name }}"
-          echo "  - Commit: ${{ github.sha }}"
-          echo "  - Thời gian: $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
-          echo "  - Environment: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || (github.ref_name == 'master' && 'production' || github.ref_name == 'develop' && 'development' || 'staging') }}"
+          echo "�[INFO] Thông tin deployment:"
+          echo "  • **Nhánh:** ${{ github.ref_name }}"
+          echo "  • **Commit:** ${{ github.sha }}"
+          echo "  • **Thời gian:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
+          echo "  • **Environment:** ${{ github.event_name == 'workflow_dispatch' && inputs.environment || (github.ref_name == 'master' && 'production' || github.ref_name == 'develop' && 'development' || 'staging') }}"
           echo ""
           echo "[OK] TRIỂN KHAI HOÀN TẤT THÀNH CÔNG"
         shell: bash
@@ -522,7 +534,7 @@ jobs:
           message: |
             ${{ job.status == 'success' && '[OK] **Triển khai TiHoMo lên TrueNAS THÀNH CÔNG!**' || '[ERROR] **Triển khai TiHoMo lên TrueNAS THẤT BẠI!**' }}
             
-            [STATUS] **Thông tin triển khai:**
+            �[STATUS] **Thông tin triển khai:**
             • **Nhánh:** `${{ github.ref_name }}`
             • **Environment:** `${{ github.event_name == 'workflow_dispatch' && inputs.environment || (github.ref_name == 'master' && 'production' || github.ref_name == 'develop' && 'development' || github.ref_name == 'staging' && 'staging' || 'development') }}`
             • **Trigger:** `${{ github.event_name == 'workflow_dispatch' && 'Manual Run' || 'Automatic' }}`
@@ -539,7 +551,7 @@ jobs:
             • **Databases:** ${{ job.status == 'success' && 'Operational' || 'Issues detected' }}
             • **Monitoring:** ${{ job.status == 'success' && 'Active' || 'Inactive' }}
             
-            [Xem Chi Tiết Deploy](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            [�Xem Chi Tiết Deploy](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
 
       - name: Send Discord timeout notification
         if: cancelled()
@@ -549,16 +561,16 @@ jobs:
           message: |
             [TIMEOUT] **Triển khai TiHoMo ĐÃ BỊ HỦY do timeout (> 30 phút)!**
             
-            [STATUS] **Thông tin:**
+            �[STATUS] **Thông tin:**
             • **Nhánh:** `${{ github.ref_name }}`
             • **Thời gian:** Vượt quá 30 phút
             • **Environment:** `${{ github.event_name == 'workflow_dispatch' && inputs.environment || (github.ref_name == 'master' && 'production' || github.ref_name == 'develop' && 'development' || github.ref_name == 'staging' && 'staging' || 'development') }}`
             • **Trigger:** `${{ github.event_name == 'workflow_dispatch' && 'Manual Run' || 'Automatic' }}`
             
-            [CHECK] **Có thể do:**
+            �[CHECK] **Có thể do:**
             • Docker build quá lâu
             • Network connectivity issues
             • Resource constraints trên TrueNAS
             • Database initialization timeout
             
-            [Xem Chi Tiết Deploy](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            [�Xem Chi Tiết Deploy](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})

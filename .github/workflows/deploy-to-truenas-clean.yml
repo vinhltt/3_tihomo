@@ -1,6 +1,8 @@
 name: Auto Deploy TiHoMo to TrueNAS
 
 on:
+  push:
+    branches: [ master, develop ]
   workflow_dispatch:
     # Cho phép kích hoạt thủ công với tùy chọn environment
     inputs:
@@ -18,8 +20,6 @@ on:
         required: false
         default: false
         type: boolean
-  push:
-    branches: [ master, develop ]
 
 # Chia group concurrency theo từng branch (mỗi branch sẽ có hàng đợi riêng)
 # Nếu có workflow mới trên cùng một branch, workflow cũ sẽ bị cancel, chỉ giữ lại workflow mới nhất
