@@ -1,5 +1,6 @@
 name: Auto Deploy TiHoMo to TrueNAS
 
+# Updated: Enable manual workflow dispatch with environment options
 on:
   push:
     branches: [ master, develop ]
