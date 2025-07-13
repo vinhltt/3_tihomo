@@ -4,7 +4,22 @@ on:
   push:
     branches: [ master, develop ]
   workflow_dispatch:
-    # Cho phép kích hoạt thủ công
+    # Cho phép kích hoạt thủ công với tùy chọn environment
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: false
+        default: 'development'
+        type: choice
+        options:
+          - development
+          - staging
+          - production
+      skip_health_checks:
+        description: 'Skip health checks (for testing)'
+        required: false
+        default: false
+        type: boolean
 
 # Chia group concurrency theo từng branch (mỗi branch sẽ có hàng đợi riêng)
 # Nếu có workflow mới trên cùng một branch, workflow cũ sẽ bị cancel, chỉ giữ lại workflow mới nhất
@@ -15,7 +30,7 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest # Sử dụng GitHub-hosted runner
-    environment: ${{ github.ref_name == 'master' && 'production' ||  github.ref_name == 'develop' && 'development' ||  github.ref_name == 'staging' && 'staging' }}
+    environment: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || (github.ref_name == 'master' && 'production' || github.ref_name == 'develop' && 'development' || github.ref_name == 'staging' && 'staging' || 'development') }}
     # Đặt thời gian timeout cho toàn bộ job này là 30 phút
     timeout-minutes: 30 
     steps:
@@ -403,6 +418,7 @@ jobs:
         shell: bash
 
       - name: Verify deployment health
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.skip_health_checks != true }}
         run: |
           ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << EOF
             set -e 
@@ -485,6 +501,8 @@ jobs:
           echo "🌐 TiHoMo system đã được triển khai thành công trên TrueNAS."
           echo ""
           echo "📊 Thông tin triển khai:"
+          echo "  🔹 **Environment:** ${{ github.event_name == 'workflow_dispatch' && inputs.environment || (github.ref_name == 'master' && 'production' || github.ref_name == 'develop' && 'development' || github.ref_name == 'staging' && 'staging' || 'development') }}"
+          echo "  🔹 **Trigger Type:** ${{ github.event_name == 'workflow_dispatch' && 'Manual Run' || 'Automatic (Push)' }}"
           echo "  🔹 Frontend:"
           echo "     Truy cập tại: http://<TRUENAS_IP>:${{ vars.FRONTEND_PORT || '3500' }}"
           echo "  🔹 API Gateway:"
@@ -502,7 +520,7 @@ jobs:
           echo "  • **Nhánh:** ${{ github.ref_name }}"
           echo "  • **Commit:** ${{ github.sha }}"
           echo "  • **Thời gian:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
-          echo "  • **Environment:** ${{ github.ref_name == 'master' && 'production' || github.ref_name == 'develop' && 'development' || 'staging' }}"
+          echo "  • **Environment:** ${{ github.event_name == 'workflow_dispatch' && inputs.environment || (github.ref_name == 'master' && 'production' || github.ref_name == 'develop' && 'development' || 'staging') }}"
           echo ""
           echo "✅ TRIỂN KHAI HOÀN TẤT THÀNH CÔNG"
         shell: bash
@@ -517,7 +535,8 @@ jobs:
             
             📊 **Thông tin triển khai:**
             • **Nhánh:** `${{ github.ref_name }}`
-            • **Environment:** `${{ github.ref_name == 'master' && 'production' || github.ref_name == 'develop' && 'development' || 'staging' }}`
+            • **Environment:** `${{ github.event_name == 'workflow_dispatch' && inputs.environment || (github.ref_name == 'master' && 'production' || github.ref_name == 'develop' && 'development' || github.ref_name == 'staging' && 'staging' || 'development') }}`
+            • **Trigger:** `${{ github.event_name == 'workflow_dispatch' && 'Manual Run' || 'Automatic' }}`
             • **Frontend:** `http://<TRUENAS_IP>:${{ vars.FRONTEND_PORT || '3500' }}`
             • **API Gateway:** `http://<TRUENAS_IP>:${{ vars.GATEWAY_PORT || '5000' }}`
             • **Grafana:** `http://<TRUENAS_IP>:${{ vars.GRAFANA_PORT || '3002' }}`
@@ -544,7 +563,8 @@ jobs:
             📊 **Thông tin:**
             • **Nhánh:** `${{ github.ref_name }}`
             • **Thời gian:** Vượt quá 30 phút
-            • **Environment:** `${{ github.ref_name == 'master' && 'production' || github.ref_name == 'develop' && 'development' || 'staging' }}`
+            • **Environment:** `${{ github.event_name == 'workflow_dispatch' && inputs.environment || (github.ref_name == 'master' && 'production' || github.ref_name == 'develop' && 'development' || github.ref_name == 'staging' && 'staging' || 'development') }}`
+            • **Trigger:** `${{ github.event_name == 'workflow_dispatch' && 'Manual Run' || 'Automatic' }}`
             
             🔍 **Có thể do:**
             • Docker build quá lâu
