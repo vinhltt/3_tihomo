@@ -6,6 +6,8 @@ echo "🚀 Starting TiHoMo Frontend (Nuxt) container..."
 echo "NODE_ENV: ${NODE_ENV:-development}"
 echo "Working directory: $(pwd)"
 echo "User: $(whoami)"
+echo "User ID: $(id -u)"
+echo "Group ID: $(id -g)"
 echo "Node version: $(node -v)"
 echo "NPM version: $(npm -v)"
 
@@ -19,34 +21,82 @@ cd /app
 if [ "${NODE_ENV:-development}" != "production" ]; then
   echo "🔧 Fixing permissions for development mode..."
   
-  # Ensure the nuxt user owns the app directory
-  chown -R nuxt:nodejs /app 2>/dev/null || echo "⚠️ Could not change ownership (running as non-root?)"
+  # Get current user info
+  CURRENT_USER=$(whoami)
+  echo "Current user: $CURRENT_USER"
   
-  # Make sure directories are writable
-  chmod -R 755 /app 2>/dev/null || echo "⚠️ Could not change permissions"
-  
-  # Ensure node_modules directory exists and is writable
-  if [ ! -d "node_modules" ]; then
-    mkdir -p node_modules
-    chown nuxt:nodejs node_modules 2>/dev/null || echo "⚠️ Could not change node_modules ownership"
-  fi
-  
-  # Ensure .nuxt cache directory is writable
-  if [ -d ".nuxt" ]; then
-    echo "🧹 Cleaning .nuxt cache directory..."
-    rm -rf .nuxt
-  fi
-  mkdir -p .nuxt
-  chown -R nuxt:nodejs .nuxt 2>/dev/null || echo "⚠️ Could not change .nuxt ownership"
-  
-  # Ensure other Nuxt directories are writable
-  for dir in ".output" ".nitro" "dist"; do
-    if [ -d "$dir" ]; then
-      rm -rf "$dir"
+  # If running as root, fix ownership and switch to nuxt user
+  if [ "$CURRENT_USER" = "root" ]; then
+    echo "🔄 Running as root, fixing permissions and switching to nuxt user..."
+    
+    # Ensure nuxt user exists
+    if ! id -u nuxt >/dev/null 2>&1; then
+      echo "Creating nuxt user..."
+      addgroup -g 1001 -S nodejs && adduser -S nuxt -u 1001 -G nodejs
     fi
-    mkdir -p "$dir"
-    chown -R nuxt:nodejs "$dir" 2>/dev/null || echo "⚠️ Could not change $dir ownership"
+    
+    # Fix ownership of entire app directory
+    echo "Fixing ownership of /app directory..."
+    chown -R nuxt:nodejs /app
+    
+    # Ensure critical directories exist and have correct permissions
+    for dir in ".nuxt" ".output" ".nitro" "dist" "node_modules" "logs" "uploads"; do
+      if [ ! -d "$dir" ]; then
+        echo "Creating directory: $dir"
+        mkdir -p "$dir"
+      fi
+      echo "Setting permissions for: $dir"
+      chown -R nuxt:nodejs "$dir"
+      chmod -R 755 "$dir"
+    done
+    
+    # Make sure package files are readable
+    chown nuxt:nodejs package*.json 2>/dev/null || true
+    
+    echo "✅ Permissions fixed, switching to nuxt user..."
+    # Re-run this script as nuxt user
+    exec su-exec nuxt "$0" "$@"
+  fi
+  
+  # If we're here, we're running as nuxt user or non-root
+  echo "🔧 Running as non-root user: $CURRENT_USER"
+  
+  # Ensure critical directories exist and are writable
+  for dir in ".nuxt" ".output" ".nitro" "dist"; do
+    if [ ! -d "$dir" ]; then
+      echo "Creating directory: $dir"
+      mkdir -p "$dir"
+    elif [ -d "$dir" ]; then
+      echo "Cleaning existing directory: $dir"
+      rm -rf "$dir"
+      mkdir -p "$dir"
+    fi
+    chmod 755 "$dir" 2>/dev/null || echo "⚠️ Could not set permissions for $dir"
   done
+  
+  # Handle logs directory separately (might be volume mounted)
+  if [ ! -d "logs" ]; then
+    echo "Creating logs directory"
+    mkdir -p "logs"
+  fi
+  chmod 755 "logs" 2>/dev/null || echo "⚠️ Could not set permissions for logs"
+  
+  # Special handling for node_modules (might be a named volume)
+  if [ ! -d "node_modules" ]; then
+    echo "Creating node_modules directory..."
+    mkdir -p node_modules
+  fi
+  
+  # Test write permissions
+  echo "🧪 Testing write permissions..."
+  if ! touch .nuxt/test-write 2>/dev/null; then
+    echo "❌ Cannot write to .nuxt directory"
+    ls -la .nuxt/
+    exit 1
+  else
+    echo "✅ Write permissions OK"
+    rm -f .nuxt/test-write
+  fi
 fi
 
 # Check if package.json exists
@@ -71,7 +121,7 @@ if [ "${NODE_ENV:-development}" != "production" ]; then
     mkdir -p node_modules
     
     # Clear any partial installations
-    rm -rf node_modules/.bin
+    rm -rf node_modules/.bin 2>/dev/null || true
     
     # Install dependencies with debugging output
     echo "📦 Running npm install with --legacy-peer-deps flag..."
@@ -114,38 +164,19 @@ if [ "${NODE_ENV:-development}" != "production" ]; then
   # Start Nuxt with multiple fallback options
   echo "🚀 Starting Nuxt development server..."
   
-  # Switch to nuxt user for running the application (if we're root)
-  if [ "$(whoami)" = "root" ]; then
-    echo "🔄 Switching to nuxt user for application execution..."
-    # Try different methods to start Nuxt as nuxt user
-    if [ -x "node_modules/.bin/nuxt" ]; then
-      echo "✅ Running with node_modules/.bin/nuxt as nuxt user"
-      exec su-exec nuxt node_modules/.bin/nuxt dev --host 0.0.0.0 --port 3000
-    elif [ -f "node_modules/nuxt/bin/nuxt.mjs" ]; then
-      echo "✅ Running with node directly as nuxt user"
-      exec su-exec nuxt node node_modules/nuxt/bin/nuxt.mjs dev --host 0.0.0.0 --port 3000
-    elif command -v npx >/dev/null 2>&1; then
-      echo "✅ Running with npx as nuxt user"
-      exec su-exec nuxt npx nuxt dev --host 0.0.0.0 --port 3000
-    else
-      echo "✅ Falling back to npm run dev as nuxt user"
-      exec su-exec nuxt npm run dev
-    fi
+  # Try different methods to start Nuxt
+  if [ -x "node_modules/.bin/nuxt" ]; then
+    echo "✅ Running with node_modules/.bin/nuxt"
+    exec node_modules/.bin/nuxt dev --host 0.0.0.0 --port 3000
+  elif [ -f "node_modules/nuxt/bin/nuxt.mjs" ]; then
+    echo "✅ Running with node directly"
+    exec node node_modules/nuxt/bin/nuxt.mjs dev --host 0.0.0.0 --port 3000
+  elif command -v npx >/dev/null 2>&1; then
+    echo "✅ Running with npx"
+    exec npx nuxt dev --host 0.0.0.0 --port 3000
   else
-    # Already running as non-root user
-    if [ -x "node_modules/.bin/nuxt" ]; then
-      echo "✅ Running with node_modules/.bin/nuxt"
-      exec node_modules/.bin/nuxt dev --host 0.0.0.0 --port 3000
-    elif [ -f "node_modules/nuxt/bin/nuxt.mjs" ]; then
-      echo "✅ Running with node directly"
-      exec node node_modules/nuxt/bin/nuxt.mjs dev --host 0.0.0.0 --port 3000
-    elif command -v npx >/dev/null 2>&1; then
-      echo "✅ Running with npx"
-      exec npx nuxt dev --host 0.0.0.0 --port 3000
-    else
-      echo "✅ Falling back to npm run dev"
-      exec npm run dev
-    fi
+    echo "✅ Falling back to npm run dev"
+    exec npm run dev
   fi
 else
   echo "🏭 Production mode: Building and starting application..."

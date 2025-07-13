@@ -17,7 +17,7 @@ Add the following environment variables to your `.env` file:
 NUXT_PUBLIC_IDENTITY_API_BASE=https://localhost:5214
 
 # Social Login Providers
-NUXT_PUBLIC_GOOGLE_CLIENT_ID=your-google-client-id
+APP_PUBLIC_GOOGLE_CLIENT_ID=your-google-client-id
 NUXT_PUBLIC_FACEBOOK_APP_ID=your-facebook-app-id
 ```
 

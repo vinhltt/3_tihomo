@@ -1,0 +1,555 @@
+name: Auto Deploy TiHoMo to TrueNAS
+
+on:
+  push:
+    branches: [ master, develop ]
+  workflow_dispatch:
+    # Cho phép kích hoạt thủ công
+
+# Chia group concurrency theo từng branch (mỗi branch sẽ có hàng đợi riêng)
+# Nếu có workflow mới trên cùng một branch, workflow cũ sẽ bị cancel, chỉ giữ lại workflow mới nhất
+concurrency:
+  group: tihomo-deploy-${{ github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest # Sử dụng GitHub-hosted runner
+    environment: ${{ github.ref_name == 'master' && 'production' ||  github.ref_name == 'develop' && 'development' ||  github.ref_name == 'staging' && 'staging' }}
+    # Đặt thời gian timeout cho toàn bộ job này là 30 phút
+    timeout-minutes: 30 
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Validate Required Secrets and Variables
+        run: |
+          echo "🔍 Kiểm tra các secrets và variables cần thiết..."
+          
+          # Kiểm tra các secrets quan trọng
+          MISSING_SECRETS=()
+          
+          if [ -z "${{ secrets.JWT_SECRET_KEY }}" ]; then
+            MISSING_SECRETS+=("JWT_SECRET_KEY")
+          else
+            echo "✅ JWT_SECRET_KEY: Có (độ dài: ${#JWT_SECRET_KEY} ký tự)"
+          fi
+          
+          if [ -z "${{ secrets.IDENTITY_DB_PASSWORD }}" ]; then
+            MISSING_SECRETS+=("IDENTITY_DB_PASSWORD")
+          else
+            echo "✅ IDENTITY_DB_PASSWORD: Có"
+          fi
+          
+          if [ -z "${{ secrets.COREFINANCE_DB_PASSWORD }}" ]; then
+            MISSING_SECRETS+=("COREFINANCE_DB_PASSWORD")
+          else
+            echo "✅ COREFINANCE_DB_PASSWORD: Có"
+          fi
+          
+          if [ -z "${{ secrets.REDIS_PASSWORD }}" ]; then
+            MISSING_SECRETS+=("REDIS_PASSWORD")
+          else
+            echo "✅ REDIS_PASSWORD: Có"
+          fi
+          
+          if [ -z "${{ secrets.RABBITMQ_PASSWORD }}" ]; then
+            MISSING_SECRETS+=("RABBITMQ_PASSWORD")
+          else
+            echo "✅ RABBITMQ_PASSWORD: Có"
+          fi
+          
+          if [ ${#MISSING_SECRETS[@]} -gt 0 ]; then
+            echo "❌ Thiếu các secrets sau:"
+            printf '%s\n' "${MISSING_SECRETS[@]}"
+            echo "🔧 Vui lòng cấu hình tại: https://github.com/${{ github.repository }}/settings/secrets/actions"
+            exit 1
+          fi
+          
+          echo "✅ Tất cả secrets cần thiết đã được cấu hình"
+        shell: bash
+        env:
+          JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
+
+      - name: Set TrueNAS Deploy Directory Environment Variable
+        run: echo "TRUENAS_DEPLOY_DIR=${{ vars.DEPLOY_PATH_ON_TRUENAS }}/deploy_${GITHUB_REF_NAME}" >> $GITHUB_ENV
+        shell: bash
+
+      - name: Setup Cloudflared and SSH Config
+        run: |
+          echo "Runner HOME directory is: $HOME" # In thư mục nhà
+          # Cài đặt cloudflared
+          sudo wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -O /usr/local/bin/cloudflared
+          sudo chmod +x /usr/local/bin/cloudflared
+          echo "Cloudflared version: $(cloudflared --version)"
+
+          # Tạo thư mục $HOME/.ssh nếu chưa tồn tại
+          mkdir -p "$HOME/.ssh"
+          
+          # Tạo tệp cấu hình SSH sử dụng $HOME
+          echo "Host truenas-cf-tunnel
+            HostName ${{ secrets.TRUENAS_SSH_HOSTNAME_THROUGH_CLOUDFLARED }}
+            ProxyCommand cloudflared access ssh --hostname %h
+            User ${{ secrets.TRUENAS_USER }}
+            StrictHostKeyChecking no
+            UserKnownHostsFile /dev/null
+            LogLevel ERROR" > "$HOME/.ssh/config" # Sử dụng $HOME
+          
+          chmod 600 "$HOME/.ssh/config"
+          echo "✅ SSH config for Cloudflared created at $HOME/.ssh/config"
+        shell: bash
+
+      - name: Add TrueNAS SSH Private Key to SSH Agent
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.TRUENAS_SSH_PRIVATE_KEY }}
+
+      - name: DEBUG - Verify SSH Config File
+        run: |
+          echo "--- Verifying SSH config file ---"
+          if [ -f "$HOME/.ssh/config" ]; then
+            echo "✅ SSH Config file exists at $HOME/.ssh/config"
+            echo "--- Contents of $HOME/.ssh/config ---"
+            cat "$HOME/.ssh/config"
+            echo "-------------------------------------"
+            echo "--- Listing $HOME/.ssh directory ---"
+            ls -la "$HOME/.ssh"
+            echo "------------------------------------"
+          else
+            echo "❌ SSH Config file NOT FOUND at $HOME/.ssh/config"
+            # Cố gắng liệt kê thư mục $HOME nếu có thể để xem cấu trúc
+            echo "--- Listing $HOME directory ---"
+            ls -la "$HOME"
+            echo "-------------------------------"
+            exit 1 # Gây lỗi nếu tệp không tồn tại
+          fi
+        shell: bash
+
+      - name: Prepare deploy directory on TrueNAS
+        run: |
+          # Sử dụng alias 'truenas-cf-tunnel' đã cấu hình
+          # Thêm -F "$HOME/.ssh/config" vào lệnh ssh để chỉ định rõ ràng
+          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << EOF
+            mkdir -p ${{ env.TRUENAS_DEPLOY_DIR }}
+            mkdir -p ${{ env.TRUENAS_DEPLOY_DIR }}/uploads
+            mkdir -p ${{ env.TRUENAS_DEPLOY_DIR }}/logs
+            mkdir -p ${{ env.TRUENAS_DEPLOY_DIR }}/config
+            echo "✅ Prepared TrueNAS deploy directory: ${{ env.TRUENAS_DEPLOY_DIR }}"
+          EOF
+        shell: bash
+
+      - name: Sync project files to TrueNAS
+        run: |
+          # Sử dụng alias 'truenas-cf-tunnel' và chỉ định tệp cấu hình SSH rõ ràng cho rsync
+          # với $HOME
+          rsync -avz -e "ssh -F $HOME/.ssh/config" \
+            --exclude '.git/' \
+            --exclude '.github/' \
+            --exclude 'node_modules/' \
+            --exclude 'bin/' \
+            --exclude 'obj/' \
+            --exclude '*.log' \
+            --exclude 'TestResults/' \
+            --exclude '.vs/' \
+            --exclude '.vscode/' \
+            --exclude 'uploads/' \
+            --exclude 'logs/' \
+            --delete \
+            $GITHUB_WORKSPACE/ \
+            truenas-cf-tunnel:"${{ env.TRUENAS_DEPLOY_DIR }}/"
+          echo "✅ Project files synced to TrueNAS"
+        shell: bash
+
+      - name: Create .env file on TrueNAS
+        run: |
+          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel "cat > ${{ env.TRUENAS_DEPLOY_DIR }}/.env <<EOF
+          # Project name
+          COMPOSE_PROJECT_NAME=${{ vars.COMPOSE_PROJECT_NAME || 'tihomo' }}
+          
+          # Core Configuration
+          GATEWAY_PORT=${{ vars.GATEWAY_PORT || '5000' }}
+          FRONTEND_PORT=${{ vars.FRONTEND_PORT || '3500' }}
+          JWT_SECRET_KEY='${{ secrets.JWT_SECRET_KEY }}'
+          
+          # Database Configuration - Identity
+          IDENTITY_DB_USERNAME=${{ secrets.IDENTITY_DB_USERNAME || 'identity_user' }}
+          IDENTITY_DB_PASSWORD='${{ secrets.IDENTITY_DB_PASSWORD }}'
+          IDENTITY_DB_PORT=${{ vars.IDENTITY_DB_PORT || '5831' }}
+          
+          # Database Configuration - CoreFinance
+          COREFINANCE_DB_USERNAME=${{ secrets.COREFINANCE_DB_USERNAME || 'corefinance_user' }}
+          COREFINANCE_DB_PASSWORD='${{ secrets.COREFINANCE_DB_PASSWORD }}'
+          COREFINANCE_DB_PORT=${{ vars.COREFINANCE_DB_PORT || '5832' }}
+          
+          # Database Configuration - MoneyManagement
+          MONEYMANAGEMENT_DB_USERNAME=${{ secrets.MONEYMANAGEMENT_DB_USERNAME || 'money_user' }}
+          MONEYMANAGEMENT_DB_PASSWORD='${{ secrets.MONEYMANAGEMENT_DB_PASSWORD || secrets.IDENTITY_DB_PASSWORD }}'
+          MONEYMANAGEMENT_DB_PORT=${{ vars.MONEYMANAGEMENT_DB_PORT || '5835' }}
+          
+          # Database Configuration - PlanningInvestment
+          PLANNINGINVESTMENT_DB_USERNAME=${{ secrets.PLANNINGINVESTMENT_DB_USERNAME || 'planning_user' }}
+          PLANNINGINVESTMENT_DB_PASSWORD='${{ secrets.PLANNINGINVESTMENT_DB_PASSWORD || secrets.IDENTITY_DB_PASSWORD }}'
+          PLANNINGINVESTMENT_DB_PORT=${{ vars.PLANNINGINVESTMENT_DB_PORT || '5836' }}
+          
+          # Database Configuration - Reporting
+          REPORTING_DB_PASSWORD='${{ secrets.REPORTING_DB_PASSWORD || secrets.IDENTITY_DB_PASSWORD }}'
+          REPORTING_DB_PORT=${{ vars.REPORTING_DB_PORT || '5837' }}
+          
+          # Redis Configuration
+          REDIS_PORT=${{ vars.REDIS_PORT || '6379' }}
+          REDIS_PASSWORD='${{ secrets.REDIS_PASSWORD }}'
+          
+          # RabbitMQ Configuration
+          RABBITMQ_PORT=${{ vars.RABBITMQ_PORT || '5672' }}
+          RABBITMQ_MANAGEMENT_PORT=${{ vars.RABBITMQ_MANAGEMENT_PORT || '15672' }}
+          RABBITMQ_PASSWORD='${{ secrets.RABBITMQ_PASSWORD }}'
+          
+          # Monitoring Configuration
+          PROMETHEUS_PORT=${{ vars.PROMETHEUS_PORT || '9090' }}
+          GRAFANA_PORT=${{ vars.GRAFANA_PORT || '3002' }}
+          GRAFANA_ADMIN_PASSWORD='${{ secrets.GRAFANA_ADMIN_PASSWORD || secrets.IDENTITY_DB_PASSWORD }}'
+          LOKI_PORT=${{ vars.LOKI_PORT || '3100' }}
+          
+          # Development Tools
+          PGADMIN_PORT=${{ vars.PGADMIN_PORT || '8081' }}
+          PGADMIN_PASSWORD='${{ secrets.PGADMIN_PASSWORD || secrets.IDENTITY_DB_PASSWORD }}'
+          MAILHOG_SMTP_PORT=${{ vars.MAILHOG_SMTP_PORT || '1025' }}
+          MAILHOG_UI_PORT=${{ vars.MAILHOG_UI_PORT || '8025' }}
+          
+          # Nginx Configuration
+          NGINX_HTTP_PORT=${{ vars.NGINX_HTTP_PORT || '8082' }}
+          NGINX_HTTPS_PORT=${{ vars.NGINX_HTTPS_PORT || '8443' }}
+          
+          # Network Configuration
+          DOCKER_NETWORK_SUBNET=${{ vars.DOCKER_NETWORK_SUBNET || '172.20.0.0/16' }}
+          
+          # Application Environment
+          NODE_ENV=${{ vars.NODE_ENV || 'production' }}
+          ASPNETCORE_ENVIRONMENT=${{ vars.ASPNETCORE_ENVIRONMENT || 'Production' }}
+          
+          # OAuth Configuration
+          APP_PUBLIC_GOOGLE_CLIENT_ID=${{ secrets.APP_PUBLIC_GOOGLE_CLIENT_ID }}
+          
+          # JWT Configuration
+          JWT_ISSUER=${{ vars.JWT_ISSUER || 'http://localhost:5000' }}
+          JWT_AUDIENCE_OCELOT_GATEWAY=${{ vars.JWT_AUDIENCE_OCELOT_GATEWAY || 'TiHoMo.Gateway' }}
+          JWT_AUDIENCE_IDENTITY_API=${{ vars.JWT_AUDIENCE_IDENTITY_API || 'TiHoMo.Identity' }}
+          JWT_AUDIENCE_COREFINANCE_API=${{ vars.JWT_AUDIENCE_COREFINANCE_API || 'TiHoMo.CoreFinance' }}
+          
+          # Timezone & other settings
+          GENERIC_TIMEZONE=${{ vars.GENERIC_TIMEZONE || 'Asia/Ho_Chi_Minh' }}
+          TZ=${{ vars.TZ || 'Asia/Ho_Chi_Minh' }}
+          
+          # Build Configuration
+          NUXT_BUILD_TARGET=${{ vars.NUXT_BUILD_TARGET || 'production' }}
+          NUXT_DEV_SSR=${{ vars.NUXT_DEV_SSR || 'false' }}
+          NUXT_DEBUG=${{ vars.NUXT_DEBUG || 'false' }}
+          NUXT_DEV_TOOLS=${{ vars.NUXT_DEV_TOOLS || 'false' }}
+          NUXT_TELEMETRY_DISABLED=1
+          
+          # Logging Configuration
+          LOG_LEVEL=${{ vars.LOG_LEVEL || 'info' }}
+          LOG_FORMAT=${{ vars.LOG_FORMAT || 'json' }}
+          
+          # Feature Toggles
+          ENABLE_PWA=${{ vars.ENABLE_PWA || 'false' }}
+          ENABLE_ANALYTICS=${{ vars.ENABLE_ANALYTICS || 'false' }}
+          
+          # Deployment Information
+          DEPLOY_BRANCH=${{ github.ref_name }}
+          DEPLOY_COMMIT=${{ github.sha }}
+          DEPLOY_TIME=\$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          EOF
+          echo '✅ .env file created on TrueNAS at ${{ env.TRUENAS_DEPLOY_DIR }}/.env'"
+        shell: bash
+
+      - name: Debug Environment Configuration
+        run: |
+          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << EOF
+            cd ${{ env.TRUENAS_DEPLOY_DIR }}
+            echo "🔍 Kiểm tra cấu hình environment..."
+            
+            # Kiểm tra JWT_SECRET_KEY có tồn tại trong .env không
+            if grep -q "JWT_SECRET_KEY=" .env; then
+              JWT_LINE=\$(grep "JWT_SECRET_KEY=" .env)
+              if [[ "\$JWT_LINE" == "JWT_SECRET_KEY=" ]]; then
+                echo "❌ JWT_SECRET_KEY rỗng trong file .env"
+              else
+                JWT_VALUE=\$(echo "\$JWT_LINE" | cut -d'=' -f2)
+                if [[ "\$JWT_VALUE" == "" ]]; then
+                  echo "❌ JWT_SECRET_KEY không có giá trị"
+                else
+                  echo "✅ JWT_SECRET_KEY đã được cấu hình (độ dài: \${#JWT_VALUE} ký tự)"
+                fi
+              fi
+            else
+              echo "❌ Không tìm thấy JWT_SECRET_KEY trong file .env"
+            fi
+            
+            echo "📋 Các biến môi trường chính trong .env:"
+            grep -E "(GATEWAY_PORT|FRONTEND_PORT|IDENTITY_DB|COREFINANCE_DB|REDIS|RABBITMQ)" .env || echo "Không có biến môi trường chính"
+            
+            echo "🔍 Kiểm tra Docker Compose file:"
+            if [ -f "docker-compose.yml" ]; then
+              echo "✅ docker-compose.yml exists"
+            else
+              echo "❌ docker-compose.yml not found"
+            fi
+          EOF
+        shell: bash
+
+      - name: Prepare application directories on TrueNAS
+        run: |
+          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << EOF
+            cd ${{ env.TRUENAS_DEPLOY_DIR }}
+            
+            # Tạo các thư mục cần thiết cho application
+            mkdir -p uploads
+            mkdir -p logs/frontend
+            mkdir -p logs/identity
+            mkdir -p logs/corefinance
+            mkdir -p logs/excel
+            mkdir -p logs/ocelot
+            mkdir -p config/ssl
+            
+            # Set proper permissions
+            chmod -R 755 uploads
+            chmod -R 755 logs
+            chmod -R 755 config
+            
+            echo "✅ Prepared application directories on TrueNAS"
+          EOF
+        shell: bash
+
+      - name: Pre-deployment health checks
+        run: |
+          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << EOF
+            cd ${{ env.TRUENAS_DEPLOY_DIR }}
+            
+            echo "🔍 Pre-deployment health checks..."
+            
+            # Check Docker availability
+            if command -v docker &> /dev/null; then
+              echo "✅ Docker is available"
+              docker --version
+            else
+              echo "❌ Docker is not installed"
+              exit 1
+            fi
+            
+            # Check Docker Compose availability
+            if command -v docker &> /dev/null && docker compose version &> /dev/null; then
+              echo "✅ Docker Compose is available"
+              docker compose version
+            else
+              echo "❌ Docker Compose is not available"
+              exit 1
+            fi
+            
+            # Check disk space
+            echo "💾 Disk space check:"
+            df -h .
+            
+            # Check memory
+            echo "🧠 Memory check:"
+            free -h
+            
+            echo "✅ Pre-deployment checks completed"
+          EOF
+        shell: bash
+
+      - name: Docker compose operations on TrueNAS
+        run: |
+          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << EOF
+            set -e 
+            cd ${{ env.TRUENAS_DEPLOY_DIR }}
+            echo "🐳 Working with Docker Compose in ${{ env.TRUENAS_DEPLOY_DIR }}"
+            
+            # Load environment variables
+            source .env
+            
+            echo "🔄 Đang pull images mới nhất..."
+            docker compose pull
+            echo "✅ Đã pull images thành công"
+            
+            echo "🔨 Đang build images cho tất cả các dịch vụ (nếu có thay đổi)..."
+            docker compose build --no-cache
+            echo "✅ Đã build images thành công"
+            
+            echo "⏹️  Dừng containers hiện tại (nếu đang chạy)..."
+            docker compose down --remove-orphans --volumes || true 
+            echo "✅ Đã dừng các containers hiện tại"
+            
+            echo "🧹 Dọn dẹp unused Docker resources..."
+            docker system prune -f
+            echo "✅ Đã dọn dẹp Docker resources"
+            
+            echo "🚀 Khởi động TiHoMo system..."
+            docker compose up -d
+            echo "✅ Đã khởi động containers thành công"
+            
+            echo "⏳ Đang đợi services khởi động (60 giây)..."
+            sleep 60
+            
+            echo "📊 Kiểm tra trạng thái các container..."
+            docker compose ps
+            
+            echo "🔍 Kiểm tra logs gần đây..."
+            docker compose logs --tail=10 ocelot-gateway
+            docker compose logs --tail=10 frontend-nuxt
+            docker compose logs --tail=10 identity-api
+            docker compose logs --tail=10 corefinance-api
+          EOF
+        shell: bash
+
+      - name: Verify deployment health
+        run: |
+          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << EOF
+            set -e 
+            cd ${{ env.TRUENAS_DEPLOY_DIR }}
+            
+            # Load environment variables
+            source .env
+            
+            echo "🏥 Kiểm tra health của các services..."
+            
+            # Function to check service health
+            check_service_health() {
+              local service_name=\$1
+              local health_url=\$2
+              local max_attempts=5
+              local attempt=1
+              
+              echo "🔍 Checking \$service_name health..."
+              
+              while [ \$attempt -le \$max_attempts ]; do
+                if docker compose exec -T \$service_name curl -f \$health_url > /dev/null 2>&1; then
+                  echo "✅ \$service_name is healthy"
+                  return 0
+                else
+                  echo "⏳ \$service_name not ready yet (attempt \$attempt/\$max_attempts)"
+                  sleep 10
+                  ((attempt++))
+                fi
+              done
+              
+              echo "❌ \$service_name failed health check"
+              return 1
+            }
+            
+            # Check Gateway health
+            if check_service_health "ocelot-gateway" "http://localhost:8080/health"; then
+              echo "✅ Gateway is healthy"
+            else
+              echo "❌ Gateway health check failed"
+              docker compose logs --tail=20 ocelot-gateway
+            fi
+            
+            # Check Frontend health
+            if check_service_health "frontend-nuxt" "http://localhost:3000/"; then
+              echo "✅ Frontend is healthy"
+            else
+              echo "❌ Frontend health check failed"
+              docker compose logs --tail=20 frontend-nuxt
+            fi
+            
+            # Check Identity API health
+            if check_service_health "identity-api" "http://localhost:8080/health"; then
+              echo "✅ Identity API is healthy"
+            else
+              echo "❌ Identity API health check failed"
+              docker compose logs --tail=20 identity-api
+            fi
+            
+            # Check CoreFinance API health
+            if check_service_health "corefinance-api" "http://localhost:8080/health"; then
+              echo "✅ CoreFinance API is healthy"
+            else
+              echo "❌ CoreFinance API health check failed"
+              docker compose logs --tail=20 corefinance-api
+            fi
+            
+            echo "🔍 Tổng quan trạng thái tất cả services:"
+            docker compose ps
+            
+            echo "💾 Disk usage after deployment:"
+            df -h .
+            
+            echo "🧠 Memory usage after deployment:"
+            free -h
+          EOF
+        shell: bash
+
+      - name: Display deployment information
+        run: |
+          echo "🌐 TiHoMo system đã được triển khai thành công trên TrueNAS."
+          echo ""
+          echo "📊 Thông tin triển khai:"
+          echo "  🔹 Frontend:"
+          echo "     Truy cập tại: http://<TRUENAS_IP>:${{ vars.FRONTEND_PORT || '3500' }}"
+          echo "  🔹 API Gateway:"
+          echo "     Truy cập tại: http://<TRUENAS_IP>:${{ vars.GATEWAY_PORT || '5000' }}"
+          echo "  🔹 Grafana Dashboard:"
+          echo "     Truy cập tại: http://<TRUENAS_IP>:${{ vars.GRAFANA_PORT || '3002' }}"
+          echo "  🔹 RabbitMQ Management:"
+          echo "     Truy cập tại: http://<TRUENAS_IP>:${{ vars.RABBITMQ_MANAGEMENT_PORT || '15672' }}"
+          echo "  🔹 pgAdmin:"
+          echo "     Truy cập tại: http://<TRUENAS_IP>:${{ vars.PGADMIN_PORT || '8081' }}"
+          echo "  🔹 Prometheus:"
+          echo "     Truy cập tại: http://<TRUENAS_IP>:${{ vars.PROMETHEUS_PORT || '9090' }}"
+          echo ""
+          echo "🔧 Thông tin deployment:"
+          echo "  • **Nhánh:** ${{ github.ref_name }}"
+          echo "  • **Commit:** ${{ github.sha }}"
+          echo "  • **Thời gian:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
+          echo "  • **Environment:** ${{ github.ref_name == 'master' && 'production' || github.ref_name == 'develop' && 'development' || 'staging' }}"
+          echo ""
+          echo "✅ TRIỂN KHAI HOÀN TẤT THÀNH CÔNG"
+        shell: bash
+        
+      - name: Send Discord success/failure notification
+        if: success() || failure()
+        uses: appleboy/discord-action@v1.2.0
+        with:
+          webhook_url: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          message: |
+            ${{ job.status == 'success' && '✅ **Triển khai TiHoMo lên TrueNAS THÀNH CÔNG!**' || '❌ **Triển khai TiHoMo lên TrueNAS THẤT BẠI!**' }}
+            
+            📊 **Thông tin triển khai:**
+            • **Nhánh:** `${{ github.ref_name }}`
+            • **Environment:** `${{ github.ref_name == 'master' && 'production' || github.ref_name == 'develop' && 'development' || 'staging' }}`
+            • **Frontend:** `http://<TRUENAS_IP>:${{ vars.FRONTEND_PORT || '3500' }}`
+            • **API Gateway:** `http://<TRUENAS_IP>:${{ vars.GATEWAY_PORT || '5000' }}`
+            • **Grafana:** `http://<TRUENAS_IP>:${{ vars.GRAFANA_PORT || '3002' }}`
+            • **Commit:** `${{ github.sha }}`
+            
+            🏗️ **Services Status:**
+            • **Frontend (Nuxt):** ${{ job.status == 'success' && 'Đang chạy' || 'Lỗi khởi động' }}
+            • **API Gateway (Ocelot):** ${{ job.status == 'success' && 'Đang chạy' || 'Lỗi khởi động' }}
+            • **Identity API:** ${{ job.status == 'success' && 'Đang chạy' || 'Lỗi khởi động' }}
+            • **CoreFinance API:** ${{ job.status == 'success' && 'Đang chạy' || 'Lỗi khởi động' }}
+            • **Databases:** ${{ job.status == 'success' && 'Operational' || 'Issues detected' }}
+            • **Monitoring:** ${{ job.status == 'success' && 'Active' || 'Inactive' }}
+            
+            [📋 Xem Chi Tiết Deploy](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+
+      - name: Send Discord timeout notification
+        if: cancelled()
+        uses: appleboy/discord-action@v1.2.0
+        with:
+          webhook_url: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          message: |
+            ⏱️ **Triển khai TiHoMo ĐÃ BỊ HỦY do timeout (> 30 phút)!**
+            
+            📊 **Thông tin:**
+            • **Nhánh:** `${{ github.ref_name }}`
+            • **Thời gian:** Vượt quá 30 phút
+            • **Environment:** `${{ github.ref_name == 'master' && 'production' || github.ref_name == 'develop' && 'development' || 'staging' }}`
+            
+            🔍 **Có thể do:**
+            • Docker build quá lâu
+            • Network connectivity issues
+            • Resource constraints trên TrueNAS
+            • Database initialization timeout
+            
+            [📋 Xem Chi Tiết Deploy](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) 

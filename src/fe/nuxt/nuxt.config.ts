@@ -82,7 +82,7 @@ export default defineNuxtConfig({
         public: {
             apiBase: process.env.API_BASE_URL || 'http://localhost:5000', // API Gateway port
             appBase: process.env.FRONTEND_BASE_URL || 'http://localhost:3500', // Frontend base URL
-            googleClientId: process.env.NUXT_PUBLIC_GOOGLE_CLIENT_ID,
+            googleClientId: process.env.APP_PUBLIC_GOOGLE_CLIENT_ID,
             facebookAppId: process.env.NUXT_PUBLIC_FACEBOOK_APP_ID,
         },
     },

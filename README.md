@@ -172,7 +172,7 @@ The system follows a microservices architecture with the following components:
 **Frontend (.env)**
 ```env
 NUXT_PUBLIC_IDENTITY_API_BASE=https://localhost:5214
-NUXT_PUBLIC_GOOGLE_CLIENT_ID=your-google-client-id
+APP_PUBLIC_GOOGLE_CLIENT_ID=your-google-client-id
 NUXT_PUBLIC_FACEBOOK_APP_ID=your-facebook-app-id
 ```
 

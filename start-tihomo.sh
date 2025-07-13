@@ -54,7 +54,7 @@ export NODE_ENV=development
 export ASPNETCORE_ENVIRONMENT=Development
 
 # OAuth configuration
-export NUXT_PUBLIC_GOOGLE_CLIENT_ID=your-google-client-id
+export APP_PUBLIC_GOOGLE_CLIENT_ID=your-google-client-id
 
 echo "📊 Environment Variables Set:"
 echo "  - Gateway Port: $GATEWAY_PORT"
