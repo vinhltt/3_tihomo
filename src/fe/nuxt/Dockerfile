@@ -100,15 +100,12 @@ RUN addgroup -g 1001 -S nodejs && \
 # Copy built application from builder stage
 COPY --from=builder --chown=nuxt:nodejs /app/.output /app/.output
 
-# Copy package.json for runtime dependencies (without package-lock.json to avoid postinstall)
-COPY --from=builder --chown=nuxt:nodejs /app/package.json /app/
-
 # Copy entrypoint script
 COPY docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh
 
-# Install only production dependencies without running scripts
-RUN npm install --only=production --ignore-scripts --legacy-peer_deps && npm cache clean --force
+# Note: No need to install dependencies in production stage
+# Nuxt 3 .output folder is self-contained with all dependencies bundled
 
 # Switch to non-root user
 USER nuxt

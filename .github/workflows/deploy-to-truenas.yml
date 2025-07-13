@@ -174,7 +174,7 @@ jobs:
         run: |
           ssh -F "$HOME/.ssh/config" truenas-cf-tunnel "cat > ${{ env.TRUENAS_DEPLOY_DIR }}/.env << 'EOF'
           # Project name
-          COMPOSE_PROJECT_NAME=${{ vars.COMPOSE_PROJECT_NAME || 'tihomo' }}
+          COMPOSE_PROJECT_NAME=tihomo_${{ inputs.environment || 'development' }}
           
           # Core Configuration
           GATEWAY_PORT=${{ vars.GATEWAY_PORT || '5000' }}

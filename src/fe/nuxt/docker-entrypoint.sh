@@ -15,19 +15,19 @@ export TERM=xterm-256color
 # Ensure we're in the correct directory
 cd /app
 
-# Check if package.json exists
-if [ ! -f "package.json" ]; then
-  echo "❌ ERROR: package.json not found in /app"
-  echo "Contents of /app:"
-  ls -la /app
-  exit 1
-fi
-
-echo "✅ Found package.json, proceeding with setup..."
-
 # Handle different environments
 if [ "${NODE_ENV:-development}" != "production" ]; then
   echo "🧪 Development mode: Setting up environment..."
+  
+  # Check if package.json exists for development mode
+  if [ ! -f "package.json" ]; then
+    echo "❌ ERROR: package.json not found in /app for development mode"
+    echo "Contents of /app:"
+    ls -la /app
+    exit 1
+  fi
+  
+  echo "✅ Found package.json, proceeding with development setup..."
   
   # Check node_modules directory and named volume setup
   if [ ! -d "node_modules" ] || [ ! -d "node_modules/nuxt" ] || [ ! -f "node_modules/.bin/nuxt" ]; then
@@ -95,26 +95,22 @@ if [ "${NODE_ENV:-development}" != "production" ]; then
     exec npm run dev
   fi
 else
-  echo "🏭 Production mode: Building and starting application..."
+  echo "🏭 Production mode: Starting pre-built application..."
   
-  # Install dependencies if needed
-  if [ ! -d "node_modules" ] || [ -z "$(ls -A node_modules 2>/dev/null)" ]; then
-    echo "📥 Installing dependencies..."
-    npm ci --legacy-peer-deps
-  fi
-  
-  # Always build in production to ensure fresh output
-  echo "🛠️ Building Nuxt application for production..."
-  npm run build
+  # In production stage, .output is already copied from builder stage
+  # No need to install dependencies or build - everything is ready
   
   # Verify build output exists
   if [ ! -f ".output/server/index.mjs" ]; then
-    echo "❌ ERROR: Build failed - .output/server/index.mjs not found"
+    echo "❌ ERROR: Pre-built application not found - .output/server/index.mjs missing"
     echo "Checking .output directory:"
     ls -la .output/ 2>/dev/null || echo "No .output directory found"
+    echo "Checking /app directory:"
+    ls -la /app/
     exit 1
   fi
   
+  echo "✅ Found pre-built application at .output/server/index.mjs"
   echo "🚀 Starting production server..."
   exec node .output/server/index.mjs
 fi
