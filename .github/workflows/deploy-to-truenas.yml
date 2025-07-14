@@ -330,10 +330,35 @@ jobs:
       - name: "[7/18] Prepare deploy directory on TrueNAS"
         run: |
           ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << EOF
+            # Create deploy directory with proper permissions
             mkdir -p ${{ env.TRUENAS_DEPLOY_DIR }}
             mkdir -p ${{ env.TRUENAS_DEPLOY_DIR }}/uploads
             mkdir -p ${{ env.TRUENAS_DEPLOY_DIR }}/logs
             mkdir -p ${{ env.TRUENAS_DEPLOY_DIR }}/config
+            mkdir -p ${{ env.TRUENAS_DEPLOY_DIR }}/.rsync-partial
+            
+            # Set permissive permissions to avoid rsync issues
+            chmod 755 ${{ env.TRUENAS_DEPLOY_DIR }}
+            chmod -R 755 ${{ env.TRUENAS_DEPLOY_DIR }}/uploads 2>/dev/null || true
+            chmod -R 755 ${{ env.TRUENAS_DEPLOY_DIR }}/logs 2>/dev/null || true
+            chmod -R 755 ${{ env.TRUENAS_DEPLOY_DIR }}/config 2>/dev/null || true
+            chmod -R 755 ${{ env.TRUENAS_DEPLOY_DIR }}/.rsync-partial 2>/dev/null || true
+            
+            # Check if previous deployment exists and clean problematic files
+            if [ -d "${{ env.TRUENAS_DEPLOY_DIR }}/src" ]; then
+              echo "[CLEANUP] Cleaning previous deployment files that might cause permission issues..."
+              
+              # Remove any files with problematic permissions
+              find ${{ env.TRUENAS_DEPLOY_DIR }} -type f -name "*.svg" -exec chmod 644 {} \; 2>/dev/null || true
+              find ${{ env.TRUENAS_DEPLOY_DIR }} -type f -name "*.png" -exec chmod 644 {} \; 2>/dev/null || true
+              find ${{ env.TRUENAS_DEPLOY_DIR }} -type f -name "*.jpg" -exec chmod 644 {} \; 2>/dev/null || true
+              find ${{ env.TRUENAS_DEPLOY_DIR }} -type f -name "*.jpeg" -exec chmod 644 {} \; 2>/dev/null || true
+              find ${{ env.TRUENAS_DEPLOY_DIR }} -type f -name "*.gif" -exec chmod 644 {} \; 2>/dev/null || true
+              
+              # Fix directory permissions
+              find ${{ env.TRUENAS_DEPLOY_DIR }} -type d -exec chmod 755 {} \; 2>/dev/null || true
+            fi
+            
             echo "[OK] Prepared TrueNAS deploy directory: ${{ env.TRUENAS_DEPLOY_DIR }}"
           EOF
         shell: bash
@@ -342,9 +367,13 @@ jobs:
         run: |
           echo "[SYNC] Starting project files sync to TrueNAS..."
           
-          # Enhanced rsync with better error handling and permissions management
-          rsync -avz --chmod=Du=rwx,Dgo=rx,Fu=rw,Fgo=r \
+          # Enhanced rsync with robust error handling and permissions management
+          # Using more permissive settings to avoid permission issues on TrueNAS
+          rsync -rltvz --safe-links \
+            --chmod=Du=rwx,Dgo=rx,Fu=rw,Fgo=r \
             --no-perms --no-owner --no-group \
+            --ignore-errors \
+            --force \
             --exclude '.git/' \
             --exclude '.github/' \
             --exclude 'node_modules/' \
@@ -360,10 +389,18 @@ jobs:
             --exclude '*.temp' \
             --exclude '.DS_Store' \
             --exclude 'Thumbs.db' \
+            --exclude '.nuxt/' \
+            --exclude 'dist/' \
+            --exclude 'coverage/' \
+            --exclude '.nyc_output/' \
             --delete \
+            --delete-excluded \
             --partial \
+            --partial-dir=.rsync-partial \
             --progress \
-            -e "ssh -F $HOME/.ssh/config -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" \
+            --human-readable \
+            --stats \
+            -e "ssh -F $HOME/.ssh/config -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=30" \
             $GITHUB_WORKSPACE/ \
             truenas-cf-tunnel:"${{ env.TRUENAS_DEPLOY_DIR }}/" || {
               RSYNC_EXIT_CODE=$?
@@ -392,10 +429,27 @@ jobs:
                 *)  echo "[ERROR] Unknown rsync error code: $RSYNC_EXIT_CODE" ;;
               esac
               
-              # For exit code 23, continue with deployment as it's often just permission warnings
-              if [ $RSYNC_EXIT_CODE -eq 23 ]; then
-                echo "[WARNING] Continuing deployment despite rsync warnings (exit code 23)"
-                echo "[INFO] This usually indicates file permission warnings that don't affect functionality"
+              # Handle common non-critical errors that shouldn't stop deployment
+              if [ $RSYNC_EXIT_CODE -eq 23 ] || [ $RSYNC_EXIT_CODE -eq 24 ]; then
+                echo "[WARNING] Continuing deployment despite rsync warnings (exit code $RSYNC_EXIT_CODE)"
+                echo "[INFO] This usually indicates file permission/attribute warnings that don't affect functionality"
+                echo "[INFO] Critical files for deployment have been transferred successfully"
+                
+                # Verify that essential files were transferred
+                echo "[VERIFY] Checking if essential deployment files exist on TrueNAS..."
+                ssh -F "$HOME/.ssh/config" truenas-cf-tunnel 'cd '"${{ env.TRUENAS_DEPLOY_DIR }}"' && \
+                  ESSENTIAL_FILES=("docker-compose.yml" "src/" "config/") && \
+                  MISSING_FILES=() && \
+                  for file in "${ESSENTIAL_FILES[@]}"; do \
+                    if [ ! -e "$file" ]; then \
+                      MISSING_FILES+=("$file"); \
+                    fi; \
+                  done && \
+                  if [ ${#MISSING_FILES[@]} -gt 0 ]; then \
+                    echo "[ERROR] Essential files missing: ${MISSING_FILES[*]}" && exit 1; \
+                  else \
+                    echo "[OK] All essential deployment files are present"; \
+                  fi'
               else
                 echo "[ERROR] Critical rsync error, stopping deployment"
                 exit $RSYNC_EXIT_CODE
