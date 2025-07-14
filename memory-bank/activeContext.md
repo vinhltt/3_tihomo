@@ -1,8 +1,18 @@
 # Active Context - TiHoMo Development
 
-## Current Focus: ✅ TrueNAS Deployment CI/CD Setup COMPLETED
+## Current Focus: 🔧 GitHub Actions PostgreSQL Health Check Fix
 
-### 🎉 MILESTONE ACHIEVED: Complete TrueNAS Deployment CI/CD Infrastructure
+### 🚨 URGENT FIX: GitHub Actions PostgreSQL Container Health Issues
+**Problem**: GitHub Actions failing với lỗi "dependency failed to start: container tihomo-identity-postgres is unhealthy"  
+**Root Cause**: Hardcoded usernames trong PostgreSQL health checks không match với dynamic environment variables
+**Solution**: ✅ **FIXED** - Updated tất cả PostgreSQL health checks để sử dụng environment variables
+- **Before**: `pg_isready -U identity_user -d identity` (hardcoded)
+- **After**: `pg_isready -U $POSTGRES_USER -d $POSTGRES_DB` (dynamic)
+- **Enhanced Timing**: Tăng interval=15s, timeout=10s, retries=8 cho CI/CD environment
+- **Affected Containers**: identity-postgres, corefinance-postgres, moneymanagement-postgres, planninginvestment-postgres, reporting-postgres
+**Status**: ✅ **FIXED** - All PostgreSQL health checks now use environment variables
+
+### 🎯 PREVIOUS COMPLETION: TrueNAS Deployment CI/CD Setup COMPLETED
 **Status**: ✅ **100% COMPLETED** - TrueNAS deployment infrastructure đã hoàn tất TOÀN BỘ với GitHub Actions workflow, comprehensive deployment guide, validation scripts, và complete CI/CD pipeline ready for production deployment.
 
 ### 🎯 RECENT COMPLETION: TrueNAS Deployment CI/CD Setup
