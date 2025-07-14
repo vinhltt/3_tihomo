@@ -777,32 +777,9 @@ jobs:
             cd ..
             
             echo "[OK] Pre-deployment backup completed at: \$BACKUP_DIR"
-        run: |
-          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << EOF
-            set -e 
-            cd ${{ env.TRUENAS_DEPLOY_DIR }}
-            echo "[DOCKER] Working with Docker Compose in ${{ env.TRUENAS_DEPLOY_DIR }}"
             
-            # Load environment variables
-            source .env
-            
-            # Load Docker sudo preference from previous step
-            if [ -f /tmp/docker_config ]; then
-              source /tmp/docker_config
-              echo "[INFO] Using Docker with sudo preference: '\$USE_SUDO'"
-            else
-              echo "[WARNING] Docker config not found, testing Docker access..."
-              if docker ps >/dev/null 2>&1; then
-                USE_SUDO=""
-                echo "[OK] Docker access without sudo"
-              elif sudo docker ps >/dev/null 2>&1; then
-                USE_SUDO="sudo"
-                echo "[OK] Docker access with sudo"
-              else
-                echo "[ERROR] No Docker access available"
-                exit 1
-              fi
-            fi
+            # ROLLING DEPLOYMENT PHASE
+            echo "[DEPLOY] Starting rolling deployment phase..."
             
             # Validate NUXT_BUILD_TARGET to prevent build errors
             if [ "\$NUXT_BUILD_TARGET" != "development" ] && [ "\$NUXT_BUILD_TARGET" != "production" ]; then
@@ -1364,7 +1341,8 @@ jobs:
             \$USE_SUDO docker compose ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}" | head -20
             
             echo "[SUCCESS] Post-deployment cleanup completed successfully"
-          EOF        shell: bash
+          EOF
+        shell: bash
         
       - name: "[18/18] Send Discord enhanced success/failure notification"
         if: success() || failure()
