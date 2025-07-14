@@ -196,6 +196,21 @@ jobs:
             echo "[WARNING] GOOGLE_CLIENT_ID: Chưa được cấu hình (OAuth sẽ không khả dụng)"
           fi
           
+          # Frontend Base URL validation
+          FRONTEND_BASE_URL="${{ vars.FRONTEND_BASE_URL || 'http://localhost:3500' }}"
+          if [[ "$FRONTEND_BASE_URL" =~ ^https?://[^/]+(:?[0-9]+)?/?$ ]]; then
+            echo "[OK] FRONTEND_BASE_URL: Format hợp lệ ($FRONTEND_BASE_URL)"
+          else
+            echo "[WARNING] FRONTEND_BASE_URL: Format có thể không đúng ($FRONTEND_BASE_URL)"
+          fi
+          
+          # Additional database users validation
+          if [ -z "${{ secrets.REPORTING_DB_USERNAME || 'reporting_user' }}" ]; then
+            echo "[WARNING] REPORTING_DB_USERNAME: Sử dụng default value 'reporting_user'"
+          else
+            echo "[OK] REPORTING_DB_USERNAME: Đã được cấu hình"
+          fi
+          
           # Environment validation
           ENVIRONMENT="${{ github.event_name == 'workflow_dispatch' && inputs.environment || (github.ref_name == 'master' && 'production' || github.ref_name == 'develop' && 'development' || github.ref_name == 'staging' && 'staging' || 'development') }}"
           
@@ -468,6 +483,7 @@ jobs:
           # Core Configuration
           GATEWAY_PORT=${{ vars.GATEWAY_PORT || '5000' }}
           FRONTEND_PORT=${{ vars.FRONTEND_PORT || '3500' }}
+          FRONTEND_BASE_URL=${{ vars.FRONTEND_BASE_URL || 'http://localhost:3500' }}
           JWT_SECRET_KEY='${{ secrets.JWT_SECRET_KEY }}'
           
           # Database Configuration - Identity
@@ -491,6 +507,7 @@ jobs:
           PLANNINGINVESTMENT_DB_PORT=${{ vars.PLANNINGINVESTMENT_DB_PORT || '5836' }}
           
           # Database Configuration - Reporting
+          REPORTING_DB_USERNAME=${{ secrets.REPORTING_DB_USERNAME || 'reporting_user' }}
           REPORTING_DB_PASSWORD='${{ secrets.REPORTING_DB_PASSWORD || secrets.IDENTITY_DB_PASSWORD }}'
           REPORTING_DB_PORT=${{ vars.REPORTING_DB_PORT || '5837' }}
           
