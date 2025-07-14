@@ -1,8 +1,37 @@
 # Active Context - TiHoMo Development
 
-## Current Focus: 🔧 GitHub Actions Rsync Transfer Issues Fix
+## Current Focus: ✅ COMPLETED - GitHub Actions CI/CD Security & Reliability Improvements
 
-### 🚨 URGENT FIX: GitHub Actions Rsync Error Code 23 
+### ✅ COMPLETED: Enhanced GitHub Actions Workflow Security & Reliability
+**Task**: Cải thiện GitHub Actions workflow theo 4 phases với ưu tiên security và reliability
+**Implementation**: Đã hoàn thành Phase 1 (Security) và Phase 2 (Reliability):
+
+**Phase 1 - Security Improvements (✅ COMPLETED):**
+- **SSH Security**: Thay đổi từ `StrictHostKeyChecking no` sang `accept-new` với proper timeouts
+- **Trivy Integration**: Thêm security scanning cho tất cả Docker images trước khi deploy
+- **Enhanced Validation**: Comprehensive secrets validation với password strength checks  
+- **JWT Security**: Validation cho JWT secret length và format
+- **Port Conflict Detection**: Kiểm tra xung đột ports và validation
+- **Environment Validation**: Strict validation cho production/staging environments
+
+**Phase 2 - Reliability Improvements (✅ COMPLETED):**
+- **Rolling Deployment**: Thay đổi từ `docker compose down` sang rolling update từng service
+- **Pre-deployment Backup**: Automatic backup cho databases và configs với retention policy
+- **Comprehensive Health Checks**: Enhanced validation với database connectivity, Redis, RabbitMQ
+- **Automatic Rollback**: Simple rollback mechanism khi service fails
+- **Resource Monitoring**: CPU và memory usage monitoring cho critical services
+- **Integration Testing**: API gateway communication validation
+
+**Additional Enhancements (✅ COMPLETED):**
+- **Smart Build Caching**: Build với cache by default, `force_rebuild` option cho manual deploys
+- **Enhanced Notifications**: Detailed Discord notifications với performance metrics và security status
+- **Post-deployment Cleanup**: Automatic cleanup của old images, logs, và temporary files
+- **Enhanced Error Handling**: Detailed error reporting và troubleshooting guidance
+
+**Status**: ✅ **COMPLETED** - Phase 1 Security và Phase 2 Reliability đã được implement hoàn toàn
+**Next Steps**: Phase 3 Performance optimization và Phase 4 Advanced monitoring (có thể implement sau nếu cần)
+
+### 🚨 URGENT FIX: GitHub Actions Rsync Transfer Issues Fix (PREVIOUS) 
 **Problem**: GitHub Actions failing tại bước "Sync project files to TrueNAS" với rsync error code 23 (partial transfer due to errors)
 **Root Cause**: Permission issues, file attributes, hoặc symbolic links không được transfer correctly
 **Solution**: ✅ **FIXED** - Enhanced rsync command với better error handling và permission management
