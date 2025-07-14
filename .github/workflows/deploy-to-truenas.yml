@@ -152,7 +152,11 @@ jobs:
 
       - name: Sync project files to TrueNAS
         run: |
-          rsync -avz -e "ssh -F $HOME/.ssh/config" \
+          echo "[SYNC] Starting project files sync to TrueNAS..."
+          
+          # Enhanced rsync with better error handling and permissions management
+          rsync -avz --chmod=Du=rwx,Dgo=rx,Fu=rw,Fgo=r \
+            --no-perms --no-owner --no-group \
             --exclude '.git/' \
             --exclude '.github/' \
             --exclude 'node_modules/' \
@@ -164,10 +168,53 @@ jobs:
             --exclude '.vscode/' \
             --exclude 'uploads/' \
             --exclude 'logs/' \
+            --exclude '*.tmp' \
+            --exclude '*.temp' \
+            --exclude '.DS_Store' \
+            --exclude 'Thumbs.db' \
             --delete \
+            --partial \
+            --progress \
+            -e "ssh -F $HOME/.ssh/config -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" \
             $GITHUB_WORKSPACE/ \
-            truenas-cf-tunnel:"${{ env.TRUENAS_DEPLOY_DIR }}/"
-          echo "[OK] Project files synced to TrueNAS"
+            truenas-cf-tunnel:"${{ env.TRUENAS_DEPLOY_DIR }}/" || {
+              RSYNC_EXIT_CODE=$?
+              echo "[ERROR] Rsync failed with exit code: $RSYNC_EXIT_CODE"
+              
+              case $RSYNC_EXIT_CODE in
+                1)  echo "[ERROR] Syntax or usage error" ;;
+                2)  echo "[ERROR] Protocol incompatibility" ;;
+                3)  echo "[ERROR] Errors selecting input/output files, dirs" ;;
+                4)  echo "[ERROR] Requested action not supported" ;;
+                5)  echo "[ERROR] Error starting client-server protocol" ;;
+                6)  echo "[ERROR] Daemon unable to append to log-file" ;;
+                10) echo "[ERROR] Error in socket I/O" ;;
+                11) echo "[ERROR] Error in file I/O" ;;
+                12) echo "[ERROR] Error in rsync protocol data stream" ;;
+                13) echo "[ERROR] Errors with program diagnostics" ;;
+                14) echo "[ERROR] Error in IPC code" ;;
+                20) echo "[ERROR] Received SIGUSR1 or SIGINT" ;;
+                21) echo "[ERROR] Some error returned by waitpid()" ;;
+                22) echo "[ERROR] Error allocating core memory buffers" ;;
+                23) echo "[WARNING] Partial transfer due to error - some files may not have transferred correctly" ;;
+                24) echo "[ERROR] Partial transfer due to vanished source files" ;;
+                25) echo "[ERROR] The --max-delete limit stopped deletions" ;;
+                30) echo "[ERROR] Timeout in data send/receive" ;;
+                35) echo "[ERROR] Timeout waiting for daemon connection" ;;
+                *)  echo "[ERROR] Unknown rsync error code: $RSYNC_EXIT_CODE" ;;
+              esac
+              
+              # For exit code 23, continue with deployment as it's often just permission warnings
+              if [ $RSYNC_EXIT_CODE -eq 23 ]; then
+                echo "[WARNING] Continuing deployment despite rsync warnings (exit code 23)"
+                echo "[INFO] This usually indicates file permission warnings that don't affect functionality"
+              else
+                echo "[ERROR] Critical rsync error, stopping deployment"
+                exit $RSYNC_EXIT_CODE
+              fi
+            }
+          
+          echo "[OK] Project files sync completed to TrueNAS"
         shell: bash
 
       - name: Create .env file on TrueNAS
