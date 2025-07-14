@@ -917,8 +917,13 @@ jobs:
                 return 0
               fi
               
-              # Deploy service
-              \$USE_SUDO docker compose up -d --no-deps --force-recreate \$service
+              # Deploy service with production override for frontend
+              if [ "\$service" = "frontend-nuxt" ]; then
+                echo "[DEPLOY] Using production override for frontend-nuxt service"
+                \$USE_SUDO docker compose -f docker-compose.yml -f docker-compose.production.yml up -d --no-deps --force-recreate \$service
+              else
+                \$USE_SUDO docker compose up -d --no-deps --force-recreate \$service
+              fi
               
               # Wait for service to be healthy
               while [ \$attempt -le \$max_attempts ]; do
