@@ -881,9 +881,9 @@ jobs:
             echo "[DEPLOY] Bắt đầu rolling deployment..."
             
             # Define deployment order (infrastructure first, then applications)
-            INFRASTRUCTURE_SERVICES=("identity-db" "corefinance-db" "moneymanagement-db" "planninginvestment-db" "reporting-db" "redis" "rabbitmq")
+            INFRASTRUCTURE_SERVICES=("identity-postgres" "corefinance-postgres" "moneymanagement-postgres" "planninginvestment-postgres" "reporting-postgres" "redis" "rabbitmq")
             MONITORING_SERVICES=("prometheus" "loki" "grafana")
-            APPLICATION_SERVICES=("identity-api" "corefinance-api" "moneymanagement-api" "planninginvestment-api" "reporting-api" "ocelot-gateway" "frontend-nuxt")
+            APPLICATION_SERVICES=("identity-api" "corefinance-api" "excel-api" "ocelot-gateway" "frontend-nuxt")
             UTILITY_SERVICES=("pgadmin" "mailhog" "nginx")
             
             # Function to deploy service with health check
