@@ -920,7 +920,7 @@ jobs:
               # Deploy service with production override for frontend
               if [ "\$service" = "frontend-nuxt" ]; then
                 echo "[DEPLOY] Using production override for frontend-nuxt service"
-                \$USE_SUDO docker compose -f docker-compose.yml -f docker-compose.production.yml up -d --no-deps --force-recreate \$service
+                \$USE_SUDO docker compose -f docker-compose.yml up -d --no-deps --force-recreate \$service
               else
                 \$USE_SUDO docker compose up -d --no-deps --force-recreate \$service
               fi

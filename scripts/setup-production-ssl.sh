@@ -203,7 +203,7 @@ main() {
     echo -e "${YELLOW}📋 Next steps:${NC}"
     echo "1. Review and update .env.production"
     echo "2. Configure DNS records for your domains"
-    echo "3. Deploy with: docker-compose -f docker-compose.production.yml up -d"
+    echo "3. Deploy with: docker-compose -f up -d"
     echo "4. Add certificate renewal to crontab"
     echo ""
     echo -e "${GREEN}🔗 Your applications will be available at:${NC}"

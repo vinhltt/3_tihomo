@@ -33,7 +33,7 @@ Internet → Nginx (SSL Termination) → Ocelot Gateway (HTTP) → Microservices
 4. **Docker**: Containerized deployment
 
 ### Implementation Files
-- `docker-compose.production.yml`: Production container setup
+- `docker-compose.yml`: Production container setup
 - `config/nginx/nginx.production.conf`: Nginx SSL configuration
 - `scripts/setup-production-ssl.sh`: SSL setup automation
 - `src/be/Ocelot.Gateway/appsettings.Production.json`: Production gateway config
@@ -62,13 +62,13 @@ STAGING=true ./scripts/setup-production-ssl.sh
 #### 3. Production Deployment
 ```bash
 # Deploy production environment
-docker-compose -f docker-compose.production.yml up -d
+docker-compose up -d
 
 # Check services status
-docker-compose -f docker-compose.production.yml ps
+docker-compose ps
 
 # Monitor logs
-docker-compose -f docker-compose.production.yml logs -f
+docker-compose logs -f
 ```
 
 #### 4. Certificate Renewal Setup
