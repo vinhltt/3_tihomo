@@ -100,9 +100,23 @@ RUN addgroup -g 1001 -S nodejs && \
 # Copy built application from builder stage
 COPY --from=builder --chown=nuxt:nodejs /app/.output /app/.output
 
+# Copy package.json for debugging purposes (optional)
+COPY --from=builder --chown=nuxt:nodejs /app/package.json /app/package.json
+
 # Copy entrypoint script
-COPY docker-entrypoint.sh /docker-entrypoint.sh
+COPY --chown=nuxt:nodejs docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh
+
+# Create necessary directories with proper ownership
+RUN mkdir -p /app/logs /app/uploads && \
+    chown -R nuxt:nodejs /app/logs /app/uploads && \
+    chmod -R 755 /app/logs /app/uploads
+
+# Verify build output exists (debugging step)
+RUN ls -la /app/.output/ && \
+    ls -la /app/.output/server/ && \
+    test -f /app/.output/server/index.mjs || \
+    (echo "ERROR: index.mjs not found after copy" && exit 1)
 
 # Note: No need to install dependencies in production stage
 # Nuxt 3 .output folder is self-contained with all dependencies bundled

@@ -1,6 +1,28 @@
 # Active Context - TiHoMo Development
 
-## Current Focus: ✅ COMPLETED - GitHub Actions CI/CD Security & Reliability Improvements
+## Current Focus: 🔧 URGENT FIX - GitHub Actions Missing Environment Variables
+
+### 🚨 URGENT FIX: Missing Environment Variables in TrueNAS Deployment
+**Problem**: GitHub Actions deployment đang bị warnings về missing environment variables:
+- `REPORTING_DB_USERNAME` - Variable is not set, defaulting to blank string
+- `FRONTEND_BASE_URL` - Variable is not set, defaulting to blank string
+
+**Impact**: 
+- Docker Compose hiện warnings trong deployment logs
+- Có thể gây sự cố OAuth authentication và database connectivity
+- Deployment có thể không hoạt động chính xác
+
+**Solution**: ✅ **FIXED** - Đã thêm missing variables vào GitHub Actions workflow:
+- **REPORTING_DB_USERNAME**: Default value `reporting_user` với secret override option
+- **FRONTEND_BASE_URL**: Default value `http://localhost:3500` với variable override option
+- **Enhanced Validation**: Thêm validation cho URL format và database username
+
+**Files Modified**:
+- `.github/workflows/deploy-to-truenas.yml`: Updated .env creation step với missing variables
+- Added validation cho FRONTEND_BASE_URL format và REPORTING_DB_USERNAME
+
+**Status**: ✅ **FIXED** - Missing environment variables đã được thêm vào workflow
+**Next**: Monitor deployment để ensure no more warnings và verify OAuth functionality
 
 ### ✅ COMPLETED: Enhanced GitHub Actions Workflow Security & Reliability
 **Task**: Cải thiện GitHub Actions workflow theo 4 phases với ưu tiên security và reliability

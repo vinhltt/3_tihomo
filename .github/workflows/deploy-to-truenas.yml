@@ -486,6 +486,16 @@ jobs:
           FRONTEND_BASE_URL=${{ vars.FRONTEND_BASE_URL || 'http://localhost:3500' }}
           JWT_SECRET_KEY='${{ secrets.JWT_SECRET_KEY }}'
           
+          # Docker Build Configuration
+          NUXT_BUILD_TARGET=${{ vars.NUXT_BUILD_TARGET || 'production' }}
+          NODE_ENV=${{ vars.NODE_ENV || 'production' }}
+          DOCKER_USER=${{ vars.DOCKER_USER || '1001:1001' }}
+          
+          # Production-specific Nuxt settings
+          NUXT_DEV_SSR=${{ vars.NUXT_DEV_SSR || 'false' }}
+          NUXT_DEV_TOOLS=${{ vars.NUXT_DEV_TOOLS || 'false' }}
+          NUXT_DEBUG=${{ vars.NUXT_DEBUG || 'false' }}
+          
           # Database Configuration - Identity
           IDENTITY_DB_USERNAME=${{ secrets.IDENTITY_DB_USERNAME || 'identity_user' }}
           IDENTITY_DB_PASSWORD='${{ secrets.IDENTITY_DB_PASSWORD }}'
@@ -917,13 +927,9 @@ jobs:
                 return 0
               fi
               
-              # Deploy service with production override for frontend
-              if [ "\$service" = "frontend-nuxt" ]; then
-                echo "[DEPLOY] Using production override for frontend-nuxt service"
-                \$USE_SUDO docker compose -f docker-compose.yml up -d --no-deps --force-recreate \$service
-              else
-                \$USE_SUDO docker compose up -d --no-deps --force-recreate \$service
-              fi
+              # Deploy service using single docker-compose.yml
+              echo "[DEPLOY] Deploying \$service with production environment variables"
+              \$USE_SUDO docker compose -f docker-compose.yml up -d --no-deps --force-recreate \$service
               
               # Wait for service to be healthy
               while [ \$attempt -le \$max_attempts ]; do

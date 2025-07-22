@@ -97,11 +97,36 @@ if [ "${NODE_ENV:-development}" != "production" ]; then
 else
   echo "🏭 Production mode: Starting pre-built application..."
   
-  # In production stage, .output is already copied from builder stage
-  # No need to install dependencies or build - everything is ready
+  # In production, if source is mounted (compose file), we need to check for .output
+  # If no .output exists, this means we're in development with NODE_ENV=production
+  # In true production (Docker build), .output should exist
   
-  # Verify build output exists
-  if [ ! -f ".output/server/index.mjs" ]; then
+  # Check if we're in a development container with production NODE_ENV
+  if [ -f "package.json" ] && [ ! -f ".output/server/index.mjs" ]; then
+    echo "⚠️  Production NODE_ENV detected but no .output directory"
+    echo "🔨 Building application for production..."
+    
+    # Install dependencies if needed
+    if [ ! -d "node_modules" ] || [ ! -d "node_modules/nuxt" ]; then
+      echo "📦 Installing dependencies..."
+      npm install --legacy-peer-deps --no-audit --no-fund
+    fi
+    
+    # Build the application
+    echo "🏗️ Building Nuxt application..."
+    export PATH="/app/node_modules/.bin:$PATH"
+    npm run build
+    
+    # Verify build succeeded
+    if [ ! -f ".output/server/index.mjs" ]; then
+      echo "❌ ERROR: Build failed - .output/server/index.mjs not created"
+      echo "Checking .output directory:"
+      ls -la .output/ 2>/dev/null || echo "No .output directory found"
+      exit 1
+    fi
+    
+    echo "✅ Build completed successfully"
+  elif [ ! -f ".output/server/index.mjs" ]; then
     echo "❌ ERROR: Pre-built application not found - .output/server/index.mjs missing"
     echo "Checking .output directory:"
     ls -la .output/ 2>/dev/null || echo "No .output directory found"
