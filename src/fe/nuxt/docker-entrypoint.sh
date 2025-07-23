@@ -9,6 +9,17 @@ echo "User: $(whoami)"
 echo "Node version: $(node -v)"
 echo "NPM version: $(npm -v)"
 
+# Function to run command as root if needed for permissions
+run_as_root_if_needed() {
+    if [ "$(whoami)" != "root" ] && [ -x "$(command -v su-exec)" ]; then
+        su-exec root "$@"
+    elif [ "$(whoami)" != "root" ] && [ -x "$(command -v sudo)" ]; then
+        sudo "$@"
+    else
+        "$@"
+    fi
+}
+
 # Set environment variable to ensure proper terminal output with Docker
 export TERM=xterm-256color
 
@@ -106,10 +117,24 @@ else
     echo "⚠️  Production NODE_ENV detected but no .output directory"
     echo "🔨 Building application for production..."
     
+    # Create necessary directories with proper permissions
+    mkdir -p node_modules .nuxt .output logs uploads
+    
     # Install dependencies if needed
     if [ ! -d "node_modules" ] || [ ! -d "node_modules/nuxt" ]; then
       echo "📦 Installing dependencies..."
-      npm install --legacy-peer-deps --no-audit --no-fund
+      # Ensure proper permissions for npm operations
+      if [ "$(whoami)" != "root" ]; then
+        echo "🔐 Need root permissions for npm install, using su-exec..."
+        run_as_root_if_needed sh -c "
+          npm cache clean --force && \
+          npm install --legacy-peer-deps --no-audit --no-fund --unsafe-perm && \
+          chown -R nuxt:nodejs /app/node_modules /app/.npm 2>/dev/null || true
+        "
+      else
+        npm cache clean --force
+        npm install --legacy-peer-deps --no-audit --no-fund --unsafe-perm
+      fi
     fi
     
     # Build the application
@@ -137,5 +162,12 @@ else
   
   echo "✅ Found pre-built application at .output/server/index.mjs"
   echo "🚀 Starting production server..."
-  exec node .output/server/index.mjs
+  
+  # Switch to non-root user for security if we're currently root
+  if [ "$(whoami)" = "root" ]; then
+    echo "🔐 Switching to non-root user for security..."
+    exec su-exec nuxt node .output/server/index.mjs
+  else
+    exec node .output/server/index.mjs
+  fi
 fi

@@ -90,8 +90,8 @@ FROM node:20-alpine AS production
 # Set working directory
 WORKDIR /app
 
-# Install curl for health checks
-RUN apk add --no-cache curl
+# Install curl for health checks and su-exec for user switching
+RUN apk add --no-cache curl su-exec
 
 # Create non-root user for security
 RUN addgroup -g 1001 -S nodejs && \
@@ -107,10 +107,10 @@ COPY --from=builder --chown=nuxt:nodejs /app/package.json /app/package.json
 COPY --chown=nuxt:nodejs docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh
 
-# Create necessary directories with proper ownership
-RUN mkdir -p /app/logs /app/uploads && \
-    chown -R nuxt:nodejs /app/logs /app/uploads && \
-    chmod -R 755 /app/logs /app/uploads
+# Create necessary directories with proper ownership for both production and potential rebuild scenarios
+RUN mkdir -p /app/logs /app/uploads /app/node_modules /app/.nuxt && \
+    chown -R nuxt:nodejs /app && \
+    chmod -R 755 /app
 
 # Verify build output exists (debugging step)
 RUN ls -la /app/.output/ && \
@@ -121,8 +121,8 @@ RUN ls -la /app/.output/ && \
 # Note: No need to install dependencies in production stage
 # Nuxt 3 .output folder is self-contained with all dependencies bundled
 
-# Switch to non-root user
-USER nuxt
+# Don't switch to non-root user yet - entrypoint will handle this
+# USER nuxt
 
 # Expose port
 EXPOSE 3000
