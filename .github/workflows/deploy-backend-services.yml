@@ -222,6 +222,8 @@ jobs:
               USE_SUDO="sudo"
             fi
             
+            echo "[INFO] Deploying backend services for ${{ inputs.environment }} environment..."
+            
             # Parse services to deploy
             IFS=',' read -ra SERVICES_ARRAY <<< "${{ env.DEPLOY_SERVICES }}"
             

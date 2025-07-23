@@ -126,7 +126,7 @@ services:
     volumes:
       - redis_data:/data
       - ./config/redis.conf:/usr/local/etc/redis/redis.conf
-    command: redis-server /usr/local/etc/redis/redis.conf --requirepass ${REDIS_PASSWORD}
+    command: redis-server /usr/local/etc/redis/redis.conf --requirepass ${REDIS_PASSWORD} ${REDIS_PERSISTENCE_CONFIG:-}
     networks:
       - tihomo-network
     healthcheck:
@@ -181,7 +181,7 @@ services:
       - '--storage.tsdb.path=/prometheus'
       - '--web.console.libraries=/etc/prometheus/console_libraries'
       - '--web.console.templates=/etc/prometheus/consoles'
-      - '--storage.tsdb.retention.time=200h'
+      - '--storage.tsdb.retention.time=${PROMETHEUS_RETENTION:-200h}'
       - '--web.enable-lifecycle'
     networks:
       - tihomo-network
@@ -200,6 +200,8 @@ services:
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
       - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_ANALYTICS_REPORTING_ENABLED=${GRAFANA_ANALYTICS_ENABLED:-true}
+      - GF_ANALYTICS_CHECK_FOR_UPDATES=${GRAFANA_CHECK_UPDATES:-true}
     ports:
       - "${GRAFANA_PORT}:3000"
     volumes:
@@ -245,6 +247,8 @@ services:
     image: dpage/pgadmin4:latest
     container_name: tihomo-pgadmin
     restart: unless-stopped
+    profiles:
+      - ${ENABLE_DEV_TOOLS:-development}
     environment:
       PGADMIN_DEFAULT_EMAIL: admin@tihomo.com
       PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD}
@@ -268,6 +272,8 @@ services:
     image: mailhog/mailhog:latest
     container_name: tihomo-mailhog
     restart: unless-stopped
+    profiles:
+      - ${ENABLE_DEV_TOOLS:-development}
     ports:
       - "${MAILHOG_SMTP_PORT}:1025" # SMTP
       - "${MAILHOG_UI_PORT}:8025" # Web UI
@@ -283,14 +289,12 @@ services:
     build:
       context: ./src/fe/nuxt
       dockerfile: Dockerfile
-      # Ensure only valid stage names are used: builder, development, production
+      # Use environment variable to control build target
       target: ${NUXT_BUILD_TARGET:-development}
     container_name: tihomo-frontend-nuxt
     restart: unless-stopped
-    # User switching handled by entrypoint for proper permission management
-    # user: ${DOCKER_USER:-0:0}
     environment:
-      # Core Nuxt Configuration
+      # Core Nuxt Configuration - environment-aware
       - NODE_ENV=${NODE_ENV:-development}
       - NUXT_HOST=0.0.0.0
       - NUXT_PORT=3000
@@ -307,12 +311,12 @@ services:
       - OAUTH_GOOGLE_CLIENT_ID=${APP_PUBLIC_GOOGLE_CLIENT_ID}
       - OAUTH_REDIRECT_URI=${FRONTEND_BASE_URL}/auth/callback
       
-      # Development & Debugging
+      # Development & Debugging - environment-aware defaults
       - NUXT_DEBUG=${NUXT_DEBUG:-false}
       - NUXT_DEV_TOOLS=${NUXT_DEV_TOOLS:-true}
       - NUXT_TELEMETRY_DISABLED=1
       
-      # Logging Configuration
+      # Logging Configuration - environment-aware
       - LOG_LEVEL=${LOG_LEVEL:-info}
       - LOG_FORMAT=${LOG_FORMAT:-dev}
       
@@ -324,14 +328,13 @@ services:
       - NITRO_PRESET=node-server
       - NITRO_PORT=3000
     ports:
-      - "${FRONTEND_PORT:-3500}:3000"  # Frontend port - typically 3500 for development
+      - "${FRONTEND_PORT:-3500}:3000"
     volumes:
       # Always mount uploads and logs directories
       - ./uploads:/app/uploads
       - ./logs/frontend:/app/logs
-      # Source code mount for development only
-      # In production, the entrypoint script will handle built app
-      - ./src/fe/nuxt:/app
+      # Conditional source code mount - only in development
+      - ${FRONTEND_SOURCE_MOUNT:-./src/fe/nuxt}:/app
       # Node modules volume to prevent overwrite by bind mount
       - frontend_node_modules:/app/node_modules
     networks:
@@ -349,7 +352,7 @@ services:
       test: ["CMD-SHELL", "curl -f http://localhost:3000/api/health || curl -f http://localhost:3000/ || exit 1"]
       interval: 30s
       timeout: 15s
-      start_period: 60s  # Give more time for Nuxt to start in development
+      start_period: ${FRONTEND_HEALTHCHECK_START_PERIOD:-60s}  # Environment-aware start period
       retries: 5
 
   # Ocelot API Gateway
@@ -360,7 +363,7 @@ services:
     container_name: tihomo-ocelot-gateway
     restart: unless-stopped
     environment:
-      - ASPNETCORE_ENVIRONMENT=Docker
+      - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Docker}
       - ASPNETCORE_URLS=http://+:8080
       - IsDocker=true
       - ConnectionStrings__Redis=redis:6379
@@ -368,6 +371,7 @@ services:
       - JWT__SecretKey=${JWT_SECRET_KEY}
       - JWT__Issuer=${JWT_ISSUER}
       - JWT__Audience=${JWT_AUDIENCE_OCELOT_GATEWAY}
+      - Logging__LogLevel__Default=${API_LOG_LEVEL:-Information}
     ports:
       - "${GATEWAY_PORT}:8080"  # API Gateway port - Docker Dev environment
     volumes:
@@ -406,6 +410,7 @@ services:
       - RabbitMQ__Host=rabbitmq
       - RabbitMQ__Username=tihomo
       - RabbitMQ__Password=${RABBITMQ_PASSWORD}
+      - Logging__LogLevel__Default=${API_LOG_LEVEL:-Information}
     # ports:
     #   - "${IDENTITY_API_PORT}:8080"  # Identity API port - Closed, access via API Gateway only
     volumes:
@@ -445,6 +450,7 @@ services:
       - RabbitMQ__Username=tihomo
       - RabbitMQ__Password=${RABBITMQ_PASSWORD}
       - IdentityService__BaseUrl=http://identity-api:8080
+      - Logging__LogLevel__Default=${API_LOG_LEVEL:-Information}
       # CORS Configuration
       - CorsOptions__PolicyName=${CORS_POLICY_NAME:-DefaultCorsPolicy}
       - CorsOptions__AllowedOrigins__0=${CORS_ALLOWED_ORIGINS:-*}
@@ -489,6 +495,7 @@ services:
       - Redis__ConnectionString=redis:6379
       - Redis__Password=${REDIS_PASSWORD}
       - UploadPath=/app/uploads
+      - Logging__LogLevel__Default=${API_LOG_LEVEL:-Information}
     # ports:
     #   - "${EXCEL_API_PORT}:8080"  # Excel API port - Closed, access via API Gateway only
     volumes:

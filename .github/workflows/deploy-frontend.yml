@@ -226,6 +226,8 @@ jobs:
             fi
             
             # Build frontend image
+            echo "[BUILD] Building frontend image for ${{ inputs.environment }} environment..."
+            
             if [ "${{ inputs.force_rebuild }}" = "true" ]; then
               echo "[BUILD] Force rebuilding frontend image..."
               $USE_SUDO docker compose build --no-cache frontend-nuxt

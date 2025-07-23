@@ -203,18 +203,20 @@ jobs:
               USE_SUDO="sudo"
             fi
             
+            echo "[INFO] Performing health check for ${{ inputs.environment }} environment..."
+            
             echo "[HEALTH] Comprehensive system health check..."
             
             # Check all services status
             echo "[CHECK] All services status:"
-            \$USE_SUDO docker compose ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}"
+            \$USE_SUDO \$USE_SUDO docker compose ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}"
             
             # Check critical service connectivity
             CRITICAL_SERVICES=()
             FAILED_SERVICES=()
             
             # Infrastructure checks
-            if \$USE_SUDO docker compose ps redis | grep -q "Up"; then
+            if \$USE_SUDO \$USE_SUDO docker compose ps redis | grep -q "Up"; then
               echo "[REDIS] Testing Redis connectivity..."
               
               # Load Redis password from .env
@@ -223,13 +225,13 @@ jobs:
               fi
               
               # Try with password first, then without
-              if [ -n "\$REDIS_PASSWORD" ] && \$USE_SUDO docker compose exec -T redis redis-cli -a "\$REDIS_PASSWORD" ping 2>/dev/null | grep -q "PONG"; then
+              if [ -n "\$REDIS_PASSWORD" ] && \$USE_SUDO \$USE_SUDO docker compose exec -T redis redis-cli -a "\$REDIS_PASSWORD" ping 2>/dev/null | grep -q "PONG"; then
                 CRITICAL_SERVICES+=("Redis: OK (with auth)")
-              elif \$USE_SUDO docker compose exec -T redis redis-cli ping 2>/dev/null | grep -q "PONG"; then
+              elif \$USE_SUDO \$USE_SUDO docker compose exec -T redis redis-cli ping 2>/dev/null | grep -q "PONG"; then
                 CRITICAL_SERVICES+=("Redis: OK (no auth)")
               else
                 echo "[DEBUG] Redis logs:"
-                \$USE_SUDO docker compose logs --tail=5 redis
+                \$USE_SUDO \$USE_SUDO docker compose logs --tail=5 redis
                 FAILED_SERVICES+=("Redis: Connection failed")
               fi
             else
@@ -238,8 +240,8 @@ jobs:
             
             # Backend API checks
             for api in identity-api corefinance-api ocelot-gateway; do
-              if \$USE_SUDO docker compose ps \$api | grep -q "Up"; then
-                if \$USE_SUDO docker compose exec -T \$api curl -f http://localhost:8080/health >/dev/null 2>&1; then
+              if \$USE_SUDO \$USE_SUDO docker compose ps \$api | grep -q "Up"; then
+                if \$USE_SUDO \$USE_SUDO docker compose exec -T \$api curl -f http://localhost:8080/health >/dev/null 2>&1; then
                   CRITICAL_SERVICES+=("\$api: OK")
                 else
                   FAILED_SERVICES+=("\$api: Health check failed")
@@ -248,8 +250,8 @@ jobs:
             done
             
             # Frontend check
-            if \$USE_SUDO docker compose ps frontend-nuxt | grep -q "Up"; then
-              if \$USE_SUDO docker compose exec -T frontend-nuxt curl -f http://localhost:3000/ >/dev/null 2>&1; then
+            if \$USE_SUDO \$USE_SUDO docker compose ps frontend-nuxt | grep -q "Up"; then
+              if \$USE_SUDO \$USE_SUDO docker compose exec -T frontend-nuxt curl -f http://localhost:3000/ >/dev/null 2>&1; then
                 CRITICAL_SERVICES+=("Frontend: OK")
               else
                 FAILED_SERVICES+=("Frontend: HTTP check failed")
@@ -257,8 +259,8 @@ jobs:
             fi
             
             # Integration test - frontend to backend
-            if \$USE_SUDO docker compose ps frontend-nuxt | grep -q "Up" && \$USE_SUDO docker compose ps ocelot-gateway | grep -q "Up"; then
-              if \$USE_SUDO docker compose exec -T frontend-nuxt curl -f http://ocelot-gateway:8080/health >/dev/null 2>&1; then
+            if \$USE_SUDO \$USE_SUDO docker compose ps frontend-nuxt | grep -q "Up" && \$USE_SUDO \$USE_SUDO docker compose ps ocelot-gateway | grep -q "Up"; then
+              if \$USE_SUDO \$USE_SUDO docker compose exec -T frontend-nuxt curl -f http://ocelot-gateway:8080/health >/dev/null 2>&1; then
                 CRITICAL_SERVICES+=("Frontend→Backend: OK")
               else
                 FAILED_SERVICES+=("Frontend→Backend: Connection failed")
@@ -289,7 +291,7 @@ jobs:
               echo "  - Deploy directory: \$(pwd)"
               echo "  - .env file exists: \$([ -f .env ] && echo 'Yes' || echo 'No')"
               echo "  - Docker access: \$([ -z '\$USE_SUDO' ] && echo 'Direct' || echo 'Via sudo')"
-              echo "  - Total services: \$(\$USE_SUDO docker compose ps --format '{{.Name}}' | wc -l)"
+              echo "  - Total services: \$(\$USE_SUDO \$USE_SUDO docker compose ps --format '{{.Name}}' | wc -l)"
               echo ""
               echo "[CONTINUE] Not failing deployment - services may stabilize over time"
               echo "[ACTION] Manual verification recommended"
@@ -307,7 +309,7 @@ jobs:
             # Docker system usage
             echo ""
             echo "[DOCKER] Docker system usage:"
-            \$USE_SUDO docker system df
+            \$USE_SUDO \$USE_SUDO docker compose system df
           REMOTE_EOF
         shell: bash
 
