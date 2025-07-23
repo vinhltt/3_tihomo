@@ -334,7 +334,7 @@ jobs:
           if [ -n "$webhook_url" ]; then
             curl -H "Content-Type: application/json" \
                  -d '{
-                   "content": "✅ **Frontend Deployment SUCCESS**\n\n📊 **Info:**\n• **Environment:** `${{ inputs.environment }}`\n• **Branch:** `${{ github.ref_name }}`\n• **Force Rebuild:** `${{ inputs.force_rebuild }}`\n• **Frontend URL:** `http://<TRUENAS_IP>:${{ vars.FRONTEND_PORT || '\''3500'\'' }}`\n\n🚀 **Frontend is ready and serving requests**"
+                   "content": "✅ **Frontend Deployment SUCCESS**\n\n📊 **Info:**\n• **Environment:** `${{ inputs.environment }}`\n• **Branch:** `${{ github.ref_name }}`\n• **Force Rebuild:** `${{ inputs.force_rebuild }}`\n• **Frontend URL:** `http://<TRUENAS_IP>:${{ vars.FRONTEND_PORT || '3500' }}`\n\n🚀 **Frontend is ready and serving requests**"
                  }' \
                  "$webhook_url" || echo "Discord notification failed"
           fi
