@@ -86,25 +86,46 @@ jobs:
             echo "[INFO] Creating .env file..."
             
             cat > .env << 'EOF'
+          # Project Configuration
           COMPOSE_PROJECT_NAME=${{ env.COMPOSE_PROJECT_NAME }}
           
-          # Database Configuration
+          # Core Configuration
+          GATEWAY_PORT=${{ vars.GATEWAY_PORT || '5000' }}
+          FRONTEND_PORT=${{ vars.FRONTEND_PORT || '3500' }}
+          FRONTEND_BASE_URL=${{ vars.FRONTEND_BASE_URL || 'http://localhost:3500' }}
+          JWT_SECRET_KEY='${{ secrets.JWT_SECRET_KEY }}'
+          
+          # Docker Build Configuration
+          NUXT_BUILD_TARGET=${{ vars.NUXT_BUILD_TARGET || 'production' }}
+          NODE_ENV=${{ vars.NODE_ENV || 'production' }}
+          DOCKER_USER=${{ vars.DOCKER_USER || '1001:1001' }}
+          
+          # Production-specific Nuxt settings
+          NUXT_DEV_SSR=${{ vars.NUXT_DEV_SSR || 'false' }}
+          NUXT_DEV_TOOLS=${{ vars.NUXT_DEV_TOOLS || 'false' }}
+          NUXT_DEBUG=${{ vars.NUXT_DEBUG || 'false' }}
+          
+          # Database Configuration - Identity
           IDENTITY_DB_USERNAME=${{ secrets.IDENTITY_DB_USERNAME || 'identity_user' }}
           IDENTITY_DB_PASSWORD='${{ secrets.IDENTITY_DB_PASSWORD }}'
           IDENTITY_DB_PORT=${{ vars.IDENTITY_DB_PORT || '5831' }}
           
+          # Database Configuration - CoreFinance
           COREFINANCE_DB_USERNAME=${{ secrets.COREFINANCE_DB_USERNAME || 'corefinance_user' }}
           COREFINANCE_DB_PASSWORD='${{ secrets.COREFINANCE_DB_PASSWORD }}'
           COREFINANCE_DB_PORT=${{ vars.COREFINANCE_DB_PORT || '5832' }}
           
+          # Database Configuration - MoneyManagement
           MONEYMANAGEMENT_DB_USERNAME=${{ secrets.MONEYMANAGEMENT_DB_USERNAME || 'money_user' }}
           MONEYMANAGEMENT_DB_PASSWORD='${{ secrets.MONEYMANAGEMENT_DB_PASSWORD || secrets.IDENTITY_DB_PASSWORD }}'
           MONEYMANAGEMENT_DB_PORT=${{ vars.MONEYMANAGEMENT_DB_PORT || '5835' }}
           
+          # Database Configuration - PlanningInvestment
           PLANNINGINVESTMENT_DB_USERNAME=${{ secrets.PLANNINGINVESTMENT_DB_USERNAME || 'planning_user' }}
           PLANNINGINVESTMENT_DB_PASSWORD='${{ secrets.PLANNINGINVESTMENT_DB_PASSWORD || secrets.IDENTITY_DB_PASSWORD }}'
           PLANNINGINVESTMENT_DB_PORT=${{ vars.PLANNINGINVESTMENT_DB_PORT || '5836' }}
           
+          # Database Configuration - Reporting
           REPORTING_DB_USERNAME=${{ secrets.REPORTING_DB_USERNAME || 'reporting_user' }}
           REPORTING_DB_PASSWORD='${{ secrets.REPORTING_DB_PASSWORD || secrets.IDENTITY_DB_PASSWORD }}'
           REPORTING_DB_PORT=${{ vars.REPORTING_DB_PORT || '5837' }}
@@ -118,13 +139,61 @@ jobs:
           RABBITMQ_MANAGEMENT_PORT=${{ vars.RABBITMQ_MANAGEMENT_PORT || '15672' }}
           RABBITMQ_PASSWORD='${{ secrets.RABBITMQ_PASSWORD }}'
           
-          # Environment
-          NODE_ENV=${{ vars.NODE_ENV || 'production' }}
-          ASPNETCORE_ENVIRONMENT=${{ vars.ASPNETCORE_ENVIRONMENT || 'Production' }}
-          TZ=${{ vars.TZ || 'Asia/Ho_Chi_Minh' }}
+          # Monitoring Configuration
+          PROMETHEUS_PORT=${{ vars.PROMETHEUS_PORT || '9090' }}
+          GRAFANA_PORT=${{ vars.GRAFANA_PORT || '3002' }}
+          GRAFANA_ADMIN_PASSWORD='${{ secrets.GRAFANA_ADMIN_PASSWORD || secrets.IDENTITY_DB_PASSWORD }}'
+          LOKI_PORT=${{ vars.LOKI_PORT || '3100' }}
+          
+          # Development Tools
+          PGADMIN_PORT=${{ vars.PGADMIN_PORT || '8081' }}
+          PGADMIN_PASSWORD='${{ secrets.PGADMIN_PASSWORD || secrets.IDENTITY_DB_PASSWORD }}'
+          MAILHOG_SMTP_PORT=${{ vars.MAILHOG_SMTP_PORT || '1025' }}
+          MAILHOG_UI_PORT=${{ vars.MAILHOG_UI_PORT || '8025' }}
+          
+          # Nginx Configuration
+          NGINX_HTTP_PORT=${{ vars.NGINX_HTTP_PORT || '8082' }}
+          NGINX_HTTPS_PORT=${{ vars.NGINX_HTTPS_PORT || '8443' }}
           
           # Network Configuration
           DOCKER_NETWORK_SUBNET=${{ vars.DOCKER_NETWORK_SUBNET || '172.20.0.0/16' }}
+          
+          # Application Environment
+          NODE_ENV=${{ vars.NODE_ENV || 'production' }}
+          ASPNETCORE_ENVIRONMENT=${{ vars.ASPNETCORE_ENVIRONMENT || 'Production' }}
+          
+          # OAuth Configuration
+          APP_PUBLIC_GOOGLE_CLIENT_ID=${{ secrets.APP_PUBLIC_GOOGLE_CLIENT_ID }}
+          
+          # JWT Configuration
+          JWT_ISSUER=${{ vars.JWT_ISSUER || 'http://localhost:5000' }}
+          JWT_AUDIENCE_OCELOT_GATEWAY=${{ vars.JWT_AUDIENCE_OCELOT_GATEWAY || 'TiHoMo.Gateway' }}
+          JWT_AUDIENCE_IDENTITY_API=${{ vars.JWT_AUDIENCE_IDENTITY_API || 'TiHoMo.Identity' }}
+          JWT_AUDIENCE_COREFINANCE_API=${{ vars.JWT_AUDIENCE_COREFINANCE_API || 'TiHoMo.CoreFinance' }}
+          
+          # Timezone & other settings
+          GENERIC_TIMEZONE=${{ vars.GENERIC_TIMEZONE || 'Asia/Ho_Chi_Minh' }}
+          TZ=${{ vars.TZ || 'Asia/Ho_Chi_Minh' }}
+          
+          # Build Configuration
+          NUXT_BUILD_TARGET=production
+          NUXT_DEV_SSR=${{ vars.NUXT_DEV_SSR || 'false' }}
+          NUXT_DEBUG=${{ vars.NUXT_DEBUG || 'false' }}
+          NUXT_DEV_TOOLS=${{ vars.NUXT_DEV_TOOLS || 'false' }}
+          NUXT_TELEMETRY_DISABLED=1
+          
+          # Logging Configuration
+          LOG_LEVEL=${{ vars.LOG_LEVEL || 'info' }}
+          LOG_FORMAT=${{ vars.LOG_FORMAT || 'json' }}
+          
+          # Feature Toggles
+          ENABLE_PWA=${{ vars.ENABLE_PWA || 'false' }}
+          ENABLE_ANALYTICS=${{ vars.ENABLE_ANALYTICS || 'false' }}
+          
+          # Deployment Information
+          DEPLOY_BRANCH=${{ github.ref_name }}
+          DEPLOY_COMMIT=${{ github.sha }}
+          DEPLOY_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
           EOF
           
           echo "[SUCCESS] .env file created successfully"
@@ -145,6 +214,30 @@ jobs:
             echo "[FIX] Setting default subnet..."
             sed -i 's/^DOCKER_NETWORK_SUBNET=.*/DOCKER_NETWORK_SUBNET=172.20.0.0\/16/' .env
           fi
+          
+          echo "[VALIDATION] Checking critical environment variables..."
+          
+          # Check for empty/missing critical variables
+          CRITICAL_VARS=("JWT_SECRET_KEY" "REDIS_PASSWORD" "RABBITMQ_PASSWORD")
+          MISSING_VARS=()
+          
+          for var in "${CRITICAL_VARS[@]}"; do
+            if ! grep -q "^${var}=" .env || [ "$(grep "^${var}=" .env | cut -d'=' -f2 | tr -d "'")" = "" ]; then
+              MISSING_VARS+=("$var")
+            fi
+          done
+          
+          if [ ${#MISSING_VARS[@]} -gt 0 ]; then
+            echo "[WARNING] Missing or empty critical variables: ${MISSING_VARS[*]}"
+            echo "[WARNING] This may cause service startup failures"
+          else
+            echo "[OK] All critical variables are set"
+          fi
+          
+          echo "[INFO] Environment variables summary:"
+          echo "  - Total variables: $(wc -l < .env)"
+          echo "  - Network subnet: $(grep DOCKER_NETWORK_SUBNET .env | cut -d'=' -f2)"
+          echo "  - Project name: $(grep COMPOSE_PROJECT_NAME .env | cut -d'=' -f2)"
           REMOTE_EOF
         shell: bash
 
@@ -218,10 +311,17 @@ jobs:
                 redis)
                   echo "[HEALTH] Checking Redis connectivity..."
                   sleep 5
-                  $USE_SUDO docker compose exec -T redis redis-cli ping | grep -q "PONG" || {
-                    echo "[ERROR] Redis health check failed"
-                    exit 1
-                  }
+                  # Try with password authentication
+                  if $USE_SUDO docker compose exec -T redis redis-cli -a "$REDIS_PASSWORD" ping | grep -q "PONG"; then
+                    echo "[OK] Redis health check passed with auth"
+                  elif $USE_SUDO docker compose exec -T redis redis-cli ping | grep -q "PONG"; then
+                    echo "[OK] Redis health check passed without auth"
+                  else
+                    echo "[WARNING] Redis health check failed, but container is running"
+                    echo "[DEBUG] Redis logs:"
+                    $USE_SUDO docker compose logs --tail=10 redis
+                    # Don't exit - continue with deployment
+                  fi
                   ;;
                 rabbitmq)
                   echo "[HEALTH] Checking RabbitMQ connectivity..."

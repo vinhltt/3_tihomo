@@ -172,7 +172,7 @@ jobs:
             truenas-cf-tunnel:"${{ env.TRUENAS_DEPLOY_DIR }}/"
         shell: bash
 
-      - name: "[6/9] Update environment file"
+      - name: "[6/9] Verify environment file"
         run: |
           ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << 'REMOTE_EOF'
             # Ensure directory exists and navigate to it
@@ -180,27 +180,31 @@ jobs:
             cd ${{ env.TRUENAS_DEPLOY_DIR }}
             
             echo "[INFO] Working in directory: $(pwd)"
-            echo "[INFO] Updating .env file with backend configuration..."
             
-            # Add/update backend specific environment variables
-            cat >> .env << 'ENVEOF'
+            if [ ! -f .env ]; then
+              echo "[ERROR] .env file not found - infrastructure deployment may have failed"
+              exit 1
+            fi
             
-            # Backend API Configuration
-            GATEWAY_PORT=${{ vars.GATEWAY_PORT || '5000' }}
-            JWT_SECRET_KEY='${{ secrets.JWT_SECRET_KEY }}'
-            JWT_ISSUER=${{ vars.JWT_ISSUER || 'http://localhost:5000' }}
-            JWT_AUDIENCE_OCELOT_GATEWAY=${{ vars.JWT_AUDIENCE_OCELOT_GATEWAY || 'TiHoMo.Gateway' }}
-            JWT_AUDIENCE_IDENTITY_API=${{ vars.JWT_AUDIENCE_IDENTITY_API || 'TiHoMo.Identity' }}
-            JWT_AUDIENCE_COREFINANCE_API=${{ vars.JWT_AUDIENCE_COREFINANCE_API || 'TiHoMo.CoreFinance' }}
+            echo "[INFO] .env file exists, checking backend-related variables..."
             
-            # OAuth Configuration
-            APP_PUBLIC_GOOGLE_CLIENT_ID=${{ secrets.APP_PUBLIC_GOOGLE_CLIENT_ID }}
+            # Verify critical backend variables exist
+            BACKEND_VARS=("JWT_SECRET_KEY" "GATEWAY_PORT" "JWT_ISSUER")
+            MISSING_VARS=()
             
-            # Build Configuration
-            DOCKER_USER=${{ vars.DOCKER_USER || '1001:1001' }}
-            ENVEOF
+            for var in "${BACKEND_VARS[@]}"; do
+              if ! grep -q "^${var}=" .env; then
+                MISSING_VARS+=("$var")
+              fi
+            done
             
-            echo "[SUCCESS] Backend configuration added to .env"
+            if [ ${#MISSING_VARS[@]} -gt 0 ]; then
+              echo "[WARNING] Missing backend variables: ${MISSING_VARS[*]}"
+            else
+              echo "[OK] All backend variables are present"
+            fi
+            
+            echo "[INFO] Backend environment verified"
             REMOTE_EOF
         shell: bash
 

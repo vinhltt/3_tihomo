@@ -162,7 +162,7 @@ jobs:
             truenas-cf-tunnel:"${{ env.TRUENAS_DEPLOY_DIR }}/"
         shell: bash
 
-      - name: "[6/8] Update environment for frontend"
+      - name: "[6/8] Verify environment for frontend"
         run: |
           ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << 'REMOTE_EOF'
             # Ensure directory exists and navigate to it
@@ -170,28 +170,31 @@ jobs:
             cd ${{ env.TRUENAS_DEPLOY_DIR }}
             
             echo "[INFO] Working in directory: $(pwd)"
-            echo "[INFO] Updating .env file with frontend configuration..."
             
-            # Add/update frontend specific environment variables
-            cat >> .env << 'ENVEOF'
+            if [ ! -f .env ]; then
+              echo "[ERROR] .env file not found - infrastructure deployment may have failed"
+              exit 1
+            fi
             
-            # Frontend Configuration
-            FRONTEND_PORT=${{ vars.FRONTEND_PORT || '3500' }}
-            FRONTEND_BASE_URL=${{ vars.FRONTEND_BASE_URL || 'http://localhost:3500' }}
+            echo "[INFO] .env file exists, checking frontend-related variables..."
             
-            # Nuxt Build Configuration
-            NUXT_BUILD_TARGET=${{ vars.NUXT_BUILD_TARGET || 'production' }}
-            NODE_ENV=${{ vars.NODE_ENV || 'production' }}
-            NUXT_DEV_SSR=${{ vars.NUXT_DEV_SSR || 'false' }}
-            NUXT_DEV_TOOLS=${{ vars.NUXT_DEV_TOOLS || 'false' }}
-            NUXT_DEBUG=${{ vars.NUXT_DEBUG || 'false' }}
-            NUXT_TELEMETRY_DISABLED=1
+            # Verify critical frontend variables exist
+            FRONTEND_VARS=("FRONTEND_PORT" "NUXT_BUILD_TARGET" "NODE_ENV")
+            MISSING_VARS=()
             
-            # OAuth for frontend
-            APP_PUBLIC_GOOGLE_CLIENT_ID=${{ secrets.APP_PUBLIC_GOOGLE_CLIENT_ID }}
-            ENVEOF
+            for var in "${FRONTEND_VARS[@]}"; do
+              if ! grep -q "^${var}=" .env; then
+                MISSING_VARS+=("$var")
+              fi
+            done
             
-            echo "[SUCCESS] Frontend configuration added to .env"
+            if [ ${#MISSING_VARS[@]} -gt 0 ]; then
+              echo "[WARNING] Missing frontend variables: ${MISSING_VARS[*]}"
+            else
+              echo "[OK] All frontend variables are present"
+            fi
+            
+            echo "[INFO] Frontend environment verified"
             REMOTE_EOF
         shell: bash
 
