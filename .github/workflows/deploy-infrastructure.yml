@@ -47,6 +47,8 @@ jobs:
         run: |
           echo "TRUENAS_DEPLOY_DIR=${{ vars.DEPLOY_PATH_ON_TRUENAS }}/deploy_${GITHUB_REF_NAME}" >> $GITHUB_ENV
           echo "COMPOSE_PROJECT_NAME=tihomo_${{ inputs.environment }}" >> $GITHUB_ENV
+          echo "[INFO] Deploy directory: ${{ vars.DEPLOY_PATH_ON_TRUENAS }}/deploy_${GITHUB_REF_NAME}"
+          echo "[INFO] Project name: tihomo_${{ inputs.environment }}"
         shell: bash
 
       - name: "[3/8] Setup SSH and Cloudflared"
@@ -70,9 +72,17 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.TRUENAS_SSH_PRIVATE_KEY }}
 
-      - name: "[5/8] Create environment file"
+      - name: "[5/8] Prepare deployment directory and create environment file"
         run: |
-          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel "cat > ${{ env.TRUENAS_DEPLOY_DIR }}/.env << 'EOF'
+          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << 'REMOTE_EOF'
+            # Create deployment directory if it doesn't exist
+            mkdir -p ${{ env.TRUENAS_DEPLOY_DIR }}
+            cd ${{ env.TRUENAS_DEPLOY_DIR }}
+            
+            echo "[INFO] Working in directory: $(pwd)"
+            echo "[INFO] Creating .env file..."
+            
+            cat > .env << 'EOF'
           COMPOSE_PROJECT_NAME=${{ env.COMPOSE_PROJECT_NAME }}
           
           # Database Configuration
@@ -109,7 +119,12 @@ jobs:
           NODE_ENV=${{ vars.NODE_ENV || 'production' }}
           ASPNETCORE_ENVIRONMENT=${{ vars.ASPNETCORE_ENVIRONMENT || 'Production' }}
           TZ=${{ vars.TZ || 'Asia/Ho_Chi_Minh' }}
-          EOF"
+          EOF
+          
+          echo "[SUCCESS] .env file created successfully"
+          echo "[INFO] File contents:"
+          head -10 .env
+          REMOTE_EOF
         shell: bash
 
       - name: "[6/8] Deploy infrastructure services"

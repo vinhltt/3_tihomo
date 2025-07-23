@@ -171,8 +171,13 @@ jobs:
 
       - name: "[6/9] Update environment file"
         run: |
-          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << 'EOF'
+          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << 'REMOTE_EOF'
+            # Ensure directory exists and navigate to it
+            mkdir -p ${{ env.TRUENAS_DEPLOY_DIR }}
             cd ${{ env.TRUENAS_DEPLOY_DIR }}
+            
+            echo "[INFO] Working in directory: $(pwd)"
+            echo "[INFO] Updating .env file with backend configuration..."
             
             # Add/update backend specific environment variables
             cat >> .env << 'ENVEOF'
@@ -191,7 +196,9 @@ jobs:
             # Build Configuration
             DOCKER_USER=${{ vars.DOCKER_USER || '1001:1001' }}
             ENVEOF
-          EOF
+            
+            echo "[SUCCESS] Backend configuration added to .env"
+            REMOTE_EOF
         shell: bash
 
       - name: "[7/9] Deploy backend services with dependency management"

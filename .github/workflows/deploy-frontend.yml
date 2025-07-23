@@ -161,8 +161,13 @@ jobs:
 
       - name: "[6/8] Update environment for frontend"
         run: |
-          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << 'EOF'
+          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << 'REMOTE_EOF'
+            # Ensure directory exists and navigate to it
+            mkdir -p ${{ env.TRUENAS_DEPLOY_DIR }}
             cd ${{ env.TRUENAS_DEPLOY_DIR }}
+            
+            echo "[INFO] Working in directory: $(pwd)"
+            echo "[INFO] Updating .env file with frontend configuration..."
             
             # Add/update frontend specific environment variables
             cat >> .env << 'ENVEOF'
@@ -182,7 +187,9 @@ jobs:
             # OAuth for frontend
             APP_PUBLIC_GOOGLE_CLIENT_ID=${{ secrets.APP_PUBLIC_GOOGLE_CLIENT_ID }}
             ENVEOF
-          EOF
+            
+            echo "[SUCCESS] Frontend configuration added to .env"
+            REMOTE_EOF
         shell: bash
 
       - name: "[7/8] Deploy frontend with graceful shutdown"
