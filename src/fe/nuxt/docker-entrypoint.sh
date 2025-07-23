@@ -10,11 +10,11 @@ echo "Node version: $(node -v)"
 echo "NPM version: $(npm -v)"
 
 # Function to run command as root if needed for permissions
+# Use docker exec with root instead of su-exec to avoid setgroups issues
 run_as_root_if_needed() {
-    if [ "$(whoami)" != "root" ] && [ -x "$(command -v su-exec)" ]; then
-        su-exec root "$@"
-    elif [ "$(whoami)" != "root" ] && [ -x "$(command -v sudo)" ]; then
-        sudo "$@"
+    if [ "$(whoami)" != "root" ]; then
+        echo "⚠️ Cannot escalate privileges inside container. Trying with current user..."
+        "$@"
     else
         "$@"
     fi
@@ -117,32 +117,16 @@ else
     echo "⚠️  Production NODE_ENV detected but no .output directory"
     echo "🔨 Building application for production..."
     
-    # Create necessary directories with proper permissions
-    if [ "$(whoami)" = "root" ]; then
-      mkdir -p node_modules .nuxt .output logs uploads
-      chown -R nuxt:nodejs node_modules .nuxt .output logs uploads 2>/dev/null || true
-    else
-      run_as_root_if_needed sh -c "
-        mkdir -p node_modules .nuxt .output logs uploads && 
-        chown -R nuxt:nodejs node_modules .nuxt .output logs uploads
-      " 2>/dev/null || true
-    fi
+    # Create necessary directories with proper permissions (must run as root)
+    mkdir -p node_modules .nuxt .output logs uploads
+    chown -R nuxt:nodejs node_modules .nuxt .output logs uploads 2>/dev/null || true
     
-    # Install dependencies if needed
+    # Install dependencies if needed (must run as root)
     if [ ! -d "node_modules" ] || [ ! -d "node_modules/nuxt" ]; then
       echo "📦 Installing dependencies..."
-      # Ensure proper permissions for npm operations
-      if [ "$(whoami)" != "root" ]; then
-        echo "🔐 Need root permissions for npm install, using su-exec..."
-        run_as_root_if_needed sh -c "
-          npm cache clean --force && \
-          npm install --legacy-peer-deps --no-audit --no-fund --unsafe-perm && \
-          chown -R nuxt:nodejs /app/node_modules /app/.npm 2>/dev/null || true
-        "
-      else
-        npm cache clean --force
-        npm install --legacy-peer-deps --no-audit --no-fund --unsafe-perm
-      fi
+      npm cache clean --force
+      npm install --legacy-peer-deps --no-audit --no-fund --unsafe-perm
+      chown -R nuxt:nodejs /app/node_modules /app/.npm 2>/dev/null || true
     fi
     
     # Build the application
