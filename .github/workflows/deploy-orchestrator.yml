@@ -132,31 +132,27 @@ jobs:
     uses: ./.github/workflows/deploy-infrastructure.yml
     with:
       environment: ${{ inputs.environment }}
-      force_rebuild: ${{ github.event_name == 'workflow_dispatch' && inputs.force_rebuild || false }}
+      force_rebuild: ${{ inputs.force_rebuild }}
     secrets: inherit
 
   deploy-backend:
-    if: needs.plan-deployment.outputs.deploy-backend == 'true'
+    if: always() && needs.plan-deployment.outputs.deploy-backend == 'true' && (needs.deploy-infrastructure.result == 'success' || needs.deploy-infrastructure.result == 'skipped')
     needs: [plan-deployment, deploy-infrastructure]
-    # Always run if infrastructure is skipped, or run after infrastructure succeeds
-    runs-on: ubuntu-latest
-    steps:
-      - name: Call backend deployment
-        uses: ./.github/workflows/deploy-backend-services.yml@main
-        with:
-          environment: ${{ inputs.environment }}
-          services: ${{ needs.plan-deployment.outputs.backend-services }}
-          force_rebuild: ${{ github.event_name == 'workflow_dispatch' && inputs.force_rebuild || false }}
-          skip_infrastructure_check: ${{ needs.plan-deployment.outputs.deploy-infrastructure == 'true' }}
-        secrets: inherit
+    uses: ./.github/workflows/deploy-backend-services.yml
+    with:
+      environment: ${{ inputs.environment }}
+      services: ${{ needs.plan-deployment.outputs.backend-services }}
+      force_rebuild: ${{ inputs.force_rebuild }}
+      skip_infrastructure_check: ${{ needs.plan-deployment.outputs.deploy-infrastructure == 'true' }}
+    secrets: inherit
 
   deploy-frontend:
-    if: needs.plan-deployment.outputs.deploy-frontend == 'true'
+    if: always() && needs.plan-deployment.outputs.deploy-frontend == 'true' && (needs.deploy-backend.result == 'success' || needs.deploy-backend.result == 'skipped')
     needs: [plan-deployment, deploy-backend]
     uses: ./.github/workflows/deploy-frontend.yml
     with:
       environment: ${{ inputs.environment }}
-      force_rebuild: ${{ github.event_name == 'workflow_dispatch' && inputs.force_rebuild || false }}
+      force_rebuild: ${{ inputs.force_rebuild }}
       skip_backend_check: ${{ needs.plan-deployment.outputs.deploy-backend == 'true' }}
     secrets: inherit
 
