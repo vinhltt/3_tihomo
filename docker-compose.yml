@@ -287,8 +287,8 @@ services:
       target: ${NUXT_BUILD_TARGET:-development}
     container_name: tihomo-frontend-nuxt
     restart: unless-stopped
-    # Conditional user based on environment - production uses non-root user
-    user: ${DOCKER_USER:-0:0}
+    # User switching handled by entrypoint for proper permission management
+    # user: ${DOCKER_USER:-0:0}
     environment:
       # Core Nuxt Configuration
       - NODE_ENV=${NODE_ENV:-development}

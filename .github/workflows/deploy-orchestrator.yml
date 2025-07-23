@@ -1,0 +1,322 @@
+name: TiHoMo Deployment Orchestrator
+
+on:
+  workflow_dispatch:
+    inputs:
+      deployment_type:
+        description: 'Type of deployment'
+        required: true
+        type: choice
+        options:
+          - full-system
+          - infrastructure-only
+          - backend-only
+          - frontend-only
+          - specific-service
+      environment:
+        description: 'Deployment environment'
+        required: false
+        default: 'development'
+        type: choice
+        options:
+          - development
+          - staging
+          - production
+      specific_services:
+        description: 'For specific-service: comma-separated list (e.g., identity-api,frontend-nuxt)'
+        required: false
+        type: string
+      force_rebuild:
+        description: 'Force rebuild all images'
+        required: false
+        default: false
+        type: boolean
+      skip_health_checks:
+        description: 'Skip comprehensive health checks'
+        required: false
+        default: false
+        type: boolean
+
+concurrency:
+  group: tihomo-orchestrator-${{ github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  plan-deployment:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    timeout-minutes: 5
+    outputs:
+      deploy-infrastructure: ${{ steps.plan.outputs.deploy-infrastructure }}
+      deploy-backend: ${{ steps.plan.outputs.deploy-backend }}
+      deploy-frontend: ${{ steps.plan.outputs.deploy-frontend }}
+      backend-services: ${{ steps.plan.outputs.backend-services }}
+      deployment-strategy: ${{ steps.plan.outputs.deployment-strategy }}
+      
+    steps:
+      - name: "Plan deployment strategy"
+        id: plan
+        run: |
+          DEPLOYMENT_TYPE="${{ inputs.deployment_type }}"
+          SPECIFIC_SERVICES="${{ inputs.specific_services }}"
+          
+          echo "[PLAN] Planning deployment strategy: $DEPLOYMENT_TYPE"
+          
+          case $DEPLOYMENT_TYPE in
+            full-system)
+              echo "deploy-infrastructure=true" >> $GITHUB_OUTPUT
+              echo "deploy-backend=true" >> $GITHUB_OUTPUT
+              echo "deploy-frontend=true" >> $GITHUB_OUTPUT
+              echo "backend-services=all" >> $GITHUB_OUTPUT
+              echo "deployment-strategy=Full system deployment (Infrastructure → Backend → Frontend)" >> $GITHUB_OUTPUT
+              ;;
+            infrastructure-only)
+              echo "deploy-infrastructure=true" >> $GITHUB_OUTPUT
+              echo "deploy-backend=false" >> $GITHUB_OUTPUT
+              echo "deploy-frontend=false" >> $GITHUB_OUTPUT
+              echo "backend-services=" >> $GITHUB_OUTPUT
+              echo "deployment-strategy=Infrastructure only (Databases, Redis, RabbitMQ)" >> $GITHUB_OUTPUT
+              ;;
+            backend-only)
+              echo "deploy-infrastructure=false" >> $GITHUB_OUTPUT
+              echo "deploy-backend=true" >> $GITHUB_OUTPUT
+              echo "deploy-frontend=false" >> $GITHUB_OUTPUT
+              echo "backend-services=all" >> $GITHUB_OUTPUT
+              echo "deployment-strategy=Backend services only (APIs, Gateway)" >> $GITHUB_OUTPUT
+              ;;
+            frontend-only)
+              echo "deploy-infrastructure=false" >> $GITHUB_OUTPUT
+              echo "deploy-backend=false" >> $GITHUB_OUTPUT
+              echo "deploy-frontend=true" >> $GITHUB_OUTPUT
+              echo "backend-services=" >> $GITHUB_OUTPUT
+              echo "deployment-strategy=Frontend only (Nuxt application)" >> $GITHUB_OUTPUT
+              ;;
+            specific-service)
+              # Parse specific services to determine what to deploy
+              if [[ "$SPECIFIC_SERVICES" =~ (postgres|redis|rabbitmq) ]]; then
+                echo "deploy-infrastructure=true" >> $GITHUB_OUTPUT
+              else
+                echo "deploy-infrastructure=false" >> $GITHUB_OUTPUT
+              fi
+              
+              if [[ "$SPECIFIC_SERVICES" =~ (identity-api|corefinance-api|excel-api|ocelot-gateway) ]]; then
+                echo "deploy-backend=true" >> $GITHUB_OUTPUT
+                # Extract only backend services
+                BACKEND_SERVICES=$(echo "$SPECIFIC_SERVICES" | tr ',' '\n' | grep -E "(identity-api|corefinance-api|excel-api|ocelot-gateway)" | tr '\n' ',' | sed 's/,$//')
+                echo "backend-services=$BACKEND_SERVICES" >> $GITHUB_OUTPUT
+              else
+                echo "deploy-backend=false" >> $GITHUB_OUTPUT
+                echo "backend-services=" >> $GITHUB_OUTPUT
+              fi
+              
+              if [[ "$SPECIFIC_SERVICES" =~ frontend-nuxt ]]; then
+                echo "deploy-frontend=true" >> $GITHUB_OUTPUT
+              else
+                echo "deploy-frontend=false" >> $GITHUB_OUTPUT
+              fi
+              
+              echo "deployment-strategy=Specific services: $SPECIFIC_SERVICES" >> $GITHUB_OUTPUT
+              ;;
+            *)
+              echo "[ERROR] Unknown deployment type: $DEPLOYMENT_TYPE"
+              exit 1
+              ;;
+          esac
+          
+          echo "[INFO] Deployment plan created successfully"
+        shell: bash
+
+  deploy-infrastructure:
+    if: needs.plan-deployment.outputs.deploy-infrastructure == 'true'
+    needs: [plan-deployment]
+    uses: ./.github/workflows/deploy-infrastructure.yml
+    with:
+      environment: ${{ inputs.environment }}
+      force_rebuild: ${{ github.event_name == 'workflow_dispatch' && inputs.force_rebuild || false }}
+    secrets: inherit
+
+  deploy-backend:
+    if: needs.plan-deployment.outputs.deploy-backend == 'true'
+    needs: [plan-deployment, deploy-infrastructure]
+    # Always run if infrastructure is skipped, or run after infrastructure succeeds
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call backend deployment
+        uses: ./.github/workflows/deploy-backend-services.yml@main
+        with:
+          environment: ${{ inputs.environment }}
+          services: ${{ needs.plan-deployment.outputs.backend-services }}
+          force_rebuild: ${{ github.event_name == 'workflow_dispatch' && inputs.force_rebuild || false }}
+          skip_infrastructure_check: ${{ needs.plan-deployment.outputs.deploy-infrastructure == 'true' }}
+        secrets: inherit
+
+  deploy-frontend:
+    if: needs.plan-deployment.outputs.deploy-frontend == 'true'
+    needs: [plan-deployment, deploy-backend]
+    uses: ./.github/workflows/deploy-frontend.yml
+    with:
+      environment: ${{ inputs.environment }}
+      force_rebuild: ${{ github.event_name == 'workflow_dispatch' && inputs.force_rebuild || false }}
+      skip_backend_check: ${{ needs.plan-deployment.outputs.deploy-backend == 'true' }}
+    secrets: inherit
+
+  comprehensive-health-check:
+    if: always() && !inputs.skip_health_checks
+    needs: [plan-deployment, deploy-infrastructure, deploy-backend, deploy-frontend]
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    timeout-minutes: 10
+    
+    steps:
+      - name: Setup SSH
+        run: |
+          sudo wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -O /usr/local/bin/cloudflared
+          sudo chmod +x /usr/local/bin/cloudflared
+          
+          mkdir -p "$HOME/.ssh"
+          echo "Host truenas-cf-tunnel
+            HostName ${{ secrets.TRUENAS_SSH_HOSTNAME_THROUGH_CLOUDFLARED }}
+            ProxyCommand cloudflared access ssh --hostname %h
+            User ${{ secrets.TRUENAS_USER }}
+            StrictHostKeyChecking accept-new" > "$HOME/.ssh/config"
+          chmod 600 "$HOME/.ssh/config"
+        shell: bash
+
+      - name: Add SSH key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.TRUENAS_SSH_PRIVATE_KEY }}
+
+      - name: Comprehensive system health check
+        run: |
+          DEPLOY_DIR="${{ vars.DEPLOY_PATH_ON_TRUENAS }}/deploy_${GITHUB_REF_NAME}"
+          
+          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << EOF
+            cd $DEPLOY_DIR
+            
+            if docker ps >/dev/null 2>&1; then
+              USE_SUDO=""
+            else
+              USE_SUDO="sudo"
+            fi
+            
+            echo "[HEALTH] Comprehensive system health check..."
+            
+            # Check all services status
+            echo "[CHECK] All services status:"
+            \$USE_SUDO docker compose ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}"
+            
+            # Check critical service connectivity
+            CRITICAL_SERVICES=()
+            FAILED_SERVICES=()
+            
+            # Infrastructure checks
+            if \$USE_SUDO docker compose ps redis | grep -q "Up"; then
+              if \$USE_SUDO docker compose exec -T redis redis-cli ping | grep -q "PONG"; then
+                CRITICAL_SERVICES+=("Redis: OK")
+              else
+                FAILED_SERVICES+=("Redis: Connection failed")
+              fi
+            fi
+            
+            # Backend API checks
+            for api in identity-api corefinance-api ocelot-gateway; do
+              if \$USE_SUDO docker compose ps \$api | grep -q "Up"; then
+                if \$USE_SUDO docker compose exec -T \$api curl -f http://localhost:8080/health >/dev/null 2>&1; then
+                  CRITICAL_SERVICES+=("\$api: OK")
+                else
+                  FAILED_SERVICES+=("\$api: Health check failed")
+                fi
+              fi
+            done
+            
+            # Frontend check
+            if \$USE_SUDO docker compose ps frontend-nuxt | grep -q "Up"; then
+              if \$USE_SUDO docker compose exec -T frontend-nuxt curl -f http://localhost:3000/ >/dev/null 2>&1; then
+                CRITICAL_SERVICES+=("Frontend: OK")
+              else
+                FAILED_SERVICES+=("Frontend: HTTP check failed")
+              fi
+            fi
+            
+            # Integration test - frontend to backend
+            if \$USE_SUDO docker compose ps frontend-nuxt | grep -q "Up" && \$USE_SUDO docker compose ps ocelot-gateway | grep -q "Up"; then
+              if \$USE_SUDO docker compose exec -T frontend-nuxt curl -f http://ocelot-gateway:8080/health >/dev/null 2>&1; then
+                CRITICAL_SERVICES+=("Frontend→Backend: OK")
+              else
+                FAILED_SERVICES+=("Frontend→Backend: Connection failed")
+              fi
+            fi
+            
+            # Results summary
+            echo ""
+            echo "[RESULTS] System Health Summary:"
+            echo "=========================="
+            
+            if [ \${#CRITICAL_SERVICES[@]} -gt 0 ]; then
+              echo "✅ HEALTHY SERVICES:"
+              for service in "\${CRITICAL_SERVICES[@]}"; do
+                echo "   • \$service"
+              done
+            fi
+            
+            if [ \${#FAILED_SERVICES[@]} -gt 0 ]; then
+              echo ""
+              echo "❌ FAILED SERVICES:"
+              for service in "\${FAILED_SERVICES[@]}"; do
+                echo "   • \$service"
+              done
+              echo ""
+              echo "[ERROR] System has failed health checks"
+              exit 1
+            fi
+            
+            echo ""
+            echo "[SUCCESS] All critical services are healthy"
+            
+            # Resource usage summary
+            echo ""
+            echo "[RESOURCES] System resource usage:"
+            echo "Memory: \$(free -h | grep Mem:)"
+            echo "Disk: \$(df -h . | tail -1)"
+            
+            # Docker system usage
+            echo ""
+            echo "[DOCKER] Docker system usage:"
+            \$USE_SUDO docker system df
+          EOF
+        shell: bash
+
+  deployment-summary:
+    if: always()
+    needs: [plan-deployment, deploy-infrastructure, deploy-backend, deploy-frontend, comprehensive-health-check]
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Send deployment summary notification
+        uses: appleboy/discord-action@v1.2.0
+        with:
+          webhook_url: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          message: |
+            ${{ job.status == 'success' && '✅ **TiHoMo Deployment Orchestration COMPLETE**' || '❌ **TiHoMo Deployment Orchestration FAILED**' }}
+            
+            📋 **Deployment Summary:**
+            • **Strategy:** `${{ needs.plan-deployment.outputs.deployment-strategy }}`
+            • **Environment:** `${{ inputs.environment }}`
+            • **Branch:** `${{ github.ref_name }}`
+            • **Force Rebuild:** `${{ inputs.force_rebuild }}`
+            
+            🏗️ **Component Status:**
+            • **Infrastructure:** ${{ needs.deploy-infrastructure.result == 'success' && '✅ SUCCESS' || needs.deploy-infrastructure.result == 'skipped' && '⏭️ SKIPPED' || needs.deploy-infrastructure.result == 'failure' && '❌ FAILED' || '⏸️ NOT RUN' }}
+            • **Backend Services:** ${{ needs.deploy-backend.result == 'success' && '✅ SUCCESS' || needs.deploy-backend.result == 'skipped' && '⏭️ SKIPPED' || needs.deploy-backend.result == 'failure' && '❌ FAILED' || '⏸️ NOT RUN' }}
+            • **Frontend:** ${{ needs.deploy-frontend.result == 'success' && '✅ SUCCESS' || needs.deploy-frontend.result == 'skipped' && '⏭️ SKIPPED' || needs.deploy-frontend.result == 'failure' && '❌ FAILED' || '⏸️ NOT RUN' }}
+            • **Health Check:** ${{ needs.comprehensive-health-check.result == 'success' && '✅ PASSED' || needs.comprehensive-health-check.result == 'skipped' && '⏭️ SKIPPED' || needs.comprehensive-health-check.result == 'failure' && '❌ FAILED' || '⏸️ NOT RUN' }}
+            
+            🔗 **Access Points:**
+            • **Frontend:** `http://<TRUENAS_IP>:${{ vars.FRONTEND_PORT || '3500' }}`
+            • **API Gateway:** `http://<TRUENAS_IP>:${{ vars.GATEWAY_PORT || '5000' }}`
+            • **Monitoring:** `http://<TRUENAS_IP>:${{ vars.GRAFANA_PORT || '3002' }}`
+            
+            ${{ job.status == 'success' && '🎉 **System ready for use!**' || '🚨 **Manual intervention may be required**' }}
+            
+            [📋 View Detailed Logs](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})

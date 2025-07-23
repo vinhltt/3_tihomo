@@ -1,0 +1,359 @@
+name: Deploy Frontend Service
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: false
+        default: 'development'
+        type: choice
+        options:
+          - development
+          - staging
+          - production
+      force_rebuild:
+        description: 'Force rebuild frontend image'
+        required: false
+        default: false
+        type: boolean
+      skip_backend_check:
+        description: 'Skip backend dependency check'
+        required: false
+        default: false
+        type: boolean
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+      force_rebuild:
+        required: false
+        type: boolean
+        default: false
+      skip_backend_check:
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: tihomo-frontend-${{ github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  check-backend:
+    if: ${{ !inputs.skip_backend_check }}
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    timeout-minutes: 5
+    
+    steps:
+      - name: Setup SSH and check backend
+        run: |
+          sudo wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -O /usr/local/bin/cloudflared
+          sudo chmod +x /usr/local/bin/cloudflared
+          
+          mkdir -p "$HOME/.ssh"
+          echo "Host truenas-cf-tunnel
+            HostName ${{ secrets.TRUENAS_SSH_HOSTNAME_THROUGH_CLOUDFLARED }}
+            ProxyCommand cloudflared access ssh --hostname %h
+            User ${{ secrets.TRUENAS_USER }}
+            StrictHostKeyChecking accept-new" > "$HOME/.ssh/config"
+          chmod 600 "$HOME/.ssh/config"
+        shell: bash
+
+      - name: Add SSH key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.TRUENAS_SSH_PRIVATE_KEY }}
+
+      - name: Check backend readiness
+        run: |
+          DEPLOY_DIR="${{ vars.DEPLOY_PATH_ON_TRUENAS }}/deploy_${GITHUB_REF_NAME}"
+          
+          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << EOF
+            cd $DEPLOY_DIR
+            
+            if docker ps >/dev/null 2>&1; then
+              USE_SUDO=""
+            else
+              USE_SUDO="sudo"
+            fi
+            
+            echo "[CHECK] Verifying backend services for frontend..."
+            
+            REQUIRED_SERVICES=("ocelot-gateway" "corefinance-api")
+            MISSING_SERVICES=()
+            
+            for service in "\${REQUIRED_SERVICES[@]}"; do
+              if ! \$USE_SUDO docker compose ps \$service | grep -q "Up"; then
+                MISSING_SERVICES+=("\$service")
+              fi
+            done
+            
+            if [ \${#MISSING_SERVICES[@]} -gt 0 ]; then
+              echo "[ERROR] Missing backend services: \${MISSING_SERVICES[*]}"
+              echo "[ACTION] Please run backend deployment first"
+              exit 1
+            fi
+            
+            # Test API connectivity
+            if \$USE_SUDO docker compose exec -T ocelot-gateway curl -f http://localhost:8080/health >/dev/null 2>&1; then
+              echo "[OK] Gateway is responsive"
+            else
+              echo "[WARNING] Gateway health check failed but container is running"
+            fi
+            
+            echo "[OK] Backend services are ready for frontend deployment"
+          EOF
+        shell: bash
+
+  deploy-frontend:
+    runs-on: ubuntu-latest
+    needs: [check-backend]
+    if: always() && (needs.check-backend.result == 'success' || inputs.skip_backend_check)
+    environment: ${{ inputs.environment }}
+    timeout-minutes: 20
+    
+    steps:
+      - name: "[1/8] Checkout code"
+        uses: actions/checkout@v4
+
+      - name: "[2/8] Setup environment"
+        run: |
+          echo "TRUENAS_DEPLOY_DIR=${{ vars.DEPLOY_PATH_ON_TRUENAS }}/deploy_${GITHUB_REF_NAME}" >> $GITHUB_ENV
+          echo "COMPOSE_PROJECT_NAME=tihomo_${{ inputs.environment }}" >> $GITHUB_ENV
+        shell: bash
+
+      - name: "[3/8] Setup SSH"
+        run: |
+          sudo wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -O /usr/local/bin/cloudflared
+          sudo chmod +x /usr/local/bin/cloudflared
+          
+          mkdir -p "$HOME/.ssh"
+          echo "Host truenas-cf-tunnel
+            HostName ${{ secrets.TRUENAS_SSH_HOSTNAME_THROUGH_CLOUDFLARED }}
+            ProxyCommand cloudflared access ssh --hostname %h
+            User ${{ secrets.TRUENAS_USER }}
+            StrictHostKeyChecking accept-new" > "$HOME/.ssh/config"
+          chmod 600 "$HOME/.ssh/config"
+        shell: bash
+
+      - name: "[4/8] Add SSH key"
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.TRUENAS_SSH_PRIVATE_KEY }}
+
+      - name: "[5/8] Sync frontend files"
+        run: |
+          rsync -rltvz --safe-links \
+            --chmod=Du=rwx,Dgo=rx,Fu=rw,Fgo=r \
+            --no-perms --no-owner --no-group \
+            --include="src/fe/" \
+            --include="src/fe/nuxt/***" \
+            --include="docker-compose.yml" \
+            --include="Dockerfile*" \
+            --exclude="*" \
+            -e "ssh -F $HOME/.ssh/config" \
+            $GITHUB_WORKSPACE/ \
+            truenas-cf-tunnel:"${{ env.TRUENAS_DEPLOY_DIR }}/"
+        shell: bash
+
+      - name: "[6/8] Update environment for frontend"
+        run: |
+          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << 'EOF'
+            cd ${{ env.TRUENAS_DEPLOY_DIR }}
+            
+            # Add/update frontend specific environment variables
+            cat >> .env << 'ENVEOF'
+            
+            # Frontend Configuration
+            FRONTEND_PORT=${{ vars.FRONTEND_PORT || '3500' }}
+            FRONTEND_BASE_URL=${{ vars.FRONTEND_BASE_URL || 'http://localhost:3500' }}
+            
+            # Nuxt Build Configuration
+            NUXT_BUILD_TARGET=${{ vars.NUXT_BUILD_TARGET || 'production' }}
+            NODE_ENV=${{ vars.NODE_ENV || 'production' }}
+            NUXT_DEV_SSR=${{ vars.NUXT_DEV_SSR || 'false' }}
+            NUXT_DEV_TOOLS=${{ vars.NUXT_DEV_TOOLS || 'false' }}
+            NUXT_DEBUG=${{ vars.NUXT_DEBUG || 'false' }}
+            NUXT_TELEMETRY_DISABLED=1
+            
+            # OAuth for frontend
+            APP_PUBLIC_GOOGLE_CLIENT_ID=${{ secrets.APP_PUBLIC_GOOGLE_CLIENT_ID }}
+            ENVEOF
+          EOF
+        shell: bash
+
+      - name: "[7/8] Deploy frontend with graceful shutdown"
+        run: |
+          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << 'EOF'
+            set -e
+            cd ${{ env.TRUENAS_DEPLOY_DIR }}
+            
+            source .env
+            
+            if docker ps >/dev/null 2>&1; then
+              USE_SUDO=""
+            else
+              USE_SUDO="sudo"
+            fi
+            
+            echo "[FRONTEND] Deploying frontend service..."
+            
+            # Check if frontend is currently running
+            if $USE_SUDO docker compose ps frontend-nuxt | grep -q "Up"; then
+              echo "[INFO] Frontend is currently running, performing graceful shutdown..."
+              
+              # Graceful stop with timeout
+              $USE_SUDO docker compose stop frontend-nuxt
+              
+              # Wait a moment for clean shutdown
+              sleep 5
+            fi
+            
+            # Build frontend image
+            if [ "${{ inputs.force_rebuild }}" = "true" ]; then
+              echo "[BUILD] Force rebuilding frontend image..."
+              $USE_SUDO docker compose build --no-cache frontend-nuxt
+            else
+              echo "[BUILD] Building frontend image with cache..."
+              $USE_SUDO docker compose build frontend-nuxt
+            fi
+            
+            # Verify build succeeded
+            if [ $? -ne 0 ]; then
+              echo "[ERROR] Frontend build failed"
+              echo "[DEBUG] Checking build context..."
+              ls -la src/fe/nuxt/
+              echo "[DEBUG] Nuxt config:"
+              cat src/fe/nuxt/nuxt.config.ts | head -20 || echo "No nuxt.config.ts found"
+              exit 1
+            fi
+            
+            echo "[BUILD] Frontend image built successfully"
+            
+            # Deploy frontend
+            echo "[DEPLOY] Starting frontend service..."
+            $USE_SUDO docker compose up -d --no-deps --force-recreate frontend-nuxt
+            
+            # Wait for frontend to be ready
+            max_attempts=20
+            attempt=1
+            while [ $attempt -le $max_attempts ]; do
+              if $USE_SUDO docker compose ps frontend-nuxt | grep -q "Up"; then
+                echo "[OK] Frontend container is running"
+                
+                # Wait for Nuxt to be ready
+                echo "[HEALTH] Waiting for Nuxt application to be ready..."
+                sleep 10
+                
+                # Test if frontend is responding
+                if $USE_SUDO docker compose exec -T frontend-nuxt curl -f http://localhost:3000/ >/dev/null 2>&1; then
+                  echo "[OK] Frontend is responding to HTTP requests"
+                  break
+                else
+                  echo "[WAIT] Frontend not ready yet (attempt $attempt/$max_attempts)"
+                  sleep 15
+                  ((attempt++))
+                fi
+              else
+                echo "[WAIT] Frontend container not up yet (attempt $attempt/$max_attempts)"
+                sleep 10
+                ((attempt++))
+              fi
+            done
+            
+            if [ $attempt -gt $max_attempts ]; then
+              echo "[ERROR] Frontend failed to start after $max_attempts attempts"
+              echo "[DEBUG] Frontend logs:"
+              $USE_SUDO docker compose logs --tail=30 frontend-nuxt
+              echo "[DEBUG] Container inspect:"
+              $USE_SUDO docker compose ps frontend-nuxt
+              exit 1
+            fi
+            
+            echo "[SUCCESS] Frontend deployed successfully"
+            
+            # Show final status
+            echo "[STATUS] Frontend service status:"
+            $USE_SUDO docker compose ps frontend-nuxt
+            
+            # Show recent logs for verification
+            echo "[LOGS] Recent frontend logs:"
+            $USE_SUDO docker compose logs --tail=10 frontend-nuxt
+          EOF
+        shell: bash
+
+      - name: "[8/8] Final health check and notification"
+        run: |
+          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << 'EOF'
+            cd ${{ env.TRUENAS_DEPLOY_DIR }}
+            
+            if docker ps >/dev/null 2>&1; then
+              USE_SUDO=""
+            else
+              USE_SUDO="sudo"
+            fi
+            
+            echo "[HEALTH] Final frontend health check..."
+            
+            # Check container status
+            if $USE_SUDO docker compose ps frontend-nuxt | grep -q "Up"; then
+              echo "[OK] Frontend container is running"
+              
+              # Check HTTP response
+              if $USE_SUDO docker compose exec -T frontend-nuxt curl -f http://localhost:3000/ >/dev/null 2>&1; then
+                echo "[OK] Frontend is serving HTTP requests"
+                
+                # Check API connectivity from frontend
+                if $USE_SUDO docker compose exec -T frontend-nuxt curl -f http://ocelot-gateway:8080/health >/dev/null 2>&1; then
+                  echo "[OK] Frontend can connect to backend gateway"
+                else
+                  echo "[WARNING] Frontend cannot connect to backend gateway"
+                fi
+                
+                echo "[SUCCESS] Frontend health check passed"
+              else
+                echo "[ERROR] Frontend HTTP check failed"
+                $USE_SUDO docker compose logs --tail=20 frontend-nuxt
+                exit 1
+              fi
+            else
+              echo "[ERROR] Frontend container is not running"
+              $USE_SUDO docker compose ps frontend-nuxt
+              exit 1
+            fi
+            
+            echo "[INFO] Full system status:"
+            $USE_SUDO docker compose ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}"
+          EOF
+          
+          # Send Discord notification
+          webhook_url="${{ secrets.DISCORD_WEBHOOK_URL }}"
+          if [ -n "$webhook_url" ]; then
+            curl -H "Content-Type: application/json" \
+                 -d '{
+                   "content": "✅ **Frontend Deployment SUCCESS**\n\n📊 **Info:**\n• **Environment:** `${{ inputs.environment }}`\n• **Branch:** `${{ github.ref_name }}`\n• **Force Rebuild:** `${{ inputs.force_rebuild }}`\n• **Frontend URL:** `http://<TRUENAS_IP>:${{ vars.FRONTEND_PORT || '\''3500'\'' }}`\n\n🚀 **Frontend is ready and serving requests**"
+                 }' \
+                 "$webhook_url" || echo "Discord notification failed"
+          fi
+        shell: bash
+
+      - name: "Send failure notification"
+        if: failure()
+        uses: appleboy/discord-action@v1.2.0
+        with:
+          webhook_url: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          message: |
+            ❌ **Frontend Deployment FAILED**
+            
+            📊 **Deployment Info:**
+            • **Environment:** `${{ inputs.environment }}`
+            • **Branch:** `${{ github.ref_name }}`
+            • **Force Rebuild:** `${{ inputs.force_rebuild }}`
+            • **Status:** `FAILED`
+            
+            🚨 **Frontend deployment issues - check logs for details**
+            
+            [📋 View Logs](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})

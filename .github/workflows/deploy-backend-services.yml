@@ -1,0 +1,414 @@
+name: Deploy Backend Services
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: false
+        default: 'development'
+        type: choice
+        options:
+          - development
+          - staging
+          - production
+      services:
+        description: 'Services to deploy (comma separated: identity-api,corefinance-api,excel-api,ocelot-gateway or "all")'
+        required: false
+        default: 'all'
+        type: string
+      force_rebuild:
+        description: 'Force rebuild images'
+        required: false
+        default: false
+        type: boolean
+      skip_infrastructure_check:
+        description: 'Skip infrastructure dependency check'
+        required: false
+        default: false
+        type: boolean
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+      services:
+        required: false
+        type: string
+        default: 'all'
+      force_rebuild:
+        required: false
+        type: boolean
+        default: false
+      skip_infrastructure_check:
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: tihomo-backend-${{ github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  check-infrastructure:
+    if: ${{ !inputs.skip_infrastructure_check }}
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    timeout-minutes: 5
+    
+    steps:
+      - name: Setup SSH and check infrastructure
+        run: |
+          sudo wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -O /usr/local/bin/cloudflared
+          sudo chmod +x /usr/local/bin/cloudflared
+          
+          mkdir -p "$HOME/.ssh"
+          echo "Host truenas-cf-tunnel
+            HostName ${{ secrets.TRUENAS_SSH_HOSTNAME_THROUGH_CLOUDFLARED }}
+            ProxyCommand cloudflared access ssh --hostname %h
+            User ${{ secrets.TRUENAS_USER }}
+            StrictHostKeyChecking accept-new" > "$HOME/.ssh/config"
+          chmod 600 "$HOME/.ssh/config"
+        shell: bash
+
+      - name: Add SSH key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.TRUENAS_SSH_PRIVATE_KEY }}
+
+      - name: Check infrastructure readiness
+        run: |
+          DEPLOY_DIR="${{ vars.DEPLOY_PATH_ON_TRUENAS }}/deploy_${GITHUB_REF_NAME}"
+          
+          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << EOF
+            cd $DEPLOY_DIR
+            
+            if docker ps >/dev/null 2>&1; then
+              USE_SUDO=""
+            else
+              USE_SUDO="sudo"
+            fi
+            
+            echo "[CHECK] Verifying infrastructure services..."
+            
+            REQUIRED_SERVICES=("identity-postgres" "corefinance-postgres" "redis" "rabbitmq")
+            MISSING_SERVICES=()
+            
+            for service in "\${REQUIRED_SERVICES[@]}"; do
+              if ! \$USE_SUDO docker compose ps \$service | grep -q "Up"; then
+                MISSING_SERVICES+=("\$service")
+              fi
+            done
+            
+            if [ \${#MISSING_SERVICES[@]} -gt 0 ]; then
+              echo "[ERROR] Missing infrastructure services: \${MISSING_SERVICES[*]}"
+              echo "[ACTION] Please run infrastructure deployment first"
+              exit 1
+            fi
+            
+            echo "[OK] All required infrastructure services are running"
+          EOF
+        shell: bash
+
+  deploy-backend:
+    runs-on: ubuntu-latest
+    needs: [check-infrastructure]
+    if: always() && (needs.check-infrastructure.result == 'success' || inputs.skip_infrastructure_check)
+    environment: ${{ inputs.environment }}
+    timeout-minutes: 25
+    
+    steps:
+      - name: "[1/9] Checkout code"
+        uses: actions/checkout@v4
+
+      - name: "[2/9] Setup environment"
+        run: |
+          echo "TRUENAS_DEPLOY_DIR=${{ vars.DEPLOY_PATH_ON_TRUENAS }}/deploy_${GITHUB_REF_NAME}" >> $GITHUB_ENV
+          echo "COMPOSE_PROJECT_NAME=tihomo_${{ inputs.environment }}" >> $GITHUB_ENV
+          
+          # Parse services input
+          if [ "${{ inputs.services }}" = "all" ]; then
+            echo "DEPLOY_SERVICES=identity-api,corefinance-api,excel-api,ocelot-gateway" >> $GITHUB_ENV
+          else
+            echo "DEPLOY_SERVICES=${{ inputs.services }}" >> $GITHUB_ENV
+          fi
+        shell: bash
+
+      - name: "[3/9] Setup SSH"
+        run: |
+          sudo wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -O /usr/local/bin/cloudflared
+          sudo chmod +x /usr/local/bin/cloudflared
+          
+          mkdir -p "$HOME/.ssh"
+          echo "Host truenas-cf-tunnel
+            HostName ${{ secrets.TRUENAS_SSH_HOSTNAME_THROUGH_CLOUDFLARED }}
+            ProxyCommand cloudflared access ssh --hostname %h
+            User ${{ secrets.TRUENAS_USER }}
+            StrictHostKeyChecking accept-new" > "$HOME/.ssh/config"
+          chmod 600 "$HOME/.ssh/config"
+        shell: bash
+
+      - name: "[4/9] Add SSH key"
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.TRUENAS_SSH_PRIVATE_KEY }}
+
+      - name: "[5/9] Sync project files"
+        run: |
+          rsync -rltvz --safe-links \
+            --chmod=Du=rwx,Dgo=rx,Fu=rw,Fgo=r \
+            --no-perms --no-owner --no-group \
+            --exclude '.git/' \
+            --exclude 'node_modules/' \
+            --exclude 'bin/' \
+            --exclude 'obj/' \
+            --exclude '.nuxt/' \
+            --delete \
+            -e "ssh -F $HOME/.ssh/config" \
+            $GITHUB_WORKSPACE/ \
+            truenas-cf-tunnel:"${{ env.TRUENAS_DEPLOY_DIR }}/"
+        shell: bash
+
+      - name: "[6/9] Update environment file"
+        run: |
+          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << 'EOF'
+            cd ${{ env.TRUENAS_DEPLOY_DIR }}
+            
+            # Add/update backend specific environment variables
+            cat >> .env << 'ENVEOF'
+            
+            # Backend API Configuration
+            GATEWAY_PORT=${{ vars.GATEWAY_PORT || '5000' }}
+            JWT_SECRET_KEY='${{ secrets.JWT_SECRET_KEY }}'
+            JWT_ISSUER=${{ vars.JWT_ISSUER || 'http://localhost:5000' }}
+            JWT_AUDIENCE_OCELOT_GATEWAY=${{ vars.JWT_AUDIENCE_OCELOT_GATEWAY || 'TiHoMo.Gateway' }}
+            JWT_AUDIENCE_IDENTITY_API=${{ vars.JWT_AUDIENCE_IDENTITY_API || 'TiHoMo.Identity' }}
+            JWT_AUDIENCE_COREFINANCE_API=${{ vars.JWT_AUDIENCE_COREFINANCE_API || 'TiHoMo.CoreFinance' }}
+            
+            # OAuth Configuration
+            APP_PUBLIC_GOOGLE_CLIENT_ID=${{ secrets.APP_PUBLIC_GOOGLE_CLIENT_ID }}
+            
+            # Build Configuration
+            DOCKER_USER=${{ vars.DOCKER_USER || '1001:1001' }}
+            ENVEOF
+          EOF
+        shell: bash
+
+      - name: "[7/9] Deploy backend services with dependency management"
+        run: |
+          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << 'EOF'
+            set -e
+            cd ${{ env.TRUENAS_DEPLOY_DIR }}
+            
+            source .env
+            
+            if docker ps >/dev/null 2>&1; then
+              USE_SUDO=""
+            else
+              USE_SUDO="sudo"
+            fi
+            
+            # Parse services to deploy
+            IFS=',' read -ra SERVICES_ARRAY <<< "${{ env.DEPLOY_SERVICES }}"
+            
+            echo "[BACKEND] Deploying backend services: ${SERVICES_ARRAY[*]}"
+            
+            # Define service dependencies and deployment order
+            declare -A SERVICE_DEPS
+            SERVICE_DEPS["identity-api"]="identity-postgres redis"
+            SERVICE_DEPS["corefinance-api"]="corefinance-postgres identity-api redis"
+            SERVICE_DEPS["excel-api"]="corefinance-api"
+            SERVICE_DEPS["ocelot-gateway"]="identity-api corefinance-api"
+            
+            # Function to stop dependent services
+            stop_dependents() {
+              local service=$1
+              echo "[STOP] Checking for services that depend on $service..."
+              
+              case $service in
+                identity-api)
+                  # Stop services that depend on identity-api
+                  for dep_service in "corefinance-api" "excel-api" "ocelot-gateway" "frontend-nuxt"; do
+                    if $USE_SUDO docker compose ps $dep_service | grep -q "Up"; then
+                      echo "[STOP] Stopping dependent service: $dep_service"
+                      $USE_SUDO docker compose stop $dep_service
+                    fi
+                  done
+                  ;;
+                corefinance-api)
+                  # Stop services that depend on corefinance-api
+                  for dep_service in "excel-api" "ocelot-gateway" "frontend-nuxt"; do
+                    if $USE_SUDO docker compose ps $dep_service | grep -q "Up"; then
+                      echo "[STOP] Stopping dependent service: $dep_service"
+                      $USE_SUDO docker compose stop $dep_service
+                    fi
+                  done
+                  ;;
+                ocelot-gateway)
+                  # Stop frontend that depends on gateway
+                  if $USE_SUDO docker compose ps frontend-nuxt | grep -q "Up"; then
+                    echo "[STOP] Stopping dependent service: frontend-nuxt"
+                    $USE_SUDO docker compose stop frontend-nuxt
+                  fi
+                  ;;
+              esac
+            }
+            
+            # Function to restart dependent services
+            restart_dependents() {
+              local service=$1
+              echo "[RESTART] Restarting services that depend on $service..."
+              
+              case $service in
+                identity-api)
+                  # Check and restart dependents in order
+                  for dep_service in "corefinance-api" "excel-api" "ocelot-gateway"; do
+                    if $USE_SUDO docker compose ps $dep_service | grep -q "Exited"; then
+                      echo "[RESTART] Restarting: $dep_service"
+                      $USE_SUDO docker compose start $dep_service
+                      sleep 10
+                    fi
+                  done
+                  ;;
+                corefinance-api)
+                  for dep_service in "excel-api" "ocelot-gateway"; do
+                    if $USE_SUDO docker compose ps $dep_service | grep -q "Exited"; then
+                      echo "[RESTART] Restarting: $dep_service"
+                      $USE_SUDO docker compose start $dep_service
+                      sleep 10
+                    fi
+                  done
+                  ;;
+              esac
+            }
+            
+            # Build images if needed
+            if [ "${{ inputs.force_rebuild }}" = "true" ]; then
+              echo "[BUILD] Force rebuilding backend images..."
+              for service in "${SERVICES_ARRAY[@]}"; do
+                $USE_SUDO docker compose build --no-cache $service
+              done
+            else
+              echo "[BUILD] Building backend images with cache..."
+              for service in "${SERVICES_ARRAY[@]}"; do
+                $USE_SUDO docker compose build $service
+              done
+            fi
+            
+            # Deploy each service with dependency management
+            for service in "${SERVICES_ARRAY[@]}"; do
+              echo "[DEPLOY] Deploying $service..."
+              
+              # Stop dependent services first
+              stop_dependents $service
+              
+              # Check dependencies are running
+              if [ -n "${SERVICE_DEPS[$service]}" ]; then
+                echo "[CHECK] Verifying dependencies for $service: ${SERVICE_DEPS[$service]}"
+                for dep in ${SERVICE_DEPS[$service]}; do
+                  if ! $USE_SUDO docker compose ps $dep | grep -q "Up"; then
+                    echo "[ERROR] Dependency $dep is not running for $service"
+                    exit 1
+                  fi
+                done
+              fi
+              
+              # Deploy the service
+              $USE_SUDO docker compose up -d --no-deps --force-recreate $service
+              
+              # Wait for service to be ready
+              max_attempts=15
+              attempt=1
+              while [ $attempt -le $max_attempts ]; do
+                if $USE_SUDO docker compose ps $service | grep -q "Up"; then
+                  echo "[OK] Service $service is running"
+                  
+                  # Additional health check for APIs
+                  if [[ $service == *"api" ]] || [[ $service == *"gateway" ]]; then
+                    echo "[HEALTH] Waiting for $service to be ready..."
+                    sleep 15
+                    
+                    # Simple health check
+                    if $USE_SUDO docker compose exec -T $service curl -f http://localhost:8080/health >/dev/null 2>&1; then
+                      echo "[OK] $service health check passed"
+                    else
+                      echo "[WARNING] $service health check failed, but container is running"
+                    fi
+                  fi
+                  break
+                else
+                  echo "[WAIT] Service $service not ready yet (attempt $attempt/$max_attempts)"
+                  sleep 10
+                  ((attempt++))
+                fi
+              done
+              
+              if [ $attempt -gt $max_attempts ]; then
+                echo "[ERROR] Service $service failed to start"
+                $USE_SUDO docker compose logs --tail=20 $service
+                exit 1
+              fi
+              
+              # Restart dependent services
+              restart_dependents $service
+              
+              echo "[SUCCESS] Service $service deployed successfully"
+            done
+            
+            echo "[SUCCESS] All backend services deployed successfully"
+          EOF
+        shell: bash
+
+      - name: "[8/9] Health check backend services"
+        run: |
+          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << 'EOF'
+            cd ${{ env.TRUENAS_DEPLOY_DIR }}
+            
+            if docker ps >/dev/null 2>&1; then
+              USE_SUDO=""
+            else
+              USE_SUDO="sudo"
+            fi
+            
+            echo "[HEALTH] Backend services health check..."
+            
+            IFS=',' read -ra SERVICES_ARRAY <<< "${{ env.DEPLOY_SERVICES }}"
+            
+            for service in "${SERVICES_ARRAY[@]}"; do
+              if $USE_SUDO docker compose ps $service | grep -q "Up"; then
+                echo "[OK] $service is running"
+                
+                # API health check
+                if [[ $service == *"api" ]] || [[ $service == *"gateway" ]]; then
+                  if $USE_SUDO docker compose exec -T $service curl -f http://localhost:8080/health >/dev/null 2>&1; then
+                    echo "[OK] $service health endpoint responsive"
+                  else
+                    echo "[WARNING] $service health endpoint not responsive"
+                  fi
+                fi
+              else
+                echo "[ERROR] $service is not running"
+              fi
+            done
+            
+            echo "[INFO] Backend deployment status:"
+            $USE_SUDO docker compose ps --format "table {{.Name}}\t{{.Status}}"
+          EOF
+        shell: bash
+
+      - name: "[9/9] Send notification"
+        if: always()
+        uses: appleboy/discord-action@v1.2.0
+        with:
+          webhook_url: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          message: |
+            ${{ job.status == 'success' && '✅ **Backend Services Deployment SUCCESS**' || '❌ **Backend Services Deployment FAILED**' }}
+            
+            📊 **Deployment Info:**
+            • **Environment:** `${{ inputs.environment }}`
+            • **Services:** `${{ env.DEPLOY_SERVICES }}`
+            • **Branch:** `${{ github.ref_name }}`
+            • **Force Rebuild:** `${{ inputs.force_rebuild }}`
+            • **Status:** `${{ job.status }}`
+            
+            ${{ job.status == 'success' && '🚀 **Backend services ready for frontend deployment**' || '🚨 **Backend deployment issues - check logs**' }}

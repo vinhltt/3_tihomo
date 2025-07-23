@@ -1,0 +1,252 @@
+name: Deploy Infrastructure Services
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: false
+        default: 'development'
+        type: choice
+        options:
+          - development
+          - staging
+          - production
+      force_rebuild:
+        description: 'Force rebuild images'
+        required: false
+        default: false
+        type: boolean
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+      force_rebuild:
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: tihomo-infrastructure-${{ github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  deploy-infrastructure:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    timeout-minutes: 20
+    outputs:
+      deployment-status: ${{ steps.deploy.outputs.status }}
+      
+    steps:
+      - name: "[1/8] Checkout code"
+        uses: actions/checkout@v4
+
+      - name: "[2/8] Setup environment variables"
+        run: |
+          echo "TRUENAS_DEPLOY_DIR=${{ vars.DEPLOY_PATH_ON_TRUENAS }}/deploy_${GITHUB_REF_NAME}" >> $GITHUB_ENV
+          echo "COMPOSE_PROJECT_NAME=tihomo_${{ inputs.environment }}" >> $GITHUB_ENV
+        shell: bash
+
+      - name: "[3/8] Setup SSH and Cloudflared"
+        run: |
+          sudo wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -O /usr/local/bin/cloudflared
+          sudo chmod +x /usr/local/bin/cloudflared
+          
+          mkdir -p "$HOME/.ssh"
+          echo "Host truenas-cf-tunnel
+            HostName ${{ secrets.TRUENAS_SSH_HOSTNAME_THROUGH_CLOUDFLARED }}
+            ProxyCommand cloudflared access ssh --hostname %h
+            User ${{ secrets.TRUENAS_USER }}
+            StrictHostKeyChecking accept-new
+            ServerAliveInterval 60
+            ConnectTimeout 30" > "$HOME/.ssh/config"
+          chmod 600 "$HOME/.ssh/config"
+        shell: bash
+
+      - name: "[4/8] Add SSH key"
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.TRUENAS_SSH_PRIVATE_KEY }}
+
+      - name: "[5/8] Create environment file"
+        run: |
+          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel "cat > ${{ env.TRUENAS_DEPLOY_DIR }}/.env << 'EOF'
+          COMPOSE_PROJECT_NAME=${{ env.COMPOSE_PROJECT_NAME }}
+          
+          # Database Configuration
+          IDENTITY_DB_USERNAME=${{ secrets.IDENTITY_DB_USERNAME || 'identity_user' }}
+          IDENTITY_DB_PASSWORD='${{ secrets.IDENTITY_DB_PASSWORD }}'
+          IDENTITY_DB_PORT=${{ vars.IDENTITY_DB_PORT || '5831' }}
+          
+          COREFINANCE_DB_USERNAME=${{ secrets.COREFINANCE_DB_USERNAME || 'corefinance_user' }}
+          COREFINANCE_DB_PASSWORD='${{ secrets.COREFINANCE_DB_PASSWORD }}'
+          COREFINANCE_DB_PORT=${{ vars.COREFINANCE_DB_PORT || '5832' }}
+          
+          MONEYMANAGEMENT_DB_USERNAME=${{ secrets.MONEYMANAGEMENT_DB_USERNAME || 'money_user' }}
+          MONEYMANAGEMENT_DB_PASSWORD='${{ secrets.MONEYMANAGEMENT_DB_PASSWORD || secrets.IDENTITY_DB_PASSWORD }}'
+          MONEYMANAGEMENT_DB_PORT=${{ vars.MONEYMANAGEMENT_DB_PORT || '5835' }}
+          
+          PLANNINGINVESTMENT_DB_USERNAME=${{ secrets.PLANNINGINVESTMENT_DB_USERNAME || 'planning_user' }}
+          PLANNINGINVESTMENT_DB_PASSWORD='${{ secrets.PLANNINGINVESTMENT_DB_PASSWORD || secrets.IDENTITY_DB_PASSWORD }}'
+          PLANNINGINVESTMENT_DB_PORT=${{ vars.PLANNINGINVESTMENT_DB_PORT || '5836' }}
+          
+          REPORTING_DB_USERNAME=${{ secrets.REPORTING_DB_USERNAME || 'reporting_user' }}
+          REPORTING_DB_PASSWORD='${{ secrets.REPORTING_DB_PASSWORD || secrets.IDENTITY_DB_PASSWORD }}'
+          REPORTING_DB_PORT=${{ vars.REPORTING_DB_PORT || '5837' }}
+          
+          # Redis Configuration
+          REDIS_PORT=${{ vars.REDIS_PORT || '6379' }}
+          REDIS_PASSWORD='${{ secrets.REDIS_PASSWORD }}'
+          
+          # RabbitMQ Configuration
+          RABBITMQ_PORT=${{ vars.RABBITMQ_PORT || '5672' }}
+          RABBITMQ_MANAGEMENT_PORT=${{ vars.RABBITMQ_MANAGEMENT_PORT || '15672' }}
+          RABBITMQ_PASSWORD='${{ secrets.RABBITMQ_PASSWORD }}'
+          
+          # Environment
+          NODE_ENV=${{ vars.NODE_ENV || 'production' }}
+          ASPNETCORE_ENVIRONMENT=${{ vars.ASPNETCORE_ENVIRONMENT || 'Production' }}
+          TZ=${{ vars.TZ || 'Asia/Ho_Chi_Minh' }}
+          EOF"
+        shell: bash
+
+      - name: "[6/8] Deploy infrastructure services"
+        id: deploy
+        run: |
+          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << 'EOF'
+            set -e
+            cd ${{ env.TRUENAS_DEPLOY_DIR }}
+            
+            # Load environment
+            source .env
+            
+            # Check Docker access
+            if docker ps >/dev/null 2>&1; then
+              USE_SUDO=""
+            else
+              USE_SUDO="sudo"
+            fi
+            
+            echo "[INFRASTRUCTURE] Deploying infrastructure services..."
+            
+            # Infrastructure services in order
+            SERVICES=("identity-postgres" "corefinance-postgres" "moneymanagement-postgres" "planninginvestment-postgres" "reporting-postgres" "redis" "rabbitmq")
+            
+            for service in "${SERVICES[@]}"; do
+              echo "[DEPLOY] Deploying $service..."
+              
+              # Check if service exists
+              if ! $USE_SUDO docker compose config --services | grep -q "^$service$"; then
+                echo "[SKIP] Service $service not found in compose file"
+                continue
+              fi
+              
+              # Deploy service
+              $USE_SUDO docker compose up -d --no-deps --force-recreate $service
+              
+              # Wait for service to be ready
+              max_attempts=10
+              attempt=1
+              while [ $attempt -le $max_attempts ]; do
+                if $USE_SUDO docker compose ps $service | grep -q "Up"; then
+                  echo "[OK] Service $service is running"
+                  break
+                else
+                  echo "[WAIT] Service $service not ready yet (attempt $attempt/$max_attempts)"
+                  sleep 10
+                  ((attempt++))
+                fi
+              done
+              
+              if [ $attempt -gt $max_attempts ]; then
+                echo "[ERROR] Service $service failed to start"
+                $USE_SUDO docker compose logs --tail=20 $service
+                exit 1
+              fi
+              
+              # Service-specific health checks
+              case $service in
+                *-postgres)
+                  echo "[HEALTH] Checking database connectivity for $service..."
+                  sleep 20  # Extra time for DB initialization
+                  ;;
+                redis)
+                  echo "[HEALTH] Checking Redis connectivity..."
+                  sleep 5
+                  $USE_SUDO docker compose exec -T redis redis-cli ping | grep -q "PONG" || {
+                    echo "[ERROR] Redis health check failed"
+                    exit 1
+                  }
+                  ;;
+                rabbitmq)
+                  echo "[HEALTH] Checking RabbitMQ connectivity..."
+                  sleep 10
+                  $USE_SUDO docker compose exec -T rabbitmq rabbitmq-diagnostics ping || {
+                    echo "[ERROR] RabbitMQ health check failed"
+                    exit 1
+                  }
+                  ;;
+              esac
+            done
+            
+            echo "[SUCCESS] All infrastructure services deployed successfully"
+            echo "status=success" >> $GITHUB_OUTPUT
+          EOF
+        shell: bash
+
+      - name: "[7/8] Health check infrastructure"
+        run: |
+          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << 'EOF'
+            cd ${{ env.TRUENAS_DEPLOY_DIR }}
+            
+            # Check Docker access
+            if docker ps >/dev/null 2>&1; then
+              USE_SUDO=""
+            else
+              USE_SUDO="sudo"
+            fi
+            
+            echo "[HEALTH] Comprehensive infrastructure health check..."
+            
+            # Check all databases
+            DATABASES=("identity-postgres" "corefinance-postgres" "moneymanagement-postgres" "planninginvestment-postgres" "reporting-postgres")
+            for db in "${DATABASES[@]}"; do
+              if $USE_SUDO docker compose ps $db | grep -q "Up"; then
+                echo "[CHECK] $db is running"
+              else
+                echo "[ERROR] $db is not running"
+                exit 1
+              fi
+            done
+            
+            # Check Redis
+            if $USE_SUDO docker compose ps redis | grep -q "Up"; then
+              $USE_SUDO docker compose exec -T redis redis-cli ping | grep -q "PONG" && echo "[OK] Redis is healthy"
+            fi
+            
+            # Check RabbitMQ
+            if $USE_SUDO docker compose ps rabbitmq | grep -q "Up"; then
+              $USE_SUDO docker compose exec -T rabbitmq rabbitmq-diagnostics ping >/dev/null && echo "[OK] RabbitMQ is healthy"
+            fi
+            
+            echo "[SUCCESS] Infrastructure health check passed"
+          EOF
+        shell: bash
+
+      - name: "[8/8] Send notification"
+        if: always()
+        uses: appleboy/discord-action@v1.2.0
+        with:
+          webhook_url: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          message: |
+            ${{ job.status == 'success' && '✅ **Infrastructure Deployment SUCCESS**' || '❌ **Infrastructure Deployment FAILED**' }}
+            
+            📊 **Deployment Info:**
+            • **Environment:** `${{ inputs.environment }}`
+            • **Branch:** `${{ github.ref_name }}`
+            • **Services:** PostgreSQL Cluster, Redis, RabbitMQ
+            • **Status:** `${{ job.status }}`
+            
+            ${{ job.status == 'success' && '🔋 **Infrastructure ready for application deployment**' || '🚨 **Infrastructure issues - check logs**' }}
