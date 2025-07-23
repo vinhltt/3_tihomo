@@ -121,8 +121,11 @@ jobs:
 
       - name: "[2/8] Setup environment"
         run: |
+          # Clean project name - remove special characters and ensure lowercase
+          CLEAN_ENV=$(echo "${{ inputs.environment }}" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]//g')
           echo "TRUENAS_DEPLOY_DIR=${{ vars.DEPLOY_PATH_ON_TRUENAS }}/deploy_${GITHUB_REF_NAME}" >> $GITHUB_ENV
-          echo "COMPOSE_PROJECT_NAME=tihomo_${{ inputs.environment }}" >> $GITHUB_ENV
+          echo "COMPOSE_PROJECT_NAME=tihomo_${CLEAN_ENV}" >> $GITHUB_ENV
+          echo "[INFO] Environment: '${{ inputs.environment }}' → cleaned: '${CLEAN_ENV}'"
         shell: bash
 
       - name: "[3/8] Setup SSH"

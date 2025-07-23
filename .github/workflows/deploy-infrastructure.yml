@@ -45,10 +45,13 @@ jobs:
 
       - name: "[2/8] Setup environment variables"
         run: |
+          # Clean project name - remove special characters and ensure lowercase
+          CLEAN_ENV=$(echo "${{ inputs.environment }}" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]//g')
           echo "TRUENAS_DEPLOY_DIR=${{ vars.DEPLOY_PATH_ON_TRUENAS }}/deploy_${GITHUB_REF_NAME}" >> $GITHUB_ENV
-          echo "COMPOSE_PROJECT_NAME=tihomo_${{ inputs.environment }}" >> $GITHUB_ENV
+          echo "COMPOSE_PROJECT_NAME=tihomo_${CLEAN_ENV}" >> $GITHUB_ENV
           echo "[INFO] Deploy directory: ${{ vars.DEPLOY_PATH_ON_TRUENAS }}/deploy_${GITHUB_REF_NAME}"
-          echo "[INFO] Project name: tihomo_${{ inputs.environment }}"
+          echo "[INFO] Project name: tihomo_${CLEAN_ENV}"
+          echo "[INFO] Environment input: '${{ inputs.environment }}' → cleaned: '${CLEAN_ENV}'"
         shell: bash
 
       - name: "[3/8] Setup SSH and Cloudflared"
@@ -119,11 +122,29 @@ jobs:
           NODE_ENV=${{ vars.NODE_ENV || 'production' }}
           ASPNETCORE_ENVIRONMENT=${{ vars.ASPNETCORE_ENVIRONMENT || 'Production' }}
           TZ=${{ vars.TZ || 'Asia/Ho_Chi_Minh' }}
+          
+          # Network Configuration
+          DOCKER_NETWORK_SUBNET=${{ vars.DOCKER_NETWORK_SUBNET || '172.20.0.0/16' }}
           EOF
           
           echo "[SUCCESS] .env file created successfully"
           echo "[INFO] File contents:"
           head -10 .env
+          
+          echo "[DEBUG] Network configuration:"
+          grep DOCKER_NETWORK_SUBNET .env || echo "DOCKER_NETWORK_SUBNET not found in .env"
+          
+          # Validate CIDR format
+          SUBNET=$(grep DOCKER_NETWORK_SUBNET .env | cut -d'=' -f2)
+          echo "[DEBUG] Subnet value: '$SUBNET'"
+          
+          if [[ "$SUBNET" =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}/[0-9]{1,2}$ ]]; then
+            echo "[OK] Subnet format is valid"
+          else
+            echo "[ERROR] Invalid subnet format: '$SUBNET'"
+            echo "[FIX] Setting default subnet..."
+            sed -i 's/^DOCKER_NETWORK_SUBNET=.*/DOCKER_NETWORK_SUBNET=172.20.0.0\/16/' .env
+          fi
           REMOTE_EOF
         shell: bash
 
@@ -145,6 +166,13 @@ jobs:
             fi
             
             echo "[INFRASTRUCTURE] Deploying infrastructure services..."
+            
+            # Clean up any existing networks with issues
+            echo "[CLEANUP] Cleaning up potential network conflicts..."
+            $USE_SUDO docker network ls --format "{{.Name}}" | grep "tihomo.*network" | while read network; do
+              echo "[CLEANUP] Removing network: $network"
+              $USE_SUDO docker network rm "$network" 2>/dev/null || true
+            done
             
             # Infrastructure services in order
             SERVICES=("identity-postgres" "corefinance-postgres" "moneymanagement-postgres" "planninginvestment-postgres" "reporting-postgres" "redis" "rabbitmq")
