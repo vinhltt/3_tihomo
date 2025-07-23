@@ -118,7 +118,15 @@ else
     echo "🔨 Building application for production..."
     
     # Create necessary directories with proper permissions
-    mkdir -p node_modules .nuxt .output logs uploads
+    if [ "$(whoami)" = "root" ]; then
+      mkdir -p node_modules .nuxt .output logs uploads
+      chown -R nuxt:nodejs node_modules .nuxt .output logs uploads 2>/dev/null || true
+    else
+      run_as_root_if_needed sh -c "
+        mkdir -p node_modules .nuxt .output logs uploads && 
+        chown -R nuxt:nodejs node_modules .nuxt .output logs uploads
+      " 2>/dev/null || true
+    fi
     
     # Install dependencies if needed
     if [ ! -d "node_modules" ] || [ ! -d "node_modules/nuxt" ]; then
