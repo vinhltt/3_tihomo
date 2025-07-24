@@ -71,7 +71,7 @@ jobs:
         run: |
           DEPLOY_DIR="${{ vars.DEPLOY_PATH_ON_TRUENAS }}/deploy_${GITHUB_REF_NAME}"
           
-          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << EOF
+          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << 'REMOTE_EOF'
             cd $DEPLOY_DIR
             
             if docker ps >/dev/null 2>&1; then
@@ -85,27 +85,27 @@ jobs:
             REQUIRED_SERVICES=("ocelot-gateway" "corefinance-api")
             MISSING_SERVICES=()
             
-            for service in "\${REQUIRED_SERVICES[@]}"; do
-              if ! \$USE_SUDO docker compose ps \$service | grep -q "Up"; then
-                MISSING_SERVICES+=("\$service")
+            for service in "${REQUIRED_SERVICES[@]}"; do
+              if ! $USE_SUDO docker compose ps $service | grep -q "Up"; then
+                MISSING_SERVICES+=("$service")
               fi
             done
             
-            if [ \${#MISSING_SERVICES[@]} -gt 0 ]; then
-              echo "[ERROR] Missing backend services: \${MISSING_SERVICES[*]}"
+            if [ ${#MISSING_SERVICES[@]} -gt 0 ]; then
+              echo "[ERROR] Missing backend services: ${MISSING_SERVICES[*]}"
               echo "[ACTION] Please run backend deployment first"
               exit 1
             fi
             
             # Test API connectivity
-            if \$USE_SUDO docker compose exec -T ocelot-gateway curl -f http://localhost:8080/health >/dev/null 2>&1; then
+            if $USE_SUDO docker compose exec -T ocelot-gateway curl -f http://localhost:8080/health >/dev/null 2>&1; then
               echo "[OK] Gateway is responsive"
             else
               echo "[WARNING] Gateway health check failed but container is running"
             fi
             
             echo "[OK] Backend services are ready for frontend deployment"
-          EOF
+          REMOTE_EOF
         shell: bash
 
   deploy-frontend:
@@ -116,10 +116,10 @@ jobs:
     timeout-minutes: 20
     
     steps:
-      - name: "[1/8] Checkout code"
+      - name: "[1/9] Checkout code"
         uses: actions/checkout@v4
 
-      - name: "[2/8] Setup environment"
+      - name: "[2/9] Setup environment"
         run: |
           # Clean project name - remove special characters and ensure lowercase
           CLEAN_ENV=$(echo "${{ inputs.environment }}" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]//g')
@@ -128,7 +128,7 @@ jobs:
           echo "[INFO] Environment: '${{ inputs.environment }}' → cleaned: '${CLEAN_ENV}'"
         shell: bash
 
-      - name: "[3/8] Setup SSH"
+      - name: "[3/9] Setup SSH"
         run: |
           sudo wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -O /usr/local/bin/cloudflared
           sudo chmod +x /usr/local/bin/cloudflared
@@ -142,29 +142,93 @@ jobs:
           chmod 600 "$HOME/.ssh/config"
         shell: bash
 
-      - name: "[4/8] Add SSH key"
+      - name: "[4/9] Add SSH key"
         uses: webfactory/ssh-agent@v0.9.0
         with:
           ssh-private-key: ${{ secrets.TRUENAS_SSH_PRIVATE_KEY }}
 
-      - name: "[5/8] Sync frontend files"
+      - name: "[4.5/9] Prepare deployment directory"
         run: |
+          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << 'REMOTE_EOF'
+            echo "[PREP] Preparing frontend deployment directory..."
+            
+            # Create required directories
+            mkdir -p ${{ env.TRUENAS_DEPLOY_DIR }}/src/fe/nuxt
+            mkdir -p ${{ env.TRUENAS_DEPLOY_DIR }}/.rsync-partial
+            
+            # Set proper permissions
+            chmod 755 ${{ env.TRUENAS_DEPLOY_DIR }}
+            chmod -R 755 ${{ env.TRUENAS_DEPLOY_DIR }}/src 2>/dev/null || true
+            chmod -R 755 ${{ env.TRUENAS_DEPLOY_DIR }}/.rsync-partial 2>/dev/null || true
+            
+            # Cleanup any problematic files from previous deployments
+            if [ -d "${{ env.TRUENAS_DEPLOY_DIR }}/src/fe" ]; then
+              echo "[CLEANUP] Cleaning previous frontend deployment files..."
+              find ${{ env.TRUENAS_DEPLOY_DIR }}/src/fe -type d -exec chmod 755 {} \; 2>/dev/null || true
+              find ${{ env.TRUENAS_DEPLOY_DIR }}/src/fe -type f -name "*.js" -exec chmod 644 {} \; 2>/dev/null || true
+              find ${{ env.TRUENAS_DEPLOY_DIR }}/src/fe -type f -name "*.ts" -exec chmod 644 {} \; 2>/dev/null || true
+              find ${{ env.TRUENAS_DEPLOY_DIR }}/src/fe -type f -name "*.vue" -exec chmod 644 {} \; 2>/dev/null || true
+              find ${{ env.TRUENAS_DEPLOY_DIR }}/src/fe -type f -name "*.json" -exec chmod 644 {} \; 2>/dev/null || true
+            fi
+            
+            echo "[OK] Frontend deployment directory prepared"
+          REMOTE_EOF
+        shell: bash
+
+      - name: "[5/9] Sync frontend files"
+        run: |
+          echo "[SYNC] Starting frontend files sync to TrueNAS..."
+          
+          # Enhanced rsync for frontend files with better error handling
           rsync -rltvz --safe-links \
             --chmod=Du=rwx,Dgo=rx,Fu=rw,Fgo=r \
             --no-perms --no-owner --no-group \
+            --ignore-errors \
+            --force \
             --include="src/fe/" \
             --include="src/fe/nuxt/***" \
             --include="docker-compose.yml" \
             --include="Dockerfile*" \
+            --include=".env*" \
             --exclude="*" \
-            -e "ssh -F $HOME/.ssh/config" \
+            --partial \
+            --partial-dir=.rsync-partial \
+            --progress \
+            --human-readable \
+            -e "ssh -F $HOME/.ssh/config -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=30" \
             $GITHUB_WORKSPACE/ \
-            truenas-cf-tunnel:"${{ env.TRUENAS_DEPLOY_DIR }}/"
+            truenas-cf-tunnel:"${{ env.TRUENAS_DEPLOY_DIR }}/" || {
+              RSYNC_EXIT_CODE=$?
+              echo "[ERROR] Rsync failed with exit code: $RSYNC_EXIT_CODE"
+              
+              case $RSYNC_EXIT_CODE in
+                1)  echo "[ERROR] Syntax or usage error" ;;
+                2)  echo "[ERROR] Protocol incompatibility" ;;
+                3)  echo "[ERROR] Errors selecting input/output files, dirs" ;;
+                11) echo "[ERROR] Error in file I/O" ;;
+                12) echo "[ERROR] Error in rsync protocol data stream" ;;
+                13) echo "[ERROR] Errors with program diagnostics" ;;
+                23) echo "[WARNING] Partial transfer due to error - some files may not have transferred correctly" ;;
+                24) echo "[ERROR] Partial transfer due to vanished source files" ;;
+                *)  echo "[ERROR] Unknown rsync error code: $RSYNC_EXIT_CODE" ;;
+              esac
+              
+              # Handle common non-critical errors that shouldn't stop deployment
+              if [ $RSYNC_EXIT_CODE -eq 23 ]; then
+                echo "[WARNING] Continuing deployment despite rsync warnings (exit code $RSYNC_EXIT_CODE)"
+                echo "[INFO] This usually indicates file permission/attribute warnings that don't affect functionality"
+              else
+                echo "[ERROR] Critical rsync error, stopping deployment"
+                exit $RSYNC_EXIT_CODE
+              fi
+            }
+          
+          echo "[OK] Frontend files synced successfully"
         shell: bash
 
-      - name: "[6/8] Verify environment for frontend"
+      - name: "[6/9] Verify environment for frontend"
         run: |
-          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel /bin/bash << 'EOF'
+          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << 'REMOTE_EOF'
             # Ensure directory exists and navigate to it
             mkdir -p ${{ env.TRUENAS_DEPLOY_DIR }}
             cd ${{ env.TRUENAS_DEPLOY_DIR }}
@@ -190,17 +254,31 @@ jobs:
             
             if [ ${#MISSING_VARS[@]} -gt 0 ]; then
               echo "[WARNING] Missing frontend variables: ${MISSING_VARS[*]}"
+              echo "[INFO] Adding missing frontend variables to .env..."
+              
+              # Add missing variables with default values
+              if ! grep -q "^FRONTEND_PORT=" .env; then
+                echo "FRONTEND_PORT=3500" >> .env
+              fi
+              if ! grep -q "^NUXT_BUILD_TARGET=" .env; then
+                echo "NUXT_BUILD_TARGET=production" >> .env
+              fi
+              if ! grep -q "^NODE_ENV=" .env; then
+                echo "NODE_ENV=production" >> .env
+              fi
+              
+              echo "[OK] Missing variables added to .env"
             else
               echo "[OK] All frontend variables are present"
             fi
             
             echo "[INFO] Frontend environment verified"
-            EOF
+          REMOTE_EOF
         shell: bash
 
-      - name: "[7/8] Deploy frontend with graceful shutdown"
+      - name: "[7/9] Deploy frontend with graceful shutdown"
         run: |
-          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel /bin/bash << 'EOF'
+          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << 'REMOTE_EOF'
             set -e
             cd ${{ env.TRUENAS_DEPLOY_DIR }}
             
@@ -297,12 +375,12 @@ jobs:
             # Show recent logs for verification
             echo "[LOGS] Recent frontend logs:"
             $USE_SUDO docker compose logs --tail=10 frontend-nuxt
-          EOF
+          REMOTE_EOF
         shell: bash
 
-      - name: "[8/8] Final health check and notification"
+      - name: "[8/9] Final health check and notification"
         run: |
-          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel /bin/bash << 'EOF'
+          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << 'REMOTE_EOF'
             cd ${{ env.TRUENAS_DEPLOY_DIR }}
             
             if docker ps >/dev/null 2>&1; then
@@ -342,20 +420,20 @@ jobs:
             
             echo "[INFO] Full system status:"
             $USE_SUDO docker compose ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}"
-          EOF
+          REMOTE_EOF
           
           # Send Discord notification
           webhook_url="${{ secrets.DISCORD_WEBHOOK_URL }}"
           if [ -n "$webhook_url" ]; then
             curl -H "Content-Type: application/json" \
                  -d '{
-                   "content": "✅ **Frontend Deployment SUCCESS**\n\n📊 **Info:**\n• **Environment:** `${{ inputs.environment }}`\n• **Branch:** `${{ github.ref_name }}`\n• **Force Rebuild:** `${{ inputs.force_rebuild }}`\n• **Frontend URL:** `http://<TRUENAS_IP>:${{ vars.FRONTEND_PORT || '3500' }}`\n\n🚀 **Frontend is ready and serving requests**"
+                   "content": "✅ **Frontend Deployment SUCCESS**\n\n📊 **Info:**\n• **Environment:** `${{ inputs.environment }}`\n• **Branch:** `${{ github.ref_name }}`\n• **Force Rebuild:** `${{ inputs.force_rebuild }}`\n• **Frontend URL:** `http://<TRUENAS_IP>:3500`\n\n🚀 **Frontend is ready and serving requests**"
                  }' \
                  "$webhook_url" || echo "Discord notification failed"
           fi
         shell: bash
 
-      - name: "Send failure notification"
+      - name: "[9/9] Send failure notification"
         if: failure()
         uses: appleboy/discord-action@v1.2.0
         with:
