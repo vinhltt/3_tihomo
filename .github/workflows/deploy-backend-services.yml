@@ -268,8 +268,28 @@ jobs:
             echo "[INFO] Working in directory: $(pwd)"
             
             if [ ! -f .env ]; then
-              echo "[ERROR] .env file not found - infrastructure deployment may have failed"
-              exit 1
+              echo "[WARNING] .env file not found - attempting to create from infrastructure deployment"
+              
+              # Check if we should skip infrastructure dependency
+              if [ "${{ inputs.skip_infrastructure_check }}" = "true" ]; then
+                echo "[INFO] Skipping infrastructure check as requested"
+                echo "[INFO] Creating minimal .env file for backend deployment"
+                
+                # Create minimal .env with required backend variables
+                cat > .env << 'ENV_EOF'
+                # Minimal environment configuration for backend deployment
+                JWT_SECRET_KEY=your-super-secret-jwt-key-change-in-production
+                JWT_ISSUER=TiHoMo
+                JWT_AUDIENCE=TiHoMo
+                GATEWAY_PORT=5000
+                COMPOSE_PROJECT_NAME=tihomo_development
+                ENV_EOF
+                echo "[OK] Created minimal .env file"
+              else
+                echo "[ERROR] .env file not found and infrastructure check not skipped"
+                echo "[ACTION] Please run infrastructure deployment first or use skip_infrastructure_check=true"
+                exit 1
+              fi
             fi
             
             echo "[INFO] .env file exists, checking backend-related variables..."
@@ -291,7 +311,7 @@ jobs:
             fi
             
             echo "[INFO] Backend environment verified"
-            REMOTE_EOF
+          REMOTE_EOF
         shell: bash
 
       - name: "[7/10] Deploy backend services with dependency management"
