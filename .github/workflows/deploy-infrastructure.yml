@@ -128,28 +128,28 @@ jobs:
             echo "ENABLE_DEV_TOOLS=${{ inputs.environment == 'production' && 'none' || 'development' }}" >> .env
             echo "" >> .env
             echo "# Database Configuration - Identity" >> .env
-            echo "IDENTITY_DB_USERNAME=${{ secrets.IDENTITY_DB_USERNAME || 'identity_user' }}" >> .env
+            echo "IDENTITY_DB_USERNAME=${{ vars.IDENTITY_DB_USERNAME || 'identity_user' }}" >> .env
             echo "IDENTITY_DB_PASSWORD='${{ secrets.IDENTITY_DB_PASSWORD }}'" >> .env
             echo "IDENTITY_DB_PORT=${{ vars.IDENTITY_DB_PORT || '5831' }}" >> .env
             echo "" >> .env
             echo "# Database Configuration - CoreFinance" >> .env
-            echo "COREFINANCE_DB_USERNAME=${{ secrets.COREFINANCE_DB_USERNAME || 'corefinance_user' }}" >> .env
+            echo "COREFINANCE_DB_USERNAME=${{ vars.COREFINANCE_DB_USERNAME || 'corefinance_user' }}" >> .env
             echo "COREFINANCE_DB_PASSWORD='${{ secrets.COREFINANCE_DB_PASSWORD }}'" >> .env
             echo "COREFINANCE_DB_PORT=${{ vars.COREFINANCE_DB_PORT || '5832' }}" >> .env
             echo "" >> .env
             echo "# Database Configuration - MoneyManagement" >> .env
-            echo "MONEYMANAGEMENT_DB_USERNAME=${{ secrets.MONEYMANAGEMENT_DB_USERNAME || 'money_user' }}" >> .env
-            echo "MONEYMANAGEMENT_DB_PASSWORD='${{ secrets.MONEYMANAGEMENT_DB_PASSWORD || secrets.IDENTITY_DB_PASSWORD }}'" >> .env
+            echo "MONEYMANAGEMENT_DB_USERNAME=${{ vars.MONEYMANAGEMENT_DB_USERNAME || 'money_user' }}" >> .env
+            echo "MONEYMANAGEMENT_DB_PASSWORD='${{ secrets.MONEYMANAGEMENT_DB_PASSWORD }}'" >> .env
             echo "MONEYMANAGEMENT_DB_PORT=${{ vars.MONEYMANAGEMENT_DB_PORT || '5835' }}" >> .env
             echo "" >> .env
             echo "# Database Configuration - PlanningInvestment" >> .env
-            echo "PLANNINGINVESTMENT_DB_USERNAME=${{ secrets.PLANNINGINVESTMENT_DB_USERNAME || 'planning_user' }}" >> .env
-            echo "PLANNINGINVESTMENT_DB_PASSWORD='${{ secrets.PLANNINGINVESTMENT_DB_PASSWORD || secrets.IDENTITY_DB_PASSWORD }}'" >> .env
+            echo "PLANNINGINVESTMENT_DB_USERNAME=${{ vars.PLANNINGINVESTMENT_DB_USERNAME || 'planning_user' }}" >> .env
+            echo "PLANNINGINVESTMENT_DB_PASSWORD='${{ secrets.PLANNINGINVESTMENT_DB_PASSWORD }}'" >> .env
             echo "PLANNINGINVESTMENT_DB_PORT=${{ vars.PLANNINGINVESTMENT_DB_PORT || '5836' }}" >> .env
             echo "" >> .env
             echo "# Database Configuration - Reporting" >> .env
-            echo "REPORTING_DB_USERNAME=${{ secrets.REPORTING_DB_USERNAME || 'reporting_user' }}" >> .env
-            echo "REPORTING_DB_PASSWORD='${{ secrets.REPORTING_DB_PASSWORD || secrets.IDENTITY_DB_PASSWORD }}'" >> .env
+            echo "REPORTING_DB_USERNAME=${{ vars.REPORTING_DB_USERNAME || 'reporting_user' }}" >> .env
+            echo "REPORTING_DB_PASSWORD='${{ secrets.REPORTING_DB_PASSWORD }}'" >> .env
             echo "REPORTING_DB_PORT=${{ vars.REPORTING_DB_PORT || '5837' }}" >> .env
             echo "" >> .env
             echo "# Redis Configuration" >> .env
@@ -164,12 +164,12 @@ jobs:
             echo "# Monitoring Configuration" >> .env
             echo "PROMETHEUS_PORT=${{ vars.PROMETHEUS_PORT || '9090' }}" >> .env
             echo "GRAFANA_PORT=${{ vars.GRAFANA_PORT || '3002' }}" >> .env
-            echo "GRAFANA_ADMIN_PASSWORD='${{ secrets.GRAFANA_ADMIN_PASSWORD || secrets.IDENTITY_DB_PASSWORD }}'" >> .env
+            echo "GRAFANA_ADMIN_PASSWORD='${{ secrets.GRAFANA_ADMIN_PASSWORD }}'" >> .env
             echo "LOKI_PORT=${{ vars.LOKI_PORT || '3100' }}" >> .env
             echo "" >> .env
             echo "# Development Tools" >> .env
             echo "PGADMIN_PORT=${{ vars.PGADMIN_PORT || '8081' }}" >> .env
-            echo "PGADMIN_PASSWORD='${{ secrets.PGADMIN_PASSWORD || secrets.IDENTITY_DB_PASSWORD }}'" >> .env
+            echo "PGADMIN_PASSWORD='${{ secrets.PGADMIN_PASSWORD }}'" >> .env
             echo "MAILHOG_SMTP_PORT=${{ vars.MAILHOG_SMTP_PORT || '1025' }}" >> .env
             echo "MAILHOG_UI_PORT=${{ vars.MAILHOG_UI_PORT || '8025' }}" >> .env
             echo "" >> .env

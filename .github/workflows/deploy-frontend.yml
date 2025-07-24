@@ -185,10 +185,11 @@ jobs:
             --no-perms --no-owner --no-group \
             --ignore-errors \
             --force \
+            --include="src/" \
             --include="src/fe/" \
-            --include="src/fe/nuxt/***" \
+            --include="src/fe/nuxt/" \
+            --include="src/fe/nuxt/**" \
             --include="docker-compose.yml" \
-            --include="Dockerfile*" \
             --include=".env*" \
             --exclude="*" \
             --partial \
@@ -224,6 +225,27 @@ jobs:
             }
           
           echo "[OK] Frontend files synced successfully"
+          
+          # Verify the synced files structure
+          echo "[DEBUG] Verifying synced frontend files structure..."
+          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << 'REMOTE_EOF'
+            cd ${{ env.TRUENAS_DEPLOY_DIR }}
+            echo "[DEBUG] Current directory: $(pwd)"
+            echo "[DEBUG] Directory structure after rsync:"
+            ls -la
+            echo "[DEBUG] Frontend directory structure:"
+            if [ -d "src/fe/nuxt" ]; then
+              ls -la src/fe/nuxt/
+              echo "[DEBUG] Dockerfile exists: $(test -f src/fe/nuxt/Dockerfile && echo 'YES' || echo 'NO')"
+              echo "[DEBUG] package.json exists: $(test -f src/fe/nuxt/package.json && echo 'YES' || echo 'NO')"
+              echo "[DEBUG] nuxt.config.ts exists: $(test -f src/fe/nuxt/nuxt.config.ts && echo 'YES' || echo 'NO')"
+            else
+              echo "[ERROR] src/fe/nuxt directory not found!"
+              echo "[DEBUG] Available directories:"
+              find . -type d -name "*nuxt*" 2>/dev/null || echo "No nuxt directories found"
+            fi
+            echo "[DEBUG] docker-compose.yml exists: $(test -f docker-compose.yml && echo 'YES' || echo 'NO')"
+          REMOTE_EOF
         shell: bash
 
       - name: "[6/9] Verify environment for frontend"
@@ -317,10 +339,37 @@ jobs:
             # Verify build succeeded
             if [ $? -ne 0 ]; then
               echo "[ERROR] Frontend build failed"
-              echo "[DEBUG] Checking build context..."
-              ls -la src/fe/nuxt/
-              echo "[DEBUG] Nuxt config:"
-              cat src/fe/nuxt/nuxt.config.ts | head -20 || echo "No nuxt.config.ts found"
+              echo "[DEBUG] Checking build context and files..."
+              
+              echo "[DEBUG] Current directory: $(pwd)"
+              echo "[DEBUG] Contents of current directory:"
+              ls -la
+              
+              echo "[DEBUG] Docker-compose file exists: $(test -f docker-compose.yml && echo 'YES' || echo 'NO')"
+              
+              if [ -d "src/fe/nuxt" ]; then
+                echo "[DEBUG] Frontend directory contents:"
+                ls -la src/fe/nuxt/
+                echo "[DEBUG] Dockerfile exists: $(test -f src/fe/nuxt/Dockerfile && echo 'YES' || echo 'NO')"
+                echo "[DEBUG] package.json exists: $(test -f src/fe/nuxt/package.json && echo 'YES' || echo 'NO')"
+                echo "[DEBUG] Nuxt config:"
+                cat src/fe/nuxt/nuxt.config.ts | head -20 2>/dev/null || echo "No nuxt.config.ts found"
+                
+                if [ -f src/fe/nuxt/Dockerfile ]; then
+                  echo "[DEBUG] Dockerfile first 10 lines:"
+                  head -10 src/fe/nuxt/Dockerfile
+                else
+                  echo "[ERROR] Dockerfile missing in src/fe/nuxt/"
+                fi
+              else
+                echo "[ERROR] src/fe/nuxt directory not found!"
+                echo "[DEBUG] Searching for nuxt directories:"
+                find . -name "*nuxt*" -type d 2>/dev/null || echo "No nuxt directories found"
+              fi
+              
+              echo "[DEBUG] Docker-compose frontend service definition:"
+              grep -A 10 "frontend-nuxt:" docker-compose.yml 2>/dev/null || echo "No frontend-nuxt service found in docker-compose.yml"
+              
               exit 1
             fi
             
