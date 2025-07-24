@@ -282,11 +282,16 @@ jobs:
             
             echo "[INFO] Deploying database services for ${{ inputs.environment }} environment..."
             
-            # Clean up any existing networks with issues
-            echo "[CLEANUP] Cleaning up potential network conflicts..."
+            # Clean up any existing networks with issues (only if unused)
+            echo "[CLEANUP] Cleaning up potential unused network conflicts..."
             $USE_SUDO docker network ls --format "{{.Name}}" | grep "tihomo.*network" | while read network; do
-              echo "[CLEANUP] Removing network: $network"
-              $USE_SUDO docker network rm "$network" 2>/dev/null || true
+              # Check if network has active endpoints before trying to remove
+              if $USE_SUDO docker network inspect "$network" --format '{{.Containers}}' 2>/dev/null | grep -q '^map\[\]$'; then
+                echo "[CLEANUP] Removing unused network: $network"
+                $USE_SUDO docker network rm "$network" 2>/dev/null || true
+              else
+                echo "[SKIP] Network $network has active containers, skipping removal"
+              fi
             done
             
             # Database services only

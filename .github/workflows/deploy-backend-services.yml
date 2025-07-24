@@ -287,11 +287,47 @@ jobs:
                 
                 # Create minimal .env with required backend variables using echo statements
                 echo "# Minimal environment configuration for backend deployment" > .env
-                echo "JWT_SECRET_KEY=your_super_secret_jwt_key_change_in_production" >> .env
-                echo "JWT_ISSUER=TiHoMo" >> .env
-                echo "JWT_AUDIENCE=TiHoMo" >> .env
-                echo "GATEWAY_PORT=5000" >> .env
-                echo "COMPOSE_PROJECT_NAME=tihomo_development" >> .env
+                echo "COMPOSE_PROJECT_NAME=${{ env.COMPOSE_PROJECT_NAME }}" >> .env
+                echo "JWT_SECRET_KEY='${{ secrets.JWT_SECRET_KEY }}'" >> .env
+                echo "JWT_ISSUER=${{ vars.JWT_ISSUER || 'TiHoMo' }}" >> .env
+                echo "JWT_AUDIENCE=${{ vars.JWT_AUDIENCE || 'TiHoMo' }}" >> .env
+                echo "GATEWAY_PORT=${{ vars.GATEWAY_PORT || '5000' }}" >> .env
+                echo "" >> .env
+                echo "# Database Configuration - MoneyManagement" >> .env
+                echo "MONEYMANAGEMENT_DB_USERNAME=${{ secrets.MONEYMANAGEMENT_DB_USERNAME || 'money_user' }}" >> .env
+                echo "MONEYMANAGEMENT_DB_PASSWORD='${{ secrets.MONEYMANAGEMENT_DB_PASSWORD || secrets.IDENTITY_DB_PASSWORD }}'" >> .env
+                echo "MONEYMANAGEMENT_DB_PORT=${{ vars.MONEYMANAGEMENT_DB_PORT || '5835' }}" >> .env
+                echo "" >> .env
+                echo "# Database Configuration - Reporting" >> .env
+                echo "REPORTING_DB_USERNAME=${{ secrets.REPORTING_DB_USERNAME || 'reporting_user' }}" >> .env
+                echo "REPORTING_DB_PASSWORD='${{ secrets.REPORTING_DB_PASSWORD || secrets.IDENTITY_DB_PASSWORD }}'" >> .env
+                echo "REPORTING_DB_PORT=${{ vars.REPORTING_DB_PORT || '5837' }}" >> .env
+                echo "" >> .env
+                echo "# Redis Configuration" >> .env
+                echo "REDIS_PORT=${{ vars.REDIS_PORT || '6379' }}" >> .env
+                echo "REDIS_PASSWORD='${{ secrets.REDIS_PASSWORD }}'" >> .env
+                echo "" >> .env
+                echo "# Monitoring Configuration" >> .env
+                echo "PROMETHEUS_PORT=${{ vars.PROMETHEUS_PORT || '9090' }}" >> .env
+                echo "GRAFANA_PORT=${{ vars.GRAFANA_PORT || '3002' }}" >> .env
+                echo "GRAFANA_ADMIN_PASSWORD='${{ secrets.GRAFANA_ADMIN_PASSWORD || secrets.IDENTITY_DB_PASSWORD }}'" >> .env
+                echo "" >> .env
+                echo "# RabbitMQ Configuration" >> .env
+                echo "RABBITMQ_PORT=${{ vars.RABBITMQ_PORT || '5672' }}" >> .env
+                echo "RABBITMQ_MANAGEMENT_PORT=${{ vars.RABBITMQ_MANAGEMENT_PORT || '15672' }}" >> .env
+                echo "RABBITMQ_PASSWORD='${{ secrets.RABBITMQ_PASSWORD }}'" >> .env
+                echo "" >> .env
+                echo "# Development Tools" >> .env
+                echo "MAILHOG_SMTP_PORT=${{ vars.MAILHOG_SMTP_PORT || '1025' }}" >> .env
+                echo "MAILHOG_UI_PORT=${{ vars.MAILHOG_UI_PORT || '8025' }}" >> .env
+                echo "" >> .env
+                echo "# JWT Configuration" >> .env
+                echo "JWT_AUDIENCE_OCELOT_GATEWAY=${{ vars.JWT_AUDIENCE_OCELOT_GATEWAY || 'TiHoMo.Gateway' }}" >> .env
+                echo "JWT_AUDIENCE_IDENTITY_API=${{ vars.JWT_AUDIENCE_IDENTITY_API || 'TiHoMo.Identity' }}" >> .env
+                echo "JWT_AUDIENCE_COREFINANCE_API=${{ vars.JWT_AUDIENCE_COREFINANCE_API || 'TiHoMo.CoreFinance' }}" >> .env
+                echo "" >> .env
+                echo "# Network Configuration" >> .env
+                echo "DOCKER_NETWORK_SUBNET=${{ vars.DOCKER_NETWORK_SUBNET || '172.20.0.0/16' }}" >> .env
                 echo "[OK] Created minimal .env file"
               else
                 echo "[ERROR] .env file not found and infrastructure check not skipped"
