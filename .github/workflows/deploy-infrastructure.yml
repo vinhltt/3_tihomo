@@ -65,7 +65,9 @@ jobs:
             ProxyCommand cloudflared access ssh --hostname %h
             User ${{ secrets.TRUENAS_USER }}
             StrictHostKeyChecking accept-new
-            ServerAliveInterval 60
+            ServerAliveInterval 30
+            ServerAliveCountMax 3
+            TCPKeepAlive yes
             ConnectTimeout 30" > "$HOME/.ssh/config"
           chmod 600 "$HOME/.ssh/config"
         shell: bash
@@ -261,8 +263,8 @@ jobs:
           REMOTE_EOF
         shell: bash
 
-      - name: "[6/8] Deploy infrastructure services"
-        id: deploy
+      - name: "[6/10] Deploy database services"
+        id: deploy-databases
         run: |
           ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << 'EOF'
             set -e
@@ -278,9 +280,7 @@ jobs:
               USE_SUDO="sudo"
             fi
             
-            echo "[INFO] Deploying infrastructure for ${{ inputs.environment }} environment..."
-            
-            echo "[INFRASTRUCTURE] Deploying infrastructure services..."
+            echo "[INFO] Deploying database services for ${{ inputs.environment }} environment..."
             
             # Clean up any existing networks with issues
             echo "[CLEANUP] Cleaning up potential network conflicts..."
@@ -289,23 +289,88 @@ jobs:
               $USE_SUDO docker network rm "$network" 2>/dev/null || true
             done
             
-            # Infrastructure services in order
-            SERVICES=("identity-postgres" "corefinance-postgres" "moneymanagement-postgres" "planninginvestment-postgres" "reporting-postgres" "redis" "rabbitmq")
+            # Database services only
+            DATABASES=("identity-postgres" "corefinance-postgres" "moneymanagement-postgres" "planninginvestment-postgres" "reporting-postgres")
             
-            for service in "${SERVICES[@]}"; do
+            echo "[DATABASE] Deploying all database services in parallel..."
+            for db in "${DATABASES[@]}"; do
+              if $USE_SUDO docker compose config --services | grep -q "^$db$"; then
+                echo "[DEPLOY] Starting deployment for $db..."
+                $USE_SUDO docker compose up -d --no-deps --force-recreate $db &
+              else
+                echo "[SKIP] Database $db not found in compose file"
+              fi
+            done
+            
+            # Wait for all background deployments to complete
+            wait
+            echo "[INFO] All database deployments initiated"
+            
+            # Health check for databases
+            for db in "${DATABASES[@]}"; do
+              echo "[HEALTH] Checking $db status..."
+              max_attempts=10
+              attempt=1
+              while [ $attempt -le $max_attempts ]; do
+                if $USE_SUDO docker compose ps $db | grep -q "Up"; then
+                  echo "[OK] Database $db is running"
+                  break
+                else
+                  echo "[WAIT] Database $db not ready yet (attempt $attempt/$max_attempts)"
+                  sleep 10
+                  ((attempt++))
+                fi
+              done
+              
+              if [ $attempt -gt $max_attempts ]; then
+                echo "[WARNING] Database $db may not be fully ready - continuing"
+                echo "[DEBUG] Recent logs for $db:"
+                $USE_SUDO docker compose logs --tail=10 $db
+              else
+                # Extra time for database initialization
+                echo "[HEALTH] Allowing extra time for $db initialization..."
+                sleep 15
+              fi
+            done
+            
+            echo "[SUCCESS] Database services deployed successfully"
+          EOF
+        shell: bash
+
+      - name: "[7/10] Deploy messaging services"
+        id: deploy-messaging
+        run: |
+          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << 'EOF'
+            set -e
+            cd ${{ env.TRUENAS_DEPLOY_DIR }}
+            
+            # Load environment
+            source .env
+            
+            # Check Docker access
+            if docker ps >/dev/null 2>&1; then
+              USE_SUDO=""
+            else
+              USE_SUDO="sudo"
+            fi
+            
+            echo "[INFO] Deploying messaging services..."
+            
+            # Messaging services
+            MESSAGING_SERVICES=("redis" "rabbitmq")
+            
+            for service in "${MESSAGING_SERVICES[@]}"; do
               echo "[DEPLOY] Deploying $service..."
               
-              # Check if service exists
               if ! $USE_SUDO docker compose config --services | grep -q "^$service$"; then
                 echo "[SKIP] Service $service not found in compose file"
                 continue
               fi
               
-              # Deploy service
               $USE_SUDO docker compose up -d --no-deps --force-recreate $service
               
               # Wait for service to be ready
-              max_attempts=10
+              max_attempts=8
               attempt=1
               while [ $attempt -le $max_attempts ]; do
                 if $USE_SUDO docker compose ps $service | grep -q "Up"; then
@@ -319,32 +384,22 @@ jobs:
               done
               
               if [ $attempt -gt $max_attempts ]; then
-                echo "[WARNING] Service $service may not be fully ready after $max_attempts attempts"
+                echo "[WARNING] Service $service may not be fully ready"
                 echo "[DEBUG] Recent logs for $service:"
-                $USE_SUDO docker compose logs --tail=20 $service
-                echo "[CONTINUE] Proceeding with deployment - service may need more time to initialize"
-                # Don't exit - continue with deployment
+                $USE_SUDO docker compose logs --tail=15 $service
               fi
               
               # Service-specific health checks
               case $service in
-                *-postgres)
-                  echo "[HEALTH] Checking database connectivity for $service..."
-                  sleep 20  # Extra time for DB initialization
-                  ;;
                 redis)
                   echo "[HEALTH] Checking Redis connectivity..."
                   sleep 5
-                  # Try with password authentication
-                  if $USE_SUDO docker compose exec -T redis redis-cli -a "$REDIS_PASSWORD" ping | grep -q "PONG"; then
+                  if $USE_SUDO docker compose exec -T redis redis-cli -a "$REDIS_PASSWORD" ping 2>/dev/null | grep -q "PONG"; then
                     echo "[OK] Redis health check passed with auth"
-                  elif $USE_SUDO docker compose exec -T redis redis-cli ping | grep -q "PONG"; then
+                  elif $USE_SUDO docker compose exec -T redis redis-cli ping 2>/dev/null | grep -q "PONG"; then
                     echo "[OK] Redis health check passed without auth"
                   else
                     echo "[WARNING] Redis health check failed, but container is running"
-                    echo "[DEBUG] Redis logs:"
-                    $USE_SUDO docker compose logs --tail=10 redis
-                    # Don't exit - continue with deployment
                   fi
                   ;;
                 rabbitmq)
@@ -354,20 +409,16 @@ jobs:
                     echo "[OK] RabbitMQ health check passed"
                   else
                     echo "[WARNING] RabbitMQ health check failed, but container is running"
-                    echo "[DEBUG] RabbitMQ logs:"
-                    $USE_SUDO docker compose logs --tail=10 rabbitmq
-                    # Don't exit - continue with deployment
                   fi
                   ;;
               esac
             done
             
-            echo "[SUCCESS] All infrastructure services deployed successfully"
-            echo "status=success" >> $GITHUB_OUTPUT
+            echo "[SUCCESS] Messaging services deployed successfully"
           EOF
         shell: bash
 
-      - name: "[7/8] Health check infrastructure"
+      - name: "[8/10] Health check infrastructure"
         run: |
           ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << 'REMOTE_EOF'
             # Use environment variable for proper path
@@ -448,7 +499,7 @@ jobs:
           REMOTE_EOF
         shell: bash
 
-      - name: "[8/8] Send notification"
+      - name: "[9/10] Send notification"
         if: always()
         uses: appleboy/discord-action@v1.2.0
         with:
