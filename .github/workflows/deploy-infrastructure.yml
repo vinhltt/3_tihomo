@@ -85,138 +85,137 @@ jobs:
             cd ${{ env.TRUENAS_DEPLOY_DIR }}
             
             echo "[INFO] Working in directory: $(pwd)"
-            echo "[INFO] Creating .env file..."
+            echo "[INFO] Creating .env file using echo statements..."
             
-            cat > .env << 'EOF'
-          # Project Configuration
-          COMPOSE_PROJECT_NAME=${{ env.COMPOSE_PROJECT_NAME }}
-          
-          # Core Configuration
-          GATEWAY_PORT=${{ vars.GATEWAY_PORT || '5000' }}
-          FRONTEND_PORT=${{ vars.FRONTEND_PORT || '3500' }}
-          FRONTEND_BASE_URL=${{ vars.FRONTEND_BASE_URL || 'http://localhost:3500' }}
-          JWT_SECRET_KEY='${{ secrets.JWT_SECRET_KEY }}'
-          
-          # Docker Build Configuration
-          NUXT_BUILD_TARGET=${{ vars.NUXT_BUILD_TARGET || 'production' }}
-          NODE_ENV=${{ vars.NODE_ENV || 'production' }}
-          DOCKER_USER=${{ vars.DOCKER_USER || '1001:1001' }}
-          
-          # Environment-specific settings
-          NUXT_DEV_SSR=${{ vars.NUXT_DEV_SSR || (inputs.environment == 'production' && 'false' || 'true') }}
-          NUXT_DEV_TOOLS=${{ vars.NUXT_DEV_TOOLS || (inputs.environment == 'production' && 'false' || 'true') }}
-          NUXT_DEBUG=${{ vars.NUXT_DEBUG || 'false' }}
-          
-          # Frontend source mount (only in development)
-          FRONTEND_SOURCE_MOUNT=${{ inputs.environment == 'production' && '/dev/null' || './src/fe/nuxt' }}
-          FRONTEND_HEALTHCHECK_START_PERIOD=${{ inputs.environment == 'production' && '120s' || '60s' }}
-          
-          # API logging level (environment-specific)
-          API_LOG_LEVEL=${{ inputs.environment == 'production' && 'Warning' || 'Information' }}
-          
-          # Redis persistence (production only)
-          REDIS_PERSISTENCE_CONFIG=${{ inputs.environment == 'production' && '--save 900 1 --save 300 10 --save 60 10000' || '' }}
-          
-          # Prometheus retention (production optimized)
-          PROMETHEUS_RETENTION=${{ inputs.environment == 'production' && '30d' || '200h' }}
-          
-          # Grafana settings (production optimized)
-          GRAFANA_ANALYTICS_ENABLED=${{ inputs.environment == 'production' && 'false' || 'true' }}
-          GRAFANA_CHECK_UPDATES=${{ inputs.environment == 'production' && 'false' || 'true' }}
-          
-          # Development tools profile
-          ENABLE_DEV_TOOLS=${{ inputs.environment == 'production' && 'none' || 'development' }}
-          
-          # Database Configuration - Identity
-          IDENTITY_DB_USERNAME=${{ secrets.IDENTITY_DB_USERNAME || 'identity_user' }}
-          IDENTITY_DB_PASSWORD='${{ secrets.IDENTITY_DB_PASSWORD }}'
-          IDENTITY_DB_PORT=${{ vars.IDENTITY_DB_PORT || '5831' }}
-          
-          # Database Configuration - CoreFinance
-          COREFINANCE_DB_USERNAME=${{ secrets.COREFINANCE_DB_USERNAME || 'corefinance_user' }}
-          COREFINANCE_DB_PASSWORD='${{ secrets.COREFINANCE_DB_PASSWORD }}'
-          COREFINANCE_DB_PORT=${{ vars.COREFINANCE_DB_PORT || '5832' }}
-          
-          # Database Configuration - MoneyManagement
-          MONEYMANAGEMENT_DB_USERNAME=${{ secrets.MONEYMANAGEMENT_DB_USERNAME || 'money_user' }}
-          MONEYMANAGEMENT_DB_PASSWORD='${{ secrets.MONEYMANAGEMENT_DB_PASSWORD || secrets.IDENTITY_DB_PASSWORD }}'
-          MONEYMANAGEMENT_DB_PORT=${{ vars.MONEYMANAGEMENT_DB_PORT || '5835' }}
-          
-          # Database Configuration - PlanningInvestment
-          PLANNINGINVESTMENT_DB_USERNAME=${{ secrets.PLANNINGINVESTMENT_DB_USERNAME || 'planning_user' }}
-          PLANNINGINVESTMENT_DB_PASSWORD='${{ secrets.PLANNINGINVESTMENT_DB_PASSWORD || secrets.IDENTITY_DB_PASSWORD }}'
-          PLANNINGINVESTMENT_DB_PORT=${{ vars.PLANNINGINVESTMENT_DB_PORT || '5836' }}
-          
-          # Database Configuration - Reporting
-          REPORTING_DB_USERNAME=${{ secrets.REPORTING_DB_USERNAME || 'reporting_user' }}
-          REPORTING_DB_PASSWORD='${{ secrets.REPORTING_DB_PASSWORD || secrets.IDENTITY_DB_PASSWORD }}'
-          REPORTING_DB_PORT=${{ vars.REPORTING_DB_PORT || '5837' }}
-          
-          # Redis Configuration
-          REDIS_PORT=${{ vars.REDIS_PORT || '6379' }}
-          REDIS_PASSWORD='${{ secrets.REDIS_PASSWORD }}'
-          
-          # RabbitMQ Configuration
-          RABBITMQ_PORT=${{ vars.RABBITMQ_PORT || '5672' }}
-          RABBITMQ_MANAGEMENT_PORT=${{ vars.RABBITMQ_MANAGEMENT_PORT || '15672' }}
-          RABBITMQ_PASSWORD='${{ secrets.RABBITMQ_PASSWORD }}'
-          
-          # Monitoring Configuration
-          PROMETHEUS_PORT=${{ vars.PROMETHEUS_PORT || '9090' }}
-          GRAFANA_PORT=${{ vars.GRAFANA_PORT || '3002' }}
-          GRAFANA_ADMIN_PASSWORD='${{ secrets.GRAFANA_ADMIN_PASSWORD || secrets.IDENTITY_DB_PASSWORD }}'
-          LOKI_PORT=${{ vars.LOKI_PORT || '3100' }}
-          
-          # Development Tools
-          PGADMIN_PORT=${{ vars.PGADMIN_PORT || '8081' }}
-          PGADMIN_PASSWORD='${{ secrets.PGADMIN_PASSWORD || secrets.IDENTITY_DB_PASSWORD }}'
-          MAILHOG_SMTP_PORT=${{ vars.MAILHOG_SMTP_PORT || '1025' }}
-          MAILHOG_UI_PORT=${{ vars.MAILHOG_UI_PORT || '8025' }}
-          
-          # Nginx Configuration
-          NGINX_HTTP_PORT=${{ vars.NGINX_HTTP_PORT || '8082' }}
-          NGINX_HTTPS_PORT=${{ vars.NGINX_HTTPS_PORT || '8443' }}
-          
-          # Network Configuration
-          DOCKER_NETWORK_SUBNET=${{ vars.DOCKER_NETWORK_SUBNET || '172.20.0.0/16' }}
-          
-          # Application Environment
-          NODE_ENV=${{ vars.NODE_ENV || 'production' }}
-          ASPNETCORE_ENVIRONMENT=${{ vars.ASPNETCORE_ENVIRONMENT || 'Production' }}
-          
-          # OAuth Configuration
-          APP_PUBLIC_GOOGLE_CLIENT_ID=${{ secrets.APP_PUBLIC_GOOGLE_CLIENT_ID }}
-          
-          # JWT Configuration
-          JWT_ISSUER=${{ vars.JWT_ISSUER || 'http://localhost:5000' }}
-          JWT_AUDIENCE_OCELOT_GATEWAY=${{ vars.JWT_AUDIENCE_OCELOT_GATEWAY || 'TiHoMo.Gateway' }}
-          JWT_AUDIENCE_IDENTITY_API=${{ vars.JWT_AUDIENCE_IDENTITY_API || 'TiHoMo.Identity' }}
-          JWT_AUDIENCE_COREFINANCE_API=${{ vars.JWT_AUDIENCE_COREFINANCE_API || 'TiHoMo.CoreFinance' }}
-          
-          # Timezone & other settings
-          GENERIC_TIMEZONE=${{ vars.GENERIC_TIMEZONE || 'Asia/Ho_Chi_Minh' }}
-          TZ=${{ vars.TZ || 'Asia/Ho_Chi_Minh' }}
-          
-          # Build Configuration
-          NUXT_BUILD_TARGET=production
-          NUXT_DEV_SSR=${{ vars.NUXT_DEV_SSR || 'false' }}
-          NUXT_DEBUG=${{ vars.NUXT_DEBUG || 'false' }}
-          NUXT_DEV_TOOLS=${{ vars.NUXT_DEV_TOOLS || 'false' }}
-          NUXT_TELEMETRY_DISABLED=1
-          
-          # Logging Configuration
-          LOG_LEVEL=${{ vars.LOG_LEVEL || 'info' }}
-          LOG_FORMAT=${{ vars.LOG_FORMAT || 'json' }}
-          
-          # Feature Toggles
-          ENABLE_PWA=${{ vars.ENABLE_PWA || 'false' }}
-          ENABLE_ANALYTICS=${{ vars.ENABLE_ANALYTICS || 'false' }}
-          
-          # Deployment Information
-          DEPLOY_BRANCH=${{ github.ref_name }}
-          DEPLOY_COMMIT=${{ github.sha }}
-          DEPLOY_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-          EOF
+            # Create .env file using echo statements to avoid nested here-document
+            echo "# Project Configuration" > .env
+            echo "COMPOSE_PROJECT_NAME=${{ env.COMPOSE_PROJECT_NAME }}" >> .env
+            echo "" >> .env
+            echo "# Core Configuration" >> .env
+            echo "GATEWAY_PORT=${{ vars.GATEWAY_PORT || '5000' }}" >> .env
+            echo "FRONTEND_PORT=${{ vars.FRONTEND_PORT || '3500' }}" >> .env
+            echo "FRONTEND_BASE_URL=${{ vars.FRONTEND_BASE_URL || 'http://localhost:3500' }}" >> .env
+            echo "JWT_SECRET_KEY='${{ secrets.JWT_SECRET_KEY }}'" >> .env
+            echo "" >> .env
+            echo "# Docker Build Configuration" >> .env
+            echo "NUXT_BUILD_TARGET=${{ vars.NUXT_BUILD_TARGET || 'production' }}" >> .env
+            echo "NODE_ENV=${{ vars.NODE_ENV || 'production' }}" >> .env
+            echo "DOCKER_USER=${{ vars.DOCKER_USER || '1001:1001' }}" >> .env
+            echo "" >> .env
+            echo "# Environment-specific settings" >> .env
+            echo "NUXT_DEV_SSR=${{ vars.NUXT_DEV_SSR || (inputs.environment == 'production' && 'false' || 'true') }}" >> .env
+            echo "NUXT_DEV_TOOLS=${{ vars.NUXT_DEV_TOOLS || (inputs.environment == 'production' && 'false' || 'true') }}" >> .env
+            echo "NUXT_DEBUG=${{ vars.NUXT_DEBUG || 'false' }}" >> .env
+            echo "" >> .env
+            echo "# Frontend source mount (only in development)" >> .env
+            echo "FRONTEND_SOURCE_MOUNT=${{ inputs.environment == 'production' && '/dev/null' || './src/fe/nuxt' }}" >> .env
+            echo "FRONTEND_HEALTHCHECK_START_PERIOD=${{ inputs.environment == 'production' && '120s' || '60s' }}" >> .env
+            echo "" >> .env
+            echo "# API logging level (environment-specific)" >> .env
+            echo "API_LOG_LEVEL=${{ inputs.environment == 'production' && 'Warning' || 'Information' }}" >> .env
+            echo "" >> .env
+            echo "# Redis persistence (production only)" >> .env
+            echo "REDIS_PERSISTENCE_CONFIG=${{ inputs.environment == 'production' && '--save 900 1 --save 300 10 --save 60 10000' || '' }}" >> .env
+            echo "" >> .env
+            echo "# Prometheus retention (production optimized)" >> .env
+            echo "PROMETHEUS_RETENTION=${{ inputs.environment == 'production' && '30d' || '200h' }}" >> .env
+            echo "" >> .env
+            echo "# Grafana settings (production optimized)" >> .env
+            echo "GRAFANA_ANALYTICS_ENABLED=${{ inputs.environment == 'production' && 'false' || 'true' }}" >> .env
+            echo "GRAFANA_CHECK_UPDATES=${{ inputs.environment == 'production' && 'false' || 'true' }}" >> .env
+            echo "" >> .env
+            echo "# Development tools profile" >> .env
+            echo "ENABLE_DEV_TOOLS=${{ inputs.environment == 'production' && 'none' || 'development' }}" >> .env
+            echo "" >> .env
+            echo "# Database Configuration - Identity" >> .env
+            echo "IDENTITY_DB_USERNAME=${{ secrets.IDENTITY_DB_USERNAME || 'identity_user' }}" >> .env
+            echo "IDENTITY_DB_PASSWORD='${{ secrets.IDENTITY_DB_PASSWORD }}'" >> .env
+            echo "IDENTITY_DB_PORT=${{ vars.IDENTITY_DB_PORT || '5831' }}" >> .env
+            echo "" >> .env
+            echo "# Database Configuration - CoreFinance" >> .env
+            echo "COREFINANCE_DB_USERNAME=${{ secrets.COREFINANCE_DB_USERNAME || 'corefinance_user' }}" >> .env
+            echo "COREFINANCE_DB_PASSWORD='${{ secrets.COREFINANCE_DB_PASSWORD }}'" >> .env
+            echo "COREFINANCE_DB_PORT=${{ vars.COREFINANCE_DB_PORT || '5832' }}" >> .env
+            echo "" >> .env
+            echo "# Database Configuration - MoneyManagement" >> .env
+            echo "MONEYMANAGEMENT_DB_USERNAME=${{ secrets.MONEYMANAGEMENT_DB_USERNAME || 'money_user' }}" >> .env
+            echo "MONEYMANAGEMENT_DB_PASSWORD='${{ secrets.MONEYMANAGEMENT_DB_PASSWORD || secrets.IDENTITY_DB_PASSWORD }}'" >> .env
+            echo "MONEYMANAGEMENT_DB_PORT=${{ vars.MONEYMANAGEMENT_DB_PORT || '5835' }}" >> .env
+            echo "" >> .env
+            echo "# Database Configuration - PlanningInvestment" >> .env
+            echo "PLANNINGINVESTMENT_DB_USERNAME=${{ secrets.PLANNINGINVESTMENT_DB_USERNAME || 'planning_user' }}" >> .env
+            echo "PLANNINGINVESTMENT_DB_PASSWORD='${{ secrets.PLANNINGINVESTMENT_DB_PASSWORD || secrets.IDENTITY_DB_PASSWORD }}'" >> .env
+            echo "PLANNINGINVESTMENT_DB_PORT=${{ vars.PLANNINGINVESTMENT_DB_PORT || '5836' }}" >> .env
+            echo "" >> .env
+            echo "# Database Configuration - Reporting" >> .env
+            echo "REPORTING_DB_USERNAME=${{ secrets.REPORTING_DB_USERNAME || 'reporting_user' }}" >> .env
+            echo "REPORTING_DB_PASSWORD='${{ secrets.REPORTING_DB_PASSWORD || secrets.IDENTITY_DB_PASSWORD }}'" >> .env
+            echo "REPORTING_DB_PORT=${{ vars.REPORTING_DB_PORT || '5837' }}" >> .env
+            echo "" >> .env
+            echo "# Redis Configuration" >> .env
+            echo "REDIS_PORT=${{ vars.REDIS_PORT || '6379' }}" >> .env
+            echo "REDIS_PASSWORD='${{ secrets.REDIS_PASSWORD }}'" >> .env
+            echo "" >> .env
+            echo "# RabbitMQ Configuration" >> .env
+            echo "RABBITMQ_PORT=${{ vars.RABBITMQ_PORT || '5672' }}" >> .env
+            echo "RABBITMQ_MANAGEMENT_PORT=${{ vars.RABBITMQ_MANAGEMENT_PORT || '15672' }}" >> .env
+            echo "RABBITMQ_PASSWORD='${{ secrets.RABBITMQ_PASSWORD }}'" >> .env
+            echo "" >> .env
+            echo "# Monitoring Configuration" >> .env
+            echo "PROMETHEUS_PORT=${{ vars.PROMETHEUS_PORT || '9090' }}" >> .env
+            echo "GRAFANA_PORT=${{ vars.GRAFANA_PORT || '3002' }}" >> .env
+            echo "GRAFANA_ADMIN_PASSWORD='${{ secrets.GRAFANA_ADMIN_PASSWORD || secrets.IDENTITY_DB_PASSWORD }}'" >> .env
+            echo "LOKI_PORT=${{ vars.LOKI_PORT || '3100' }}" >> .env
+            echo "" >> .env
+            echo "# Development Tools" >> .env
+            echo "PGADMIN_PORT=${{ vars.PGADMIN_PORT || '8081' }}" >> .env
+            echo "PGADMIN_PASSWORD='${{ secrets.PGADMIN_PASSWORD || secrets.IDENTITY_DB_PASSWORD }}'" >> .env
+            echo "MAILHOG_SMTP_PORT=${{ vars.MAILHOG_SMTP_PORT || '1025' }}" >> .env
+            echo "MAILHOG_UI_PORT=${{ vars.MAILHOG_UI_PORT || '8025' }}" >> .env
+            echo "" >> .env
+            echo "# Nginx Configuration" >> .env
+            echo "NGINX_HTTP_PORT=${{ vars.NGINX_HTTP_PORT || '8082' }}" >> .env
+            echo "NGINX_HTTPS_PORT=${{ vars.NGINX_HTTPS_PORT || '8443' }}" >> .env
+            echo "" >> .env
+            echo "# Network Configuration" >> .env
+            echo "DOCKER_NETWORK_SUBNET=${{ vars.DOCKER_NETWORK_SUBNET || '172.20.0.0/16' }}" >> .env
+            echo "" >> .env
+            echo "# Application Environment" >> .env
+            echo "NODE_ENV=${{ vars.NODE_ENV || 'production' }}" >> .env
+            echo "ASPNETCORE_ENVIRONMENT=${{ vars.ASPNETCORE_ENVIRONMENT || 'Production' }}" >> .env
+            echo "" >> .env
+            echo "# OAuth Configuration" >> .env
+            echo "APP_PUBLIC_GOOGLE_CLIENT_ID=${{ secrets.APP_PUBLIC_GOOGLE_CLIENT_ID }}" >> .env
+            echo "" >> .env
+            echo "# JWT Configuration" >> .env
+            echo "JWT_ISSUER=${{ vars.JWT_ISSUER || 'http://localhost:5000' }}" >> .env
+            echo "JWT_AUDIENCE_OCELOT_GATEWAY=${{ vars.JWT_AUDIENCE_OCELOT_GATEWAY || 'TiHoMo.Gateway' }}" >> .env
+            echo "JWT_AUDIENCE_IDENTITY_API=${{ vars.JWT_AUDIENCE_IDENTITY_API || 'TiHoMo.Identity' }}" >> .env
+            echo "JWT_AUDIENCE_COREFINANCE_API=${{ vars.JWT_AUDIENCE_COREFINANCE_API || 'TiHoMo.CoreFinance' }}" >> .env
+            echo "" >> .env
+            echo "# Timezone & other settings" >> .env
+            echo "GENERIC_TIMEZONE=${{ vars.GENERIC_TIMEZONE || 'Asia/Ho_Chi_Minh' }}" >> .env
+            echo "TZ=${{ vars.TZ || 'Asia/Ho_Chi_Minh' }}" >> .env
+            echo "" >> .env
+            echo "# Build Configuration" >> .env
+            echo "NUXT_BUILD_TARGET=production" >> .env
+            echo "NUXT_DEV_SSR=${{ vars.NUXT_DEV_SSR || 'false' }}" >> .env
+            echo "NUXT_DEBUG=${{ vars.NUXT_DEBUG || 'false' }}" >> .env
+            echo "NUXT_DEV_TOOLS=${{ vars.NUXT_DEV_TOOLS || 'false' }}" >> .env
+            echo "NUXT_TELEMETRY_DISABLED=1" >> .env
+            echo "" >> .env
+            echo "# Logging Configuration" >> .env
+            echo "LOG_LEVEL=${{ vars.LOG_LEVEL || 'info' }}" >> .env
+            echo "LOG_FORMAT=${{ vars.LOG_FORMAT || 'json' }}" >> .env
+            echo "" >> .env
+            echo "# Feature Toggles" >> .env
+            echo "ENABLE_PWA=${{ vars.ENABLE_PWA || 'false' }}" >> .env
+            echo "ENABLE_ANALYTICS=${{ vars.ENABLE_ANALYTICS || 'false' }}" >> .env
+            echo "" >> .env
+            echo "# Deployment Information" >> .env
+            echo "DEPLOY_BRANCH=${{ github.ref_name }}" >> .env
+            echo "DEPLOY_COMMIT=${{ github.sha }}" >> .env
+            echo "DEPLOY_TIME=\$(date -u +\"%Y-%m-%dT%H:%M:%SZ\")" >> .env
           
           echo "[SUCCESS] .env file created successfully"
           echo "[INFO] File contents:"
