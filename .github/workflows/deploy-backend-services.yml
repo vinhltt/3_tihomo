@@ -156,7 +156,7 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.TRUENAS_SSH_PRIVATE_KEY }}
 
-      - name: "[4.5/10] Prepare deployment directory"
+      - name: "[5/10] Prepare deployment directory"
         run: |
           ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << 'EOF'
             echo "[PREP] Preparing deployment directory with proper permissions..."
@@ -180,7 +180,7 @@ jobs:
             if [ -d "${{ env.TRUENAS_DEPLOY_DIR }}/src" ]; then
               echo "[CLEANUP] Cleaning previous deployment files that might cause permission issues..."
               
-              # Fix directory permissions
+              # Fix directory permissions recursively
               find ${{ env.TRUENAS_DEPLOY_DIR }} -type d -exec chmod 755 {} \; 2>/dev/null || true
               
               # Fix file permissions for common problematic files
@@ -189,13 +189,23 @@ jobs:
               find ${{ env.TRUENAS_DEPLOY_DIR }} -type f -name "*.sh" -exec chmod 755 {} \; 2>/dev/null || true
               find ${{ env.TRUENAS_DEPLOY_DIR }} -type f -name "*.sql" -exec chmod 644 {} \; 2>/dev/null || true
               find ${{ env.TRUENAS_DEPLOY_DIR }} -type f -name "*.conf" -exec chmod 644 {} \; 2>/dev/null || true
+              
+              # Special handling for database init directories that cause rsync issues
+              if [ -d "${{ env.TRUENAS_DEPLOY_DIR }}/scripts" ]; then
+                echo "[CLEANUP] Fixing database init script directories..."
+                find ${{ env.TRUENAS_DEPLOY_DIR }}/scripts -name "init-*-db.sql" -type d -exec chmod 755 {} \; 2>/dev/null || true
+                find ${{ env.TRUENAS_DEPLOY_DIR }}/scripts -path "*/init-*-db.sql/*" -name "*.sql" -exec chmod 644 {} \; 2>/dev/null || true
+                
+                # Remove any temporary rsync files that might cause conflicts
+                find ${{ env.TRUENAS_DEPLOY_DIR }}/scripts -name ".*" -type f -delete 2>/dev/null || true
+              fi
             fi
             
             echo "[OK] Prepared deployment directory: ${{ env.TRUENAS_DEPLOY_DIR }}"
           EOF
         shell: bash
 
-      - name: "[5/10] Sync project files"
+      - name: "[6/10] Sync project files"
         run: |
           echo "[SYNC] Starting project files sync to TrueNAS..."
           
@@ -258,7 +268,7 @@ jobs:
           echo "[OK] Project files synced successfully"
         shell: bash
 
-      - name: "[6/10] Verify environment file"
+      - name: "[7/10] Verify environment file"
         run: |
           ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << 'REMOTE_EOF'
             # Ensure directory exists and navigate to it
@@ -277,13 +287,13 @@ jobs:
                 
                 # Create minimal .env with required backend variables
                 cat > .env << 'ENV_EOF'
-                # Minimal environment configuration for backend deployment
-                JWT_SECRET_KEY=your-super-secret-jwt-key-change-in-production
-                JWT_ISSUER=TiHoMo
-                JWT_AUDIENCE=TiHoMo
-                GATEWAY_PORT=5000
-                COMPOSE_PROJECT_NAME=tihomo_development
-                ENV_EOF
+# Minimal environment configuration for backend deployment
+JWT_SECRET_KEY=your-super-secret-jwt-key-change-in-production
+JWT_ISSUER=TiHoMo
+JWT_AUDIENCE=TiHoMo
+GATEWAY_PORT=5000
+COMPOSE_PROJECT_NAME=tihomo_development
+ENV_EOF
                 echo "[OK] Created minimal .env file"
               else
                 echo "[ERROR] .env file not found and infrastructure check not skipped"
@@ -314,7 +324,7 @@ jobs:
           REMOTE_EOF
         shell: bash
 
-      - name: "[7/10] Deploy backend services with dependency management"
+      - name: "[8/10] Deploy backend services with dependency management"
         run: |
           ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << 'EOF'
             set -e
@@ -481,7 +491,7 @@ jobs:
           EOF
         shell: bash
 
-      - name: "[8/10] Health check backend services"
+      - name: "[9/10] Health check backend services"
         run: |
           ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << 'EOF'
             cd ${{ env.TRUENAS_DEPLOY_DIR }}
@@ -518,7 +528,7 @@ jobs:
           EOF
         shell: bash
 
-      - name: "[9/10] Send notification"
+      - name: "[10/10] Send notification"
         if: always()
         uses: appleboy/discord-action@v1.2.0
         with:
