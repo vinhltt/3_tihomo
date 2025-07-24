@@ -166,6 +166,9 @@ jobs:
             --exclude 'bin/' \
             --exclude 'obj/' \
             --exclude '.nuxt/' \
+            --exclude 'src/fe/' \
+            --exclude '*.log' \
+            --exclude 'coverage/' \
             --delete \
             -e "ssh -F $HOME/.ssh/config" \
             $GITHUB_WORKSPACE/ \
