@@ -337,11 +337,11 @@ services:
       - ${FRONTEND_SOURCE_MOUNT:-./src/fe/nuxt}:/app:delegated
       # Node modules volume to prevent overwrite by bind mount
       - frontend_node_modules:/app/node_modules
-      # Exclude problematic cache and build directories to prevent rsync conflicts
-      - /app/.nuxt
-      - /app/.output
-      - /app/dist
-      - /app/.cache
+      # Use named volumes for build outputs to prevent EBUSY errors
+      # - frontend_nuxt_cache:/app/.nuxt
+      # - frontend_output:/app/.output
+      # - frontend_dist:/app/dist
+      # - frontend_cache:/app/.cache
     networks:
       - tihomo-network
     depends_on:
@@ -368,7 +368,7 @@ services:
     container_name: tihomo-ocelot-gateway
     restart: unless-stopped
     environment:
-      - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Docker}
+      - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Development}
       - ASPNETCORE_URLS=http://+:8080
       - IsDocker=true
       - ConnectionStrings__Redis=redis:6379
@@ -403,7 +403,7 @@ services:
     container_name: tihomo-identity-api
     restart: unless-stopped
     environment:
-      - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT}
+      - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Development}
       - ASPNETCORE_URLS=http://+:8080
       - ConnectionStrings__DefaultConnection=Host=identity-postgres;Port=5432;Database=identity;Username=${IDENTITY_DB_USERNAME};Password=${IDENTITY_DB_PASSWORD}
       - Redis__ConnectionString=redis:6379
@@ -443,7 +443,7 @@ services:
     container_name: tihomo-corefinance-api
     restart: unless-stopped
     environment:
-      - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT}
+      - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Development}
       - ASPNETCORE_URLS=http://+:8080
       - ConnectionStrings__CoreFinanceDb=Host=corefinance-postgres;Port=5432;Database=corefinance;Username=${COREFINANCE_DB_USERNAME};Password=${COREFINANCE_DB_PASSWORD}
       - ConnectionStrings__Redis=redis:6379
@@ -492,7 +492,7 @@ services:
     container_name: tihomo-excel-api
     restart: unless-stopped
     environment:
-      - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT}
+      - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Development}
       - ASPNETCORE_URLS=http://+:8080
       - RabbitMQ__Host=rabbitmq
       - RabbitMQ__Username=tihomo
@@ -589,4 +589,12 @@ volumes:
   
   # Frontend volumes
   frontend_node_modules:
+    driver: local
+  frontend_nuxt_cache:
+    driver: local
+  frontend_output:
+    driver: local
+  frontend_dist:
+    driver: local
+  frontend_cache:
     driver: local

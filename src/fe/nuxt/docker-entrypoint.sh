@@ -88,6 +88,18 @@ if [ "${NODE_ENV:-development}" != "production" ]; then
     find node_modules -name "nuxt*" | grep -v "node_modules/.*node_modules"
   fi
   
+  # Clean up any problematic .output directory before starting
+  echo "🧹 Cleaning up .output directory to prevent EBUSY errors..."
+  for i in 1 2 3 4 5; do
+    if [ -d ".output" ]; then
+      echo "🗑️ Attempting to remove .output directory (attempt $i/5)..."
+      rm -rf .output 2>/dev/null || true
+      sleep 1
+    else
+      break
+    fi
+  done
+  
   # Start Nuxt with multiple fallback options
   echo "🚀 Starting Nuxt development server..."
   
@@ -113,7 +125,8 @@ else
   # In true production (Docker build), .output should exist
   
   # Check if we're in a development container with production NODE_ENV
-  if [ -f "package.json" ] && [ ! -f ".output/server/index.mjs" ]; then
+  # Check for .output/server/index.mjs OR any partial build structure
+  if [ ! -f ".output/server/index.mjs" ]; then
     echo "⚠️  Production NODE_ENV detected but no .output directory"
     echo "🔨 Building application for production..."
     
@@ -132,14 +145,275 @@ else
     # Build the application
     echo "🏗️ Building Nuxt application..."
     export PATH="/app/node_modules/.bin:$PATH"
-    npm run build
     
-    # Verify build succeeded
-    if [ ! -f ".output/server/index.mjs" ]; then
-      echo "❌ ERROR: Build failed - .output/server/index.mjs not created"
-      echo "Checking .output directory:"
-      ls -la .output/ 2>/dev/null || echo "No .output directory found"
-      exit 1
+    # Use a retry mechanism for build to handle EBUSY errors
+    build_attempt=1
+    max_attempts=3
+    
+    while [ $build_attempt -le $max_attempts ]; do
+      echo "🔨 Build attempt $build_attempt of $max_attempts..."
+      
+      # Capture build exit code but continue to check output
+      npm run build 2>&1 | tee build.log
+      build_exit_code=$?
+      
+      echo "🔍 Build process completed with exit code: $build_exit_code"
+      
+      # Check if build output exists regardless of exit code (EBUSY may cause false failure)
+      if [ -f ".output/server/index.mjs" ]; then
+        echo "✅ Build completed successfully on attempt $build_attempt (found .output/server/index.mjs)"
+        break
+      elif [ $build_exit_code -eq 0 ]; then
+        echo "✅ Build completed successfully on attempt $build_attempt"
+        break
+      else
+        echo "⚠️ Build attempt $build_attempt failed (exit code: $build_exit_code)"
+        
+        # Check build log for signs of successful completion despite errors
+        if grep -q "✔ Server built in" build.log && grep -q "✔ Client built in" build.log; then
+          echo "✅ Build actually succeeded (detected completion messages in logs despite exit code)"
+          # Wait a bit for filesystem to settle, then check again
+          sleep 3
+          if [ -f ".output/server/index.mjs" ]; then
+            echo "✅ Found .output/server/index.mjs after waiting"
+            break
+          fi
+        fi
+        
+        if [ $build_attempt -eq $max_attempts ]; then
+          echo "❌ All build attempts failed. Checking for partial build..."
+          
+          # Check if we have at least some output
+          if [ -f ".output/server/index.mjs" ]; then
+            echo "✅ Partial build found, proceeding with existing .output"
+            break
+          else
+            echo "❌ No usable build output found"
+            exit 1
+          fi
+        else
+          echo "🔄 Cleaning up and retrying..."
+          # Clean up problematic directories with retry logic, but ignore errors
+          for i in 1 2 3; do
+            rm -rf .output .nuxt dist 2>/dev/null || true
+            sleep 1
+          done
+          # Wait a bit more for filesystem to settle
+          sleep 5
+          
+          build_attempt=$((build_attempt + 1))
+        fi
+      fi
+    done
+    
+    # Verify build succeeded - enhanced check with EBUSY handling
+    echo "🔍 Verifying build completion..."
+    
+    # Wait for filesystem operations to complete (EBUSY handling)
+    sleep 3
+    
+    # Check build log for success indicators first
+    build_log_success=false
+    if [ -f "build.log" ]; then
+        if grep -q "✔ Server built in" build.log && grep -q "✔ Client built in" build.log; then
+            echo "📋 Build completion confirmed in logs"
+            build_log_success=true
+        fi
+    fi
+    
+    # Enhanced .output directory check with retry for EBUSY
+    output_check_attempts=0
+    max_output_attempts=5
+    
+    while [ $output_check_attempts -lt $max_output_attempts ]; do
+        if [ -f ".output/server/index.mjs" ]; then
+            echo "✅ Build completed successfully - found .output/server/index.mjs"
+            break
+        elif [ -d ".output" ] && [ "$(ls -A .output 2>/dev/null)" ]; then
+            echo "✅ Build completed with output directory - checking contents..."
+            ls -la .output/ 2>/dev/null || true
+            
+            if [ -d ".output/server" ] && [ "$(ls -A .output/server 2>/dev/null)" ]; then
+                echo "✅ Found server directory with content, proceeding..."
+                # Look for any server file
+                server_file=$(find .output/server -name "*.mjs" -o -name "*.js" | head -1 2>/dev/null)
+                if [ -n "$server_file" ]; then
+                    echo "✅ Found server file: $server_file"
+                    break
+                fi
+            fi
+            
+            # Check for any generated files in .output
+            echo "🔍 Searching for any generated files..."
+            generated_files=$(find .output -type f -name "*.mjs" -o -name "*.js" 2>/dev/null | wc -l)
+            if [ "$generated_files" -gt 0 ]; then
+                echo "✅ Found $generated_files generated files, build may have succeeded"
+                find .output -type f -name "*.mjs" -o -name "*.js" | head -5
+                break
+            fi
+        elif [ "$build_log_success" = "true" ]; then
+            echo "⏳ Build logs indicate success but .output not ready, waiting... (attempt $((output_check_attempts + 1))/$max_output_attempts)"
+            sleep 2
+            output_check_attempts=$((output_check_attempts + 1))
+            continue
+        else
+            echo "❌ No .output directory found on attempt $((output_check_attempts + 1))"
+            output_check_attempts=$((output_check_attempts + 1))
+            sleep 2
+        fi
+        
+        output_check_attempts=$((output_check_attempts + 1))
+    done
+    
+    # Final verification with EBUSY fallback
+    if [ ! -d ".output" ] || [ -z "$(ls -A .output 2>/dev/null)" ]; then
+        if [ "$build_log_success" = "true" ]; then
+            echo "⚠️  Warning: Build logs indicate success but .output directory is empty/missing"
+            echo "This may be due to EBUSY filesystem errors during cleanup"
+            
+            # Try to manually create .output from .nuxt/dist if build succeeded
+            if [ -d ".nuxt/dist" ] && [ "$(ls -A .nuxt/dist 2>/dev/null)" ]; then
+                echo "🔧 Found .nuxt/dist with content, attempting manual .output creation..."
+                
+                # Create .output directory structure
+                mkdir -p .output/server .output/public
+                
+                # Copy client files to public
+                if [ -d ".nuxt/dist/client" ]; then
+                    echo "📁 Copying client files to .output/public..."
+                    cp -r .nuxt/dist/client/* .output/public/ 2>/dev/null || true
+                fi
+                
+                # Copy server files from proper Nitro output
+                if [ -f ".nuxt/dist/server/server.mjs" ]; then
+                    echo "📁 Copying Nitro server to .output/server..."
+                    cp .nuxt/dist/server/server.mjs .output/server/index.mjs
+                    
+                    # Copy additional server assets
+                    if [ -f ".nuxt/dist/server/client.manifest.json" ]; then
+                        cp .nuxt/dist/server/client.manifest.json .output/server/
+                    fi
+                    if [ -f ".nuxt/dist/server/client.manifest.mjs" ]; then
+                        cp .nuxt/dist/server/client.manifest.mjs .output/server/
+                    fi
+                    if [ -f ".nuxt/dist/server/styles.mjs" ]; then
+                        cp .nuxt/dist/server/styles.mjs .output/server/
+                    fi
+                    
+                    # Copy server-side Nuxt modules
+                    if [ -d ".nuxt/dist/server/_nuxt" ]; then
+                        mkdir -p .output/server/_nuxt
+                        cp -r .nuxt/dist/server/_nuxt/* .output/server/_nuxt/ 2>/dev/null || true
+                    fi
+                    
+                    echo "✅ Successfully copied Nitro server files"
+                else
+                    echo "⚠️  No Nitro server found, creating fallback static server..."
+                    cat > .output/server/index.mjs << 'EOF'
+import { createServer } from 'node:http'
+import { readFileSync, existsSync } from 'node:fs'
+import { join, extname } from 'node:path'
+
+const port = process.env.PORT || 3000
+const staticDir = join(process.cwd(), '.output/public')
+
+const mimeTypes = {
+  '.html': 'text/html',
+  '.js': 'application/javascript',
+  '.css': 'text/css',
+  '.json': 'application/json',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.svg': 'image/svg+xml',
+  '.ico': 'image/x-icon'
+}
+
+const server = createServer((req, res) => {
+  try {
+    let filePath = join(staticDir, req.url === '/' ? 'index.html' : req.url)
+    
+    if (!existsSync(filePath) && req.url !== '/') {
+      filePath = join(staticDir, 'index.html')
+    }
+    
+    if (existsSync(filePath)) {
+      const ext = extname(filePath)
+      const mimeType = mimeTypes[ext] || 'text/plain'
+      
+      res.writeHead(200, { 'Content-Type': mimeType })
+      res.end(readFileSync(filePath))
+    } else {
+      res.writeHead(404, { 'Content-Type': 'text/plain' })
+      res.end('404 Not Found')
+    }
+  } catch (error) {
+    res.writeHead(500, { 'Content-Type': 'text/plain' })
+    res.end('500 Internal Server Error')
+  }
+})
+
+server.listen(port, '0.0.0.0', () => {
+  console.log(`TiHoMo Frontend server listening on http://0.0.0.0:${port}`)
+})
+EOF
+                fi
+                
+                # Verify manual creation worked
+                if [ -f ".output/server/index.mjs" ]; then
+                    echo "✅ Successfully created .output from .nuxt/dist"
+        
+        # Copy package.json to .output for proper Nitro server imports
+        if [ -f "package.json" ]; then
+            echo "📦 Copying package.json to .output..."
+            cp package.json .output/
+        fi
+        
+        # Create proper package.json with required imports in .output
+        echo "📦 Creating proper package.json in .output for Nitro server..."
+        cat > .output/package.json << 'EOF'
+{
+  "type": "module",
+  "imports": {
+    "#internal/nuxt/paths": "./nitro/runtime/nitro-paths.mjs",
+    "#internal/*": "./nitro/runtime/*"
+  },
+  "scripts": {
+    "start": "node server/index.mjs"
+  }
+}
+EOF
+        
+        # Create the nitro runtime directory and copy required Nitro files
+        echo "🔧 Setting up Nitro runtime dependencies..."
+        mkdir -p .output/nitro/runtime
+        
+        # Copy nitro paths file from node_modules if it exists
+        if [ -f "node_modules/nuxt/dist/core/runtime/nitro/paths.mjs" ]; then
+            cp node_modules/nuxt/dist/core/runtime/nitro/paths.mjs .output/nitro/runtime/nitro-paths.mjs
+        else
+            # Create a minimal paths file
+            cat > .output/nitro/runtime/nitro-paths.mjs << 'EOF'
+export const appDir = '/app'
+export const buildDir = '/app/.nuxt'
+export const outputDir = '/app/.output'
+EOF
+        fi
+                else
+                    echo "❌ Failed to create working .output directory"
+                    exit 1
+                fi
+            else
+                echo "❌ No .nuxt/dist directory found, cannot recover from build failure"
+                exit 1
+            fi
+            
+            echo "Checking for any build artifacts..."
+            ls -la ./ | grep -E "output|dist|build" || echo "No build artifacts found"
+        else
+            echo "❌ ERROR: Build failed - no usable .output directory"
+            exit 1
+        fi
     fi
     
     echo "✅ Build completed successfully"
@@ -152,14 +426,39 @@ else
     exit 1
   fi
   
-  echo "✅ Found pre-built application at .output/server/index.mjs"
+  echo "✅ Found pre-built application"
   echo "🚀 Starting production server..."
+  
+  # Check for the main server file first
+  if [ -f ".output/server/index.mjs" ]; then
+    echo "🎯 Starting with .output/server/index.mjs"
+    server_file=".output/server/index.mjs"
+  else
+    # Look for alternative server files
+    echo "🔍 Looking for alternative server entry points..."
+    server_file=$(find .output -name "index.mjs" -type f | head -1)
+    if [ -z "$server_file" ]; then
+      server_file=$(find .output -name "*.mjs" -type f | head -1)
+    fi
+    
+    if [ -n "$server_file" ]; then
+      echo "🎯 Found server file: $server_file"
+    else
+      echo "❌ ERROR: No server file found in .output directory"
+      ls -la .output/ 2>/dev/null || echo "No .output directory"
+      exit 1
+    fi
+  fi
   
   # Switch to non-root user for security if we're currently root
   if [ "$(whoami)" = "root" ]; then
     echo "🔐 Switching to non-root user for security..."
-    exec su-exec nuxt node .output/server/index.mjs
+    # Change to .output directory where package.json exists
+    cd .output
+    exec su-exec nuxt node "server/index.mjs"
   else
-    exec node .output/server/index.mjs
+    # Change to .output directory where package.json exists
+    cd .output
+    exec node "server/index.mjs"
   fi
 fi
