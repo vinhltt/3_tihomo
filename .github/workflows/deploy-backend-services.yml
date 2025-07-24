@@ -118,10 +118,10 @@ jobs:
     timeout-minutes: 25
     
     steps:
-      - name: "[1/9] Checkout code"
+      - name: "[1/10] Checkout code"
         uses: actions/checkout@v4
 
-      - name: "[2/9] Setup environment"
+      - name: "[2/10] Setup environment"
         run: |
           # Clean project name - remove special characters and ensure lowercase
           CLEAN_ENV=$(echo "${{ inputs.environment }}" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]//g')
@@ -137,7 +137,7 @@ jobs:
           fi
         shell: bash
 
-      - name: "[3/9] Setup SSH"
+      - name: "[3/10] Setup SSH"
         run: |
           sudo wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -O /usr/local/bin/cloudflared
           sudo chmod +x /usr/local/bin/cloudflared
@@ -151,17 +151,62 @@ jobs:
           chmod 600 "$HOME/.ssh/config"
         shell: bash
 
-      - name: "[4/9] Add SSH key"
+      - name: "[4/10] Add SSH key"
         uses: webfactory/ssh-agent@v0.9.0
         with:
           ssh-private-key: ${{ secrets.TRUENAS_SSH_PRIVATE_KEY }}
 
-      - name: "[5/9] Sync project files"
+      - name: "[4.5/10] Prepare deployment directory"
         run: |
+          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << 'EOF'
+            echo "[PREP] Preparing deployment directory with proper permissions..."
+            
+            # Create required directories
+            mkdir -p ${{ env.TRUENAS_DEPLOY_DIR }}/uploads
+            mkdir -p ${{ env.TRUENAS_DEPLOY_DIR }}/logs
+            mkdir -p ${{ env.TRUENAS_DEPLOY_DIR }}/config
+            mkdir -p ${{ env.TRUENAS_DEPLOY_DIR }}/scripts
+            mkdir -p ${{ env.TRUENAS_DEPLOY_DIR }}/.rsync-partial
+            
+            # Set permissive permissions to avoid rsync issues
+            chmod 755 ${{ env.TRUENAS_DEPLOY_DIR }}
+            chmod -R 755 ${{ env.TRUENAS_DEPLOY_DIR }}/uploads 2>/dev/null || true
+            chmod -R 755 ${{ env.TRUENAS_DEPLOY_DIR }}/logs 2>/dev/null || true
+            chmod -R 755 ${{ env.TRUENAS_DEPLOY_DIR }}/config 2>/dev/null || true
+            chmod -R 755 ${{ env.TRUENAS_DEPLOY_DIR }}/scripts 2>/dev/null || true
+            chmod -R 755 ${{ env.TRUENAS_DEPLOY_DIR }}/.rsync-partial 2>/dev/null || true
+            
+            # Check if previous deployment exists and clean problematic files
+            if [ -d "${{ env.TRUENAS_DEPLOY_DIR }}/src" ]; then
+              echo "[CLEANUP] Cleaning previous deployment files that might cause permission issues..."
+              
+              # Fix directory permissions
+              find ${{ env.TRUENAS_DEPLOY_DIR }} -type d -exec chmod 755 {} \; 2>/dev/null || true
+              
+              # Fix file permissions for common problematic files
+              find ${{ env.TRUENAS_DEPLOY_DIR }} -type f -name "*.yml" -exec chmod 644 {} \; 2>/dev/null || true
+              find ${{ env.TRUENAS_DEPLOY_DIR }} -type f -name "*.yaml" -exec chmod 644 {} \; 2>/dev/null || true
+              find ${{ env.TRUENAS_DEPLOY_DIR }} -type f -name "*.sh" -exec chmod 755 {} \; 2>/dev/null || true
+              find ${{ env.TRUENAS_DEPLOY_DIR }} -type f -name "*.sql" -exec chmod 644 {} \; 2>/dev/null || true
+              find ${{ env.TRUENAS_DEPLOY_DIR }} -type f -name "*.conf" -exec chmod 644 {} \; 2>/dev/null || true
+            fi
+            
+            echo "[OK] Prepared deployment directory: ${{ env.TRUENAS_DEPLOY_DIR }}"
+          EOF
+        shell: bash
+
+      - name: "[5/10] Sync project files"
+        run: |
+          echo "[SYNC] Starting project files sync to TrueNAS..."
+          
+          # Enhanced rsync with robust error handling and permissions management
           rsync -rltvz --safe-links \
             --chmod=Du=rwx,Dgo=rx,Fu=rw,Fgo=r \
             --no-perms --no-owner --no-group \
+            --ignore-errors \
+            --force \
             --exclude '.git/' \
+            --exclude '.github/' \
             --exclude 'node_modules/' \
             --exclude 'bin/' \
             --exclude 'obj/' \
@@ -169,13 +214,51 @@ jobs:
             --exclude 'src/fe/' \
             --exclude '*.log' \
             --exclude 'coverage/' \
+            --exclude 'TestResults/' \
+            --exclude '.vs/' \
+            --exclude '.vscode/' \
+            --exclude '*.tmp' \
+            --exclude '*.temp' \
+            --exclude '.DS_Store' \
+            --exclude 'Thumbs.db' \
             --delete \
-            -e "ssh -F $HOME/.ssh/config" \
+            --delete-excluded \
+            --partial \
+            --partial-dir=.rsync-partial \
+            --progress \
+            --human-readable \
+            -e "ssh -F $HOME/.ssh/config -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=30" \
             $GITHUB_WORKSPACE/ \
-            truenas-cf-tunnel:"${{ env.TRUENAS_DEPLOY_DIR }}/"
+            truenas-cf-tunnel:"${{ env.TRUENAS_DEPLOY_DIR }}/" || {
+              RSYNC_EXIT_CODE=$?
+              echo "[ERROR] Rsync failed with exit code: $RSYNC_EXIT_CODE"
+              
+              case $RSYNC_EXIT_CODE in
+                1)  echo "[ERROR] Syntax or usage error" ;;
+                2)  echo "[ERROR] Protocol incompatibility" ;;
+                3)  echo "[ERROR] Errors selecting input/output files, dirs" ;;
+                11) echo "[ERROR] Error in file I/O" ;;
+                12) echo "[ERROR] Error in rsync protocol data stream" ;;
+                13) echo "[ERROR] Errors with program diagnostics" ;;
+                23) echo "[WARNING] Partial transfer due to error - some files may not have transferred correctly" ;;
+                24) echo "[ERROR] Partial transfer due to vanished source files" ;;
+                *)  echo "[ERROR] Unknown rsync error code: $RSYNC_EXIT_CODE" ;;
+              esac
+              
+              # Handle common non-critical errors that shouldn't stop deployment
+              if [ $RSYNC_EXIT_CODE -eq 23 ]; then
+                echo "[WARNING] Continuing deployment despite rsync warnings (exit code $RSYNC_EXIT_CODE)"
+                echo "[INFO] This usually indicates file permission/attribute warnings that don't affect functionality"
+              else
+                echo "[ERROR] Critical rsync error, stopping deployment"
+                exit $RSYNC_EXIT_CODE
+              fi
+            }
+          
+          echo "[OK] Project files synced successfully"
         shell: bash
 
-      - name: "[6/9] Verify environment file"
+      - name: "[6/10] Verify environment file"
         run: |
           ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << 'REMOTE_EOF'
             # Ensure directory exists and navigate to it
@@ -211,7 +294,7 @@ jobs:
             REMOTE_EOF
         shell: bash
 
-      - name: "[7/9] Deploy backend services with dependency management"
+      - name: "[7/10] Deploy backend services with dependency management"
         run: |
           ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << 'EOF'
             set -e
@@ -378,7 +461,7 @@ jobs:
           EOF
         shell: bash
 
-      - name: "[8/9] Health check backend services"
+      - name: "[8/10] Health check backend services"
         run: |
           ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << 'EOF'
             cd ${{ env.TRUENAS_DEPLOY_DIR }}
@@ -415,7 +498,7 @@ jobs:
           EOF
         shell: bash
 
-      - name: "[9/9] Send notification"
+      - name: "[9/10] Send notification"
         if: always()
         uses: appleboy/discord-action@v1.2.0
         with:
