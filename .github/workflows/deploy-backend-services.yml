@@ -270,7 +270,7 @@ jobs:
 
       - name: "[7/10] Verify environment file"
         run: |
-          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel /bin/bash << 'REMOTE_EOF'
+          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel /bin/bash << 'EOF'
             # Ensure directory exists and navigate to it
             mkdir -p ${{ env.TRUENAS_DEPLOY_DIR }}
             cd ${{ env.TRUENAS_DEPLOY_DIR }}
@@ -355,7 +355,7 @@ jobs:
             fi
             
             echo "[INFO] Backend environment verified"
-          REMOTE_EOF
+          EOF
         shell: bash
 
       - name: "[8/10] Deploy backend services with dependency management"

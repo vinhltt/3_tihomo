@@ -164,7 +164,7 @@ jobs:
 
       - name: "[6/8] Verify environment for frontend"
         run: |
-          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << 'REMOTE_EOF'
+          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel /bin/bash << 'EOF'
             # Ensure directory exists and navigate to it
             mkdir -p ${{ env.TRUENAS_DEPLOY_DIR }}
             cd ${{ env.TRUENAS_DEPLOY_DIR }}
@@ -195,12 +195,12 @@ jobs:
             fi
             
             echo "[INFO] Frontend environment verified"
-            REMOTE_EOF
+            EOF
         shell: bash
 
       - name: "[7/8] Deploy frontend with graceful shutdown"
         run: |
-          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << 'EOF'
+          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel /bin/bash << 'EOF'
             set -e
             cd ${{ env.TRUENAS_DEPLOY_DIR }}
             
@@ -302,7 +302,7 @@ jobs:
 
       - name: "[8/8] Final health check and notification"
         run: |
-          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << 'EOF'
+          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel /bin/bash << 'EOF'
             cd ${{ env.TRUENAS_DEPLOY_DIR }}
             
             if docker ps >/dev/null 2>&1; then

@@ -79,7 +79,7 @@ jobs:
 
       - name: "[5/8] Prepare deployment directory and create environment file"
         run: |
-          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << 'REMOTE_EOF'
+          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << 'EOF'
             # Create deployment directory if it doesn't exist
             mkdir -p ${{ env.TRUENAS_DEPLOY_DIR }}
             cd ${{ env.TRUENAS_DEPLOY_DIR }}
@@ -260,7 +260,7 @@ jobs:
           echo "  - Total variables: $(wc -l < .env)"
           echo "  - Network subnet: $(grep DOCKER_NETWORK_SUBNET .env | cut -d'=' -f2)"
           echo "  - Project name: $(grep COMPOSE_PROJECT_NAME .env | cut -d'=' -f2)"
-          REMOTE_EOF
+          EOF
         shell: bash
 
       - name: "[6/10] Deploy database services"
@@ -425,7 +425,7 @@ jobs:
 
       - name: "[8/10] Health check infrastructure"
         run: |
-          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << 'REMOTE_EOF'
+          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << 'EOF'
             # Use environment variable for proper path
             DEPLOY_DIR="${{ env.TRUENAS_DEPLOY_DIR }}"
             echo "[INFO] Navigating to deployment directory: $DEPLOY_DIR"
@@ -501,7 +501,7 @@ jobs:
             
             echo "[SUCCESS] Infrastructure health check completed"
             echo "[INFO] Some warnings are normal during service initialization"
-          REMOTE_EOF
+          EOF
         shell: bash
 
       - name: "[9/10] Send notification"
