@@ -71,7 +71,7 @@ jobs:
         run: |
           DEPLOY_DIR="${{ vars.DEPLOY_PATH_ON_TRUENAS }}/deploy_${GITHUB_REF_NAME}"
           
-          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << REMOTE_EOF
+          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel /bin/bash << 'EOF'
             # Set deployment directory and navigate to it
             DEPLOY_DIR="$DEPLOY_DIR"
             
@@ -121,7 +121,7 @@ jobs:
             fi
             
             echo "[OK] Backend services are ready for frontend deployment"
-          REMOTE_EOF
+          EOF
         shell: bash
 
   deploy-frontend:
@@ -165,7 +165,7 @@ jobs:
 
       - name: "[4.5/9] Prepare deployment directory"
         run: |
-          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << 'REMOTE_EOF'
+          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel /bin/bash << 'EOF'
             echo "[PREP] Preparing frontend deployment directory..."
             
             DEPLOY_DIR="${{ env.TRUENAS_DEPLOY_DIR }}"
@@ -200,7 +200,7 @@ jobs:
             fi
             
             echo "[OK] Frontend deployment directory prepared with proper permissions"
-          REMOTE_EOF
+          EOF
         shell: bash
 
       - name: "[5/9] Sync frontend files"
@@ -256,7 +256,7 @@ jobs:
           
           # Verify the synced files structure
           echo "[DEBUG] Verifying synced frontend files structure..."
-          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << 'REMOTE_EOF'
+          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel /bin/bash << 'EOF'
             cd ${{ env.TRUENAS_DEPLOY_DIR }}
             echo "[DEBUG] Current directory: $(pwd)"
             echo "[DEBUG] Directory structure after rsync:"
@@ -273,12 +273,12 @@ jobs:
               find . -type d -name "*nuxt*" 2>/dev/null || echo "No nuxt directories found"
             fi
             echo "[DEBUG] docker-compose.yml exists: $(test -f docker-compose.yml && echo 'YES' || echo 'NO')"
-          REMOTE_EOF
+          EOF
         shell: bash
 
       - name: "[6/9] Create comprehensive environment file for frontend"
         run: |
-          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << 'REMOTE_EOF'
+          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel /bin/bash << 'EOF'
             # Set deployment directory and navigate to it
             DEPLOY_DIR="${{ env.TRUENAS_DEPLOY_DIR }}"
             
@@ -468,12 +468,12 @@ jobs:
             head -20 .env
             
             echo "[INFO] Frontend environment setup completed"
-          REMOTE_EOF
+          EOF
         shell: bash
 
       - name: "[7/9] Deploy frontend with complete cleanup and rebuild"
         run: |
-          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << 'REMOTE_EOF'
+          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel /bin/bash << 'EOF'
             set -e
             cd ${{ env.TRUENAS_DEPLOY_DIR }}
             
@@ -642,12 +642,12 @@ jobs:
             # Show recent logs for verification
             echo "[LOGS] Recent frontend logs:"
             $USE_SUDO docker compose logs --tail=10 frontend-nuxt
-          REMOTE_EOF
+          EOF
         shell: bash
 
       - name: "[8/9] Final health check and notification"
         run: |
-          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << 'REMOTE_EOF'
+          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel /bin/bash << 'EOF'
             cd ${{ env.TRUENAS_DEPLOY_DIR }}
             
             if docker ps >/dev/null 2>&1; then
@@ -687,7 +687,7 @@ jobs:
             
             echo "[INFO] Full system status:"
             $USE_SUDO docker compose ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}"
-          REMOTE_EOF
+          EOF
           
           # Send Discord notification
           webhook_url="${{ secrets.DISCORD_WEBHOOK_URL }}"
