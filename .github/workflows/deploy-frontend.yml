@@ -320,26 +320,24 @@ jobs:
             
             # Create .env file using cat heredoc to avoid echo command issues
             rm -f .env
-            
-            # Create static content first
-            cat > .env << 'ENVEOF'
-            # ================================
-            # CORS Configuration
-            # ================================
-            CORS_POLICY_NAME=DefaultCorsPolicy
-            CORS_ALLOWED_ORIGINS=*
-            CORS_ALLOWED_METHODS=*
-            CORS_ALLOWED_HEADERS=*
-            CORS_EXPOSED_HEADERS=Token-Expired
-            CORS_PREFLIGHT_MAX_AGE=10
 
-            # ================================
-            # Environment Configuration
-            # ================================
-            ASPNETCORE_ENVIRONMENT=Docker
-            ENVEOF
+            echo "# Create static content first" >> .env
+            echo "# ================================" >> .env
+            echo "# CORS Configuration" >> .env
+            echo "# ================================" >> .env
+            echo "CORS_POLICY_NAME=DefaultCorsPolicy" >> .env
+            echo "CORS_ALLOWED_ORIGINS=*" >> .env
+            echo "CORS_ALLOWED_METHODS=*" >> .env
+            echo "CORS_ALLOWED_HEADERS=*" >> .env
+            echo "CORS_EXPOSED_HEADERS=Token-Expired" >> .env
+            echo "CORS_PREFLIGHT_MAX_AGE=10" >> .env
+            echo "" >> .env
+            echo "# ================================" >> .env
+            echo "# Environment Configuration" >> .env
+            echo "# ================================" >> .env
+            echo "ASPNETCORE_ENVIRONMENT=Docker" >> .env
 
-            # Add variables that need GitHub Actions substitution
+            echo "# Add variables that need GitHub Actions substitution" >> .env
             echo "" >> .env
             echo "# ================================" >> .env
             echo "# Database Configuration" >> .env
