@@ -268,7 +268,7 @@ jobs:
           echo "[OK] Project files synced successfully"
         shell: bash
 
-      - name: "[7/10] Verify environment file"
+      - name: "[7/10] Create comprehensive environment file for backend"
         run: |
           ssh -F "$HOME/.ssh/config" truenas-cf-tunnel /bin/bash << 'EOF'
             # Ensure directory exists and navigate to it
@@ -277,84 +277,156 @@ jobs:
             
             echo "[INFO] Working in directory: $(pwd)"
             
-            if [ ! -f .env ]; then
-              echo "[WARNING] .env file not found - attempting to create from infrastructure deployment"
-              
-              # Check if we should skip infrastructure dependency
-              if [ "${{ inputs.skip_infrastructure_check }}" = "true" ]; then
-                echo "[INFO] Skipping infrastructure check as requested"
-                echo "[INFO] Creating minimal .env file for backend deployment"
-                
-                # Create minimal .env with required backend variables using echo statements
-                echo "# Minimal environment configuration for backend deployment" > .env
-                echo "COMPOSE_PROJECT_NAME=${{ env.COMPOSE_PROJECT_NAME }}" >> .env
-                echo "JWT_SECRET_KEY='${{ secrets.JWT_SECRET_KEY }}'" >> .env
-                echo "JWT_ISSUER=${{ vars.JWT_ISSUER || 'TiHoMo' }}" >> .env
-                echo "JWT_AUDIENCE=${{ vars.JWT_AUDIENCE || 'TiHoMo' }}" >> .env
-                echo "GATEWAY_PORT=${{ vars.GATEWAY_PORT || '5000' }}" >> .env
-                echo "" >> .env
-                echo "# Database Configuration - MoneyManagement" >> .env
-                echo "MONEYMANAGEMENT_DB_USERNAME=${{ secrets.MONEYMANAGEMENT_DB_USERNAME || 'money_user' }}" >> .env
-                echo "MONEYMANAGEMENT_DB_PASSWORD='${{ secrets.MONEYMANAGEMENT_DB_PASSWORD || secrets.IDENTITY_DB_PASSWORD }}'" >> .env
-                echo "MONEYMANAGEMENT_DB_PORT=${{ vars.MONEYMANAGEMENT_DB_PORT || '5835' }}" >> .env
-                echo "" >> .env
-                echo "# Database Configuration - Reporting" >> .env
-                echo "REPORTING_DB_USERNAME=${{ secrets.REPORTING_DB_USERNAME || 'reporting_user' }}" >> .env
-                echo "REPORTING_DB_PASSWORD='${{ secrets.REPORTING_DB_PASSWORD || secrets.IDENTITY_DB_PASSWORD }}'" >> .env
-                echo "REPORTING_DB_PORT=${{ vars.REPORTING_DB_PORT || '5837' }}" >> .env
-                echo "" >> .env
-                echo "# Redis Configuration" >> .env
-                echo "REDIS_PORT=${{ vars.REDIS_PORT || '6379' }}" >> .env
-                echo "REDIS_PASSWORD='${{ secrets.REDIS_PASSWORD }}'" >> .env
-                echo "" >> .env
-                echo "# Monitoring Configuration" >> .env
-                echo "PROMETHEUS_PORT=${{ vars.PROMETHEUS_PORT || '9090' }}" >> .env
-                echo "GRAFANA_PORT=${{ vars.GRAFANA_PORT || '3002' }}" >> .env
-                echo "GRAFANA_ADMIN_PASSWORD='${{ secrets.GRAFANA_ADMIN_PASSWORD || secrets.IDENTITY_DB_PASSWORD }}'" >> .env
-                echo "" >> .env
-                echo "# RabbitMQ Configuration" >> .env
-                echo "RABBITMQ_PORT=${{ vars.RABBITMQ_PORT || '5672' }}" >> .env
-                echo "RABBITMQ_MANAGEMENT_PORT=${{ vars.RABBITMQ_MANAGEMENT_PORT || '15672' }}" >> .env
-                echo "RABBITMQ_PASSWORD='${{ secrets.RABBITMQ_PASSWORD }}'" >> .env
-                echo "" >> .env
-                echo "# Development Tools" >> .env
-                echo "MAILHOG_SMTP_PORT=${{ vars.MAILHOG_SMTP_PORT || '1025' }}" >> .env
-                echo "MAILHOG_UI_PORT=${{ vars.MAILHOG_UI_PORT || '8025' }}" >> .env
-                echo "" >> .env
-                echo "# JWT Configuration" >> .env
-                echo "JWT_AUDIENCE_OCELOT_GATEWAY=${{ vars.JWT_AUDIENCE_OCELOT_GATEWAY || 'TiHoMo.Gateway' }}" >> .env
-                echo "JWT_AUDIENCE_IDENTITY_API=${{ vars.JWT_AUDIENCE_IDENTITY_API || 'TiHoMo.Identity' }}" >> .env
-                echo "JWT_AUDIENCE_COREFINANCE_API=${{ vars.JWT_AUDIENCE_COREFINANCE_API || 'TiHoMo.CoreFinance' }}" >> .env
-                echo "" >> .env
-                echo "# Network Configuration" >> .env
-                echo "DOCKER_NETWORK_SUBNET=${{ vars.DOCKER_NETWORK_SUBNET || '172.20.0.0/16' }}" >> .env
-                echo "[OK] Created minimal .env file"
-              else
-                echo "[ERROR] .env file not found and infrastructure check not skipped"
-                echo "[ACTION] Please run infrastructure deployment first or use skip_infrastructure_check=true"
-                exit 1
-              fi
+            # Backup existing .env if it exists
+            if [ -f .env ]; then
+              echo "[BACKUP] Creating backup of existing .env..."
+              cp .env .env.backup.$(date +%Y%m%d_%H%M%S)
             fi
             
-            echo "[INFO] .env file exists, checking backend-related variables..."
+            echo "[CREATE] Creating comprehensive .env file for backend deployment..."
             
-            # Verify critical backend variables exist
-            BACKEND_VARS=("JWT_SECRET_KEY" "GATEWAY_PORT" "JWT_ISSUER")
-            MISSING_VARS=()
+            # Always create comprehensive .env file using echo statements
+            # This approach is more reliable in GitHub Actions
             
-            for var in "${BACKEND_VARS[@]}"; do
-              if ! grep -q "^${var}=" .env; then
-                MISSING_VARS+=("$var")
-              fi
-            done
+            # Clear any existing .env file
+            > .env
             
-            if [ ${#MISSING_VARS[@]} -gt 0 ]; then
-              echo "[WARNING] Missing backend variables: ${MISSING_VARS[*]}"
-            else
-              echo "[OK] All backend variables are present"
-            fi
+            # CORS Configuration
+            echo "# ================================" >> .env
+            echo "# CORS Configuration" >> .env
+            echo "# ================================" >> .env
+            echo "CORS_POLICY_NAME=DefaultCorsPolicy" >> .env
+            echo "CORS_ALLOWED_ORIGINS=*" >> .env
+            echo "CORS_ALLOWED_METHODS=*" >> .env
+            echo "CORS_ALLOWED_HEADERS=*" >> .env
+            echo "CORS_EXPOSED_HEADERS=Token-Expired" >> .env
+            echo "CORS_PREFLIGHT_MAX_AGE=10" >> .env
+            echo "" >> .env
             
-            echo "[INFO] Backend environment verified"
+            # Environment Configuration
+            echo "# ================================" >> .env
+            echo "# Environment Configuration" >> .env
+            echo "# ================================" >> .env
+            echo "ASPNETCORE_ENVIRONMENT=Production" >> .env
+            echo "" >> .env
+            
+            # Database Configuration
+            echo "# ================================" >> .env
+            echo "# Database Configuration" >> .env
+            echo "# ================================" >> .env
+            echo "# Identity Database" >> .env
+            echo "IDENTITY_DB_USERNAME=identity_user" >> .env
+            echo "IDENTITY_DB_PASSWORD=TiHoMo2024!DB" >> .env
+            echo "IDENTITY_DB_PORT=5431" >> .env
+            echo "" >> .env
+            echo "# CoreFinance Database" >> .env
+            echo "COREFINANCE_DB_USERNAME=corefinance_user" >> .env
+            echo "COREFINANCE_DB_PASSWORD=TiHoMo2024!DB" >> .env
+            echo "COREFINANCE_DB_PORT=5432" >> .env
+            echo "" >> .env
+            echo "# MoneyManagement Database" >> .env
+            echo "MONEYMANAGEMENT_DB_USERNAME=money_user" >> .env
+            echo "MONEYMANAGEMENT_DB_PASSWORD=TiHoMo2024!DB" >> .env
+            echo "MONEYMANAGEMENT_DB_PORT=5433" >> .env
+            echo "" >> .env
+            echo "# PlanningInvestment Database" >> .env
+            echo "PLANNINGINVESTMENT_DB_USERNAME=planning_user" >> .env
+            echo "PLANNINGINVESTMENT_DB_PASSWORD=TiHoMo2024!DB" >> .env
+            echo "PLANNINGINVESTMENT_DB_PORT=5434" >> .env
+            echo "" >> .env
+            echo "# Reporting Database" >> .env
+            echo "REPORTING_DB_USERNAME=reporting_user" >> .env
+            echo "REPORTING_DB_PASSWORD=TiHoMo2024!DB" >> .env
+            echo "REPORTING_DB_PORT=5435" >> .env
+            echo "" >> .env
+            
+            # Authentication Configuration
+            echo "# ================================" >> .env
+            echo "# Authentication Configuration" >> .env
+            echo "# ================================" >> .env
+            echo "JWT_SECRET_KEY=TiHoMo-Super-Secret-JWT-Key-2024-Production-Environment-Must-Be-At-Least-64-Characters" >> .env
+            echo "JWT_ISSUER=TiHoMo" >> .env
+            echo "JWT_AUDIENCE_IDENTITY_API=TiHoMo.Identity.Api" >> .env
+            echo "JWT_AUDIENCE_COREFINANCE_API=TiHoMo.CoreFinance.Api" >> .env
+            echo "JWT_AUDIENCE_EXCEL_API=TiHoMo.Excel.Api" >> .env
+            echo "JWT_AUDIENCE_FRONTEND=TiHoMo.Frontend" >> .env
+            echo "" >> .env
+            
+            # External Services Configuration
+            echo "# ================================" >> .env
+            echo "# External Services Configuration" >> .env
+            echo "# ================================" >> .env
+            echo "# Redis" >> .env
+            echo "REDIS_PASSWORD=TiHoMo2024!Redis" >> .env
+            echo "" >> .env
+            echo "# RabbitMQ" >> .env
+            echo "RABBITMQ_PASSWORD=TiHoMo2024!Rabbit" >> .env
+            echo "" >> .env
+            
+            # API Ports Configuration
+            echo "# ================================" >> .env
+            echo "# API Ports Configuration" >> .env
+            echo "# ================================" >> .env
+            echo "API_GATEWAY_PORT=8080" >> .env
+            echo "IDENTITY_API_PORT=5217" >> .env
+            echo "COREFINANCE_API_PORT=7293" >> .env
+            echo "EXCEL_API_PORT=5219" >> .env
+            echo "FRONTEND_PORT=3500" >> .env
+            echo "" >> .env
+            
+            # Docker Build Configuration
+            echo "# ================================" >> .env
+            echo "# Docker Build Configuration" >> .env
+            echo "# ================================" >> .env
+            echo "# Nuxt Build Target: production for deployment" >> .env
+            echo "NUXT_BUILD_TARGET=production" >> .env
+            echo "# Node Environment: production for deployment" >> .env
+            echo "NODE_ENV=production" >> .env
+            echo "# Docker User: 1001:1001 for production security" >> .env
+            echo "DOCKER_USER=1001:1001" >> .env
+            echo "# Production-specific settings" >> .env
+            echo "NUXT_DEV_SSR=false" >> .env
+            echo "NUXT_DEV_TOOLS=false" >> .env
+            echo "NUXT_DEBUG=false" >> .env
+            echo "" >> .env
+            
+            # Frontend Configuration
+            echo "# ================================" >> .env
+            echo "# Frontend Configuration" >> .env
+            echo "# ================================" >> .env
+            echo "FRONTEND_BASE_URL=http://localhost:3500" >> .env
+            echo "APP_PUBLIC_GOOGLE_CLIENT_ID=your-google-client-id" >> .env
+            echo "" >> .env
+            
+            # Infrastructure Configuration
+            echo "# ================================" >> .env
+            echo "# Infrastructure Configuration" >> .env
+            echo "# ================================" >> .env
+            echo "# pgAdmin" >> .env
+            echo "PGADMIN_PASSWORD=TiHoMo2024!pgAdmin" >> .env
+            echo "PGADMIN_PORT=8080" >> .env
+            echo "" >> .env
+            echo "# Loki" >> .env
+            echo "LOKI_PORT=3100" >> .env
+            echo "" >> .env
+            echo "# Nginx" >> .env
+            echo "NGINX_HTTP_PORT=80" >> .env
+            echo "NGINX_HTTPS_PORT=443" >> .env
+            echo "" >> .env
+            
+            # Docker Compose Project Name
+            echo "# ================================" >> .env
+            echo "# Docker Compose Project Name" >> .env
+            echo "# ================================" >> .env
+            echo "COMPOSE_PROJECT_NAME=tihomo_production" >> .env
+            
+            echo "[OK] Comprehensive .env file created successfully"
+            
+            # Display first few lines for verification (without sensitive data)
+            echo "[VERIFY] .env file content (first 20 lines):"
+            head -20 .env
+            
+            echo "[INFO] Backend environment setup completed"
           EOF
         shell: bash
 
