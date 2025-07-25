@@ -285,175 +285,139 @@ jobs:
             
             echo "[CREATE] Creating comprehensive .env file for backend deployment..."
             
-            # Always create comprehensive .env file using bash variable assignment
-            # This approach avoids shell interpretation issues with special characters
-            
-            # Clear any existing .env file
-            > .env
-            
-            # Setup environment variables from GitHub Secrets (no default values for secrets)
-            IDENTITY_DB_PASSWORD='${{ secrets.IDENTITY_DB_PASSWORD }}'
-            COREFINANCE_DB_PASSWORD='${{ secrets.COREFINANCE_DB_PASSWORD }}'
-            MONEYMANAGEMENT_DB_PASSWORD='${{ secrets.MONEYMANAGEMENT_DB_PASSWORD }}'
-            PLANNINGINVESTMENT_DB_PASSWORD='${{ secrets.PLANNINGINVESTMENT_DB_PASSWORD }}'
-            REPORTING_DB_PASSWORD='${{ secrets.REPORTING_DB_PASSWORD }}'
-            JWT_SECRET_KEY='${{ secrets.JWT_SECRET_KEY }}'
-            REDIS_PASSWORD='${{ secrets.REDIS_PASSWORD }}'
-            RABBITMQ_PASSWORD='${{ secrets.RABBITMQ_PASSWORD }}'
-            GRAFANA_ADMIN_PASSWORD='${{ secrets.GRAFANA_ADMIN_PASSWORD }}'
-            PGADMIN_PASSWORD='${{ secrets.PGADMIN_PASSWORD }}'
-            
-            # CORS Configuration
-            echo "# ================================" >> .env
-            echo "# CORS Configuration" >> .env
-            echo "# ================================" >> .env
-            echo "CORS_POLICY_NAME=DefaultCorsPolicy" >> .env
-            echo "CORS_ALLOWED_ORIGINS=*" >> .env
-            echo "CORS_ALLOWED_METHODS=*" >> .env
-            echo "CORS_ALLOWED_HEADERS=*" >> .env
-            echo "CORS_EXPOSED_HEADERS=Token-Expired" >> .env
-            echo "CORS_PREFLIGHT_MAX_AGE=10" >> .env
-            echo "" >> .env
-            
-            # Environment Configuration
-            echo "# ================================" >> .env
-            echo "# Environment Configuration" >> .env
-            echo "# ================================" >> .env
-            echo "ASPNETCORE_ENVIRONMENT=Production" >> .env
-            echo "" >> .env
-            
-            # Database Configuration
-            echo "# ================================" >> .env
-            echo "# Database Configuration" >> .env
-            echo "# ================================" >> .env
-            echo "# Identity Database" >> .env
-            echo "IDENTITY_DB_USERNAME=${{ vars.IDENTITY_DB_USERNAME || 'identity_user' }}" >> .env
-            echo "IDENTITY_DB_PASSWORD=$IDENTITY_DB_PASSWORD" >> .env
-            echo "IDENTITY_DB_PORT=${{ vars.IDENTITY_DB_PORT || '5431' }}" >> .env
-            echo "" >> .env
-            echo "# CoreFinance Database" >> .env
-            echo "COREFINANCE_DB_USERNAME=${{ vars.COREFINANCE_DB_USERNAME || 'corefinance_user' }}" >> .env
-            echo "COREFINANCE_DB_PASSWORD=$COREFINANCE_DB_PASSWORD" >> .env
-            echo "COREFINANCE_DB_PORT=${{ vars.COREFINANCE_DB_PORT || '5432' }}" >> .env
-            echo "" >> .env
-            echo "# MoneyManagement Database" >> .env
-            echo "MONEYMANAGEMENT_DB_USERNAME=${{ vars.MONEYMANAGEMENT_DB_USERNAME || 'money_user' }}" >> .env
-            echo "MONEYMANAGEMENT_DB_PASSWORD=$MONEYMANAGEMENT_DB_PASSWORD" >> .env
-            echo "MONEYMANAGEMENT_DB_PORT=${{ vars.MONEYMANAGEMENT_DB_PORT || '5433' }}" >> .env
-            echo "" >> .env
-            echo "# PlanningInvestment Database" >> .env
-            echo "PLANNINGINVESTMENT_DB_USERNAME=${{ vars.PLANNINGINVESTMENT_DB_USERNAME || 'planning_user' }}" >> .env
-            echo "PLANNINGINVESTMENT_DB_PASSWORD=$PLANNINGINVESTMENT_DB_PASSWORD" >> .env
-            echo "PLANNINGINVESTMENT_DB_PORT=${{ vars.PLANNINGINVESTMENT_DB_PORT || '5434' }}" >> .env
-            echo "" >> .env
-            echo "# Reporting Database" >> .env
-            echo "REPORTING_DB_USERNAME=${{ vars.REPORTING_DB_USERNAME || 'reporting_user' }}" >> .env
-            echo "REPORTING_DB_PASSWORD=$REPORTING_DB_PASSWORD" >> .env
-            echo "REPORTING_DB_PORT=${{ vars.REPORTING_DB_PORT || '5435' }}" >> .env
-            echo "" >> .env
-            
-            # Authentication Configuration
-            echo "# ================================" >> .env
-            echo "# Authentication Configuration" >> .env
-            echo "# ================================" >> .env
-            echo "JWT_SECRET_KEY=$JWT_SECRET_KEY" >> .env
-            echo "JWT_ISSUER=${{ vars.JWT_ISSUER || 'TiHoMo' }}" >> .env
-            echo "JWT_AUDIENCE_IDENTITY_API=${{ vars.JWT_AUDIENCE_IDENTITY_API || 'TiHoMo.Identity.Api' }}" >> .env
-            echo "JWT_AUDIENCE_COREFINANCE_API=${{ vars.JWT_AUDIENCE_COREFINANCE_API || 'TiHoMo.CoreFinance.Api' }}" >> .env
-            echo "JWT_AUDIENCE_EXCEL_API=${{ vars.JWT_AUDIENCE_EXCEL_API || 'TiHoMo.Excel.Api' }}" >> .env
-            echo "JWT_AUDIENCE_FRONTEND=${{ vars.JWT_AUDIENCE_FRONTEND || 'TiHoMo.Frontend' }}" >> .env
-            echo "JWT_AUDIENCE_OCELOT_GATEWAY=${{ vars.JWT_AUDIENCE_OCELOT_GATEWAY || 'TiHoMo.Gateway' }}" >> .env
-            echo "" >> .env
-            
-            # External Services Configuration
-            echo "# ================================" >> .env
-            echo "# External Services Configuration" >> .env
-            echo "# ================================" >> .env
-            echo "# Redis" >> .env
-            echo "REDIS_PASSWORD=$REDIS_PASSWORD" >> .env
-            echo "REDIS_PORT=${{ vars.REDIS_PORT || '6379' }}" >> .env
-            echo "" >> .env
-            echo "# RabbitMQ" >> .env
-            echo "RABBITMQ_PASSWORD=$RABBITMQ_PASSWORD" >> .env
-            echo "RABBITMQ_PORT=${{ vars.RABBITMQ_PORT || '5672' }}" >> .env
-            echo "RABBITMQ_MANAGEMENT_PORT=${{ vars.RABBITMQ_MANAGEMENT_PORT || '15672' }}" >> .env
-            echo "" >> .env
-            echo "# Monitoring" >> .env
-            echo "PROMETHEUS_PORT=${{ vars.PROMETHEUS_PORT || '9090' }}" >> .env
-            echo "GRAFANA_PORT=${{ vars.GRAFANA_PORT || '3000' }}" >> .env
-            echo "GRAFANA_ADMIN_PASSWORD=$GRAFANA_ADMIN_PASSWORD" >> .env
-            echo "" >> .env
-            echo "# Development Tools" >> .env
-            echo "MAILHOG_SMTP_PORT=${{ vars.MAILHOG_SMTP_PORT || '1025' }}" >> .env
-            echo "MAILHOG_UI_PORT=${{ vars.MAILHOG_UI_PORT || '8025' }}" >> .env
-            echo "" >> .env
-            echo "# Gateway" >> .env
-            echo "GATEWAY_PORT=${{ vars.GATEWAY_PORT || '8080' }}" >> .env
-            echo "" >> .env
-            
-            # API Ports Configuration
-            echo "# ================================" >> .env
-            echo "# API Ports Configuration" >> .env
-            echo "# ================================" >> .env
-            echo "API_GATEWAY_PORT=${{ vars.API_GATEWAY_PORT || '8080' }}" >> .env
-            echo "IDENTITY_API_PORT=${{ vars.IDENTITY_API_PORT || '5217' }}" >> .env
-            echo "COREFINANCE_API_PORT=${{ vars.COREFINANCE_API_PORT || '7293' }}" >> .env
-            echo "EXCEL_API_PORT=${{ vars.EXCEL_API_PORT || '5219' }}" >> .env
-            echo "FRONTEND_PORT=${{ vars.FRONTEND_PORT || '3500' }}" >> .env
-            echo "" >> .env
-            
-            # Docker Build Configuration
-            echo "# ================================" >> .env
-            echo "# Docker Build Configuration" >> .env
-            echo "# ================================" >> .env
-            echo "# Nuxt Build Target: production for deployment" >> .env
-            echo "NUXT_BUILD_TARGET=production" >> .env
-            echo "# Node Environment: production for deployment" >> .env
-            echo "NODE_ENV=production" >> .env
-            echo "# Docker User: 1001:1001 for production security" >> .env
-            echo "DOCKER_USER=1001:1001" >> .env
-            echo "# Production-specific settings" >> .env
-            echo "NUXT_DEV_SSR=false" >> .env
-            echo "NUXT_DEV_TOOLS=false" >> .env
-            echo "NUXT_DEBUG=false" >> .env
-            echo "" >> .env
-            
-            # Frontend Configuration
-            echo "# ================================" >> .env
-            echo "# Frontend Configuration" >> .env
-            echo "# ================================" >> .env
-            echo "FRONTEND_BASE_URL=${{ vars.FRONTEND_BASE_URL || 'http://localhost:3500' }}" >> .env
-            echo "APP_PUBLIC_GOOGLE_CLIENT_ID=${{ vars.APP_PUBLIC_GOOGLE_CLIENT_ID }}" >> .env
-            echo "" >> .env
-            
-            # Infrastructure Configuration
-            echo "# ================================" >> .env
-            echo "# Infrastructure Configuration" >> .env
-            echo "# ================================" >> .env
-            echo "# pgAdmin" >> .env
-            echo "PGADMIN_PASSWORD=$PGADMIN_PASSWORD" >> .env
-            echo "PGADMIN_PORT=${{ vars.PGADMIN_PORT || '8080' }}" >> .env
-            echo "" >> .env
-            echo "# Loki" >> .env
-            echo "LOKI_PORT=${{ vars.LOKI_PORT || '3100' }}" >> .env
-            echo "" >> .env
-            echo "# Nginx" >> .env
-            echo "NGINX_HTTP_PORT=${{ vars.NGINX_HTTP_PORT || '80' }}" >> .env
-            echo "NGINX_HTTPS_PORT=${{ vars.NGINX_HTTPS_PORT || '443' }}" >> .env
-            echo "" >> .env
-            
-            # Network Configuration
-            echo "# ================================" >> .env
-            echo "# Network Configuration" >> .env
-            echo "# ================================" >> .env
-            echo "DOCKER_NETWORK_SUBNET=${{ vars.DOCKER_NETWORK_SUBNET || '172.20.0.0/16' }}" >> .env
-            echo "" >> .env
-            
-            # Docker Compose Project Name
-            echo "# ================================" >> .env
-            echo "# Docker Compose Project Name" >> .env
-            echo "# ================================" >> .env
-            echo "COMPOSE_PROJECT_NAME=${{ env.COMPOSE_PROJECT_NAME }}" >> .env
+            # Create .env file using here document approach to completely avoid shell interpretation
+            cat > .env << 'ENVFILE'
+# ================================
+# CORS Configuration
+# ================================
+CORS_POLICY_NAME=DefaultCorsPolicy
+CORS_ALLOWED_ORIGINS=*
+CORS_ALLOWED_METHODS=*
+CORS_ALLOWED_HEADERS=*
+CORS_EXPOSED_HEADERS=Token-Expired
+CORS_PREFLIGHT_MAX_AGE=10
+
+# ================================
+# Environment Configuration
+# ================================
+ASPNETCORE_ENVIRONMENT=Production
+
+# ================================
+# Database Configuration
+# ================================
+# Identity Database
+IDENTITY_DB_USERNAME=${{ vars.IDENTITY_DB_USERNAME || 'identity_user' }}
+IDENTITY_DB_PASSWORD=${{ secrets.IDENTITY_DB_PASSWORD }}
+IDENTITY_DB_PORT=${{ vars.IDENTITY_DB_PORT || '5431' }}
+
+# CoreFinance Database  
+COREFINANCE_DB_USERNAME=${{ vars.COREFINANCE_DB_USERNAME || 'corefinance_user' }}
+COREFINANCE_DB_PASSWORD=${{ secrets.COREFINANCE_DB_PASSWORD }}
+COREFINANCE_DB_PORT=${{ vars.COREFINANCE_DB_PORT || '5432' }}
+
+# MoneyManagement Database
+MONEYMANAGEMENT_DB_USERNAME=${{ vars.MONEYMANAGEMENT_DB_USERNAME || 'money_user' }}
+MONEYMANAGEMENT_DB_PASSWORD=${{ secrets.MONEYMANAGEMENT_DB_PASSWORD }}
+MONEYMANAGEMENT_DB_PORT=${{ vars.MONEYMANAGEMENT_DB_PORT || '5433' }}
+
+# PlanningInvestment Database
+PLANNINGINVESTMENT_DB_USERNAME=${{ vars.PLANNINGINVESTMENT_DB_USERNAME || 'planning_user' }}
+PLANNINGINVESTMENT_DB_PASSWORD=${{ secrets.PLANNINGINVESTMENT_DB_PASSWORD }}
+PLANNINGINVESTMENT_DB_PORT=${{ vars.PLANNINGINVESTMENT_DB_PORT || '5434' }}
+
+# Reporting Database
+REPORTING_DB_USERNAME=${{ vars.REPORTING_DB_USERNAME || 'reporting_user' }}
+REPORTING_DB_PASSWORD=${{ secrets.REPORTING_DB_PASSWORD }}
+REPORTING_DB_PORT=${{ vars.REPORTING_DB_PORT || '5435' }}
+
+# ================================
+# Authentication Configuration
+# ================================
+JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}
+JWT_ISSUER=${{ vars.JWT_ISSUER || 'TiHoMo' }}
+JWT_AUDIENCE_IDENTITY_API=${{ vars.JWT_AUDIENCE_IDENTITY_API || 'TiHoMo.Identity.Api' }}
+JWT_AUDIENCE_COREFINANCE_API=${{ vars.JWT_AUDIENCE_COREFINANCE_API || 'TiHoMo.CoreFinance.Api' }}
+JWT_AUDIENCE_EXCEL_API=${{ vars.JWT_AUDIENCE_EXCEL_API || 'TiHoMo.Excel.Api' }}
+JWT_AUDIENCE_FRONTEND=${{ vars.JWT_AUDIENCE_FRONTEND || 'TiHoMo.Frontend' }}
+JWT_AUDIENCE_OCELOT_GATEWAY=${{ vars.JWT_AUDIENCE_OCELOT_GATEWAY || 'TiHoMo.Gateway' }}
+
+# ================================
+# External Services Configuration
+# ================================
+# Redis
+REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}
+REDIS_PORT=${{ vars.REDIS_PORT || '6379' }}
+
+# RabbitMQ
+RABBITMQ_PASSWORD=${{ secrets.RABBITMQ_PASSWORD }}
+RABBITMQ_PORT=${{ vars.RABBITMQ_PORT || '5672' }}
+RABBITMQ_MANAGEMENT_PORT=${{ vars.RABBITMQ_MANAGEMENT_PORT || '15672' }}
+
+# Monitoring
+PROMETHEUS_PORT=${{ vars.PROMETHEUS_PORT || '9090' }}
+GRAFANA_PORT=${{ vars.GRAFANA_PORT || '3000' }}
+GRAFANA_ADMIN_PASSWORD=${{ secrets.GRAFANA_ADMIN_PASSWORD }}
+
+# Development Tools
+MAILHOG_SMTP_PORT=${{ vars.MAILHOG_SMTP_PORT || '1025' }}
+MAILHOG_UI_PORT=${{ vars.MAILHOG_UI_PORT || '8025' }}
+
+# Gateway
+GATEWAY_PORT=${{ vars.GATEWAY_PORT || '8080' }}
+
+# ================================
+# API Ports Configuration
+# ================================
+API_GATEWAY_PORT=${{ vars.API_GATEWAY_PORT || '8080' }}
+IDENTITY_API_PORT=${{ vars.IDENTITY_API_PORT || '5217' }}
+COREFINANCE_API_PORT=${{ vars.COREFINANCE_API_PORT || '7293' }}
+EXCEL_API_PORT=${{ vars.EXCEL_API_PORT || '5219' }}
+FRONTEND_PORT=${{ vars.FRONTEND_PORT || '3500' }}
+
+# ================================
+# Docker Build Configuration
+# ================================
+# Nuxt Build Target: production for deployment
+NUXT_BUILD_TARGET=production
+# Node Environment: production for deployment
+NODE_ENV=production
+# Docker User: 1001:1001 for production security
+DOCKER_USER=1001:1001
+# Production-specific settings
+NUXT_DEV_SSR=false
+NUXT_DEV_TOOLS=false
+NUXT_DEBUG=false
+
+# ================================
+# Frontend Configuration
+# ================================
+FRONTEND_BASE_URL=${{ vars.FRONTEND_BASE_URL || 'http://localhost:3500' }}
+APP_PUBLIC_GOOGLE_CLIENT_ID=${{ vars.APP_PUBLIC_GOOGLE_CLIENT_ID }}
+
+# ================================
+# Infrastructure Configuration
+# ================================
+# pgAdmin
+PGADMIN_PASSWORD=${{ secrets.PGADMIN_PASSWORD }}
+PGADMIN_PORT=${{ vars.PGADMIN_PORT || '8080' }}
+
+# Loki
+LOKI_PORT=${{ vars.LOKI_PORT || '3100' }}
+
+# Nginx
+NGINX_HTTP_PORT=${{ vars.NGINX_HTTP_PORT || '80' }}
+NGINX_HTTPS_PORT=${{ vars.NGINX_HTTPS_PORT || '443' }}
+
+# ================================
+# Network Configuration
+# ================================
+DOCKER_NETWORK_SUBNET=${{ vars.DOCKER_NETWORK_SUBNET || '172.20.0.0/16' }}
+
+# ================================
+# Docker Compose Project Name
+# ================================
+COMPOSE_PROJECT_NAME=${{ env.COMPOSE_PROJECT_NAME }}
+ENVFILE
             
             echo "[OK] Comprehensive .env file created successfully"
             
@@ -486,112 +450,6 @@ jobs:
             
             echo "[BACKEND] Deploying backend services: ${SERVICES_ARRAY[*]}"
             
-            # Ensure required infrastructure services are running
-            echo "[INFRA] Checking and starting required infrastructure services..."
-            REQUIRED_INFRA=("identity-postgres" "corefinance-postgres" "redis" "rabbitmq")
-            
-            for infra_service in "${REQUIRED_INFRA[@]}"; do
-              if ! $USE_SUDO docker compose ps $infra_service | grep -q "Up"; then
-                echo "[CLEANUP] Cleaning up old containers for $infra_service..."
-                # Remove any existing stopped containers with same name
-                $USE_SUDO docker compose rm -f $infra_service 2>/dev/null || true
-                
-                # Remove any conflicting containers by name pattern
-                CONTAINER_NAME="tihomo-${infra_service}"
-                if $USE_SUDO docker ps -a --format "{{.Names}}" | grep -q "^${CONTAINER_NAME}$"; then
-                  echo "[REMOVE] Removing conflicting container: $CONTAINER_NAME"
-                  $USE_SUDO docker rm -f $CONTAINER_NAME 2>/dev/null || true
-                fi
-                
-                echo "[START] Starting infrastructure service: $infra_service"
-                $USE_SUDO docker compose up -d $infra_service
-                
-                # Wait for service to be ready
-                echo "[WAIT] Waiting for $infra_service to be ready..."
-                sleep 10
-                
-                # Verify it's running
-                if $USE_SUDO docker compose ps $infra_service | grep -q "Up"; then
-                  echo "[OK] $infra_service is running"
-                else
-                  echo "[ERROR] Failed to start $infra_service"
-                  $USE_SUDO docker compose logs --tail=10 $infra_service
-                  exit 1
-                fi
-              else
-                echo "[OK] $infra_service is already running"
-              fi
-            done
-            
-            # Define service dependencies and deployment order
-            declare -A SERVICE_DEPS
-            SERVICE_DEPS["identity-api"]="identity-postgres"
-            SERVICE_DEPS["corefinance-api"]="corefinance-postgres identity-api"
-            SERVICE_DEPS["excel-api"]="corefinance-api"
-            SERVICE_DEPS["ocelot-gateway"]="identity-api corefinance-api"
-            
-            # Function to stop dependent services
-            stop_dependents() {
-              local service=$1
-              echo "[STOP] Checking for services that depend on $service..."
-              
-              case $service in
-                identity-api)
-                  # Stop services that depend on identity-api
-                  for dep_service in "corefinance-api" "excel-api" "ocelot-gateway" "frontend-nuxt"; do
-                    if $USE_SUDO docker compose ps $dep_service | grep -q "Up"; then
-                      echo "[STOP] Stopping dependent service: $dep_service"
-                      $USE_SUDO docker compose stop $dep_service
-                    fi
-                  done
-                  ;;
-                corefinance-api)
-                  # Stop services that depend on corefinance-api
-                  for dep_service in "excel-api" "ocelot-gateway" "frontend-nuxt"; do
-                    if $USE_SUDO docker compose ps $dep_service | grep -q "Up"; then
-                      echo "[STOP] Stopping dependent service: $dep_service"
-                      $USE_SUDO docker compose stop $dep_service
-                    fi
-                  done
-                  ;;
-                ocelot-gateway)
-                  # Stop frontend that depends on gateway
-                  if $USE_SUDO docker compose ps frontend-nuxt | grep -q "Up"; then
-                    echo "[STOP] Stopping dependent service: frontend-nuxt"
-                    $USE_SUDO docker compose stop frontend-nuxt
-                  fi
-                  ;;
-              esac
-            }
-            
-            # Function to restart dependent services
-            restart_dependents() {
-              local service=$1
-              echo "[RESTART] Restarting services that depend on $service..."
-              
-              case $service in
-                identity-api)
-                  # Check and restart dependents in order
-                  for dep_service in "corefinance-api" "excel-api" "ocelot-gateway"; do
-                    if $USE_SUDO docker compose ps $dep_service | grep -q "Exited"; then
-                      echo "[RESTART] Restarting: $dep_service"
-                      $USE_SUDO docker compose start $dep_service
-                      sleep 10
-                    fi
-                  done
-                  ;;
-                corefinance-api)
-                  for dep_service in "excel-api" "ocelot-gateway"; do
-                    if $USE_SUDO docker compose ps $dep_service | grep -q "Exited"; then
-                      echo "[RESTART] Restarting: $dep_service"
-                      $USE_SUDO docker compose start $dep_service
-                      sleep 10
-                    fi
-                  done
-                  ;;
-              esac
-            }
-            
             # Build images if needed
             if [ "${{ inputs.force_rebuild }}" = "true" ]; then
               echo "[BUILD] Force rebuilding backend images..."
@@ -605,23 +463,9 @@ jobs:
               done
             fi
             
-            # Deploy each service with dependency management
+            # Deploy each service
             for service in "${SERVICES_ARRAY[@]}"; do
               echo "[DEPLOY] Deploying $service..."
-              
-              # Stop dependent services first
-              stop_dependents $service
-              
-              # Check dependencies are running
-              if [ -n "${SERVICE_DEPS[$service]}" ]; then
-                echo "[CHECK] Verifying dependencies for $service: ${SERVICE_DEPS[$service]}"
-                for dep in ${SERVICE_DEPS[$service]}; do
-                  if ! $USE_SUDO docker compose ps $dep | grep -q "Up"; then
-                    echo "[ERROR] Dependency $dep is not running for $service"
-                    exit 1
-                  fi
-                done
-              fi
               
               # Deploy the service
               $USE_SUDO docker compose up -d --no-deps --force-recreate $service
@@ -658,9 +502,6 @@ jobs:
                 $USE_SUDO docker compose logs --tail=20 $service
                 exit 1
               fi
-              
-              # Restart dependent services
-              restart_dependents $service
               
               echo "[SUCCESS] Service $service deployed successfully"
             done
@@ -702,7 +543,7 @@ jobs:
             done
             
             echo "[INFO] Backend deployment status:"
-            $USE_SUDO docker compose ps --format "table {{.Name}}\t{{.Status}}"
+            $USE_SUDO docker compose ps --format "table {{.Name}}\\t{{.Status}}"
           EOF
         shell: bash
 
