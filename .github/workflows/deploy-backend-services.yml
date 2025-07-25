@@ -304,7 +304,7 @@ jobs:
             echo "# ================================" >> .env
             echo "# Environment Configuration" >> .env
             echo "# ================================" >> .env
-            echo "ASPNETCORE_ENVIRONMENT=Production" >> .env
+            echo "ASPNETCORE_ENVIRONMENT=Docker" >> .env
             echo "" >> .env
             
             # Database Configuration
@@ -538,6 +538,7 @@ jobs:
             echo "[HEALTH] Backend services health check..."
             
             IFS=',' read -ra SERVICES_ARRAY <<< "${{ env.DEPLOY_SERVICES }}"
+            FAILED_SERVICES=()
             
             for service in "${SERVICES_ARRAY[@]}"; do
               if $USE_SUDO docker compose ps $service | grep -q "Up"; then
@@ -553,8 +554,21 @@ jobs:
                 fi
               else
                 echo "[ERROR] $service is not running"
+                FAILED_SERVICES+=("$service")
               fi
             done
+            
+            # Fail if any critical services are not running
+            if [ ${#FAILED_SERVICES[@]} -gt 0 ]; then
+              echo "[CRITICAL] Failed services: ${FAILED_SERVICES[*]}"
+              echo "[DEBUG] Showing logs for failed services:"
+              for failed_service in "${FAILED_SERVICES[@]}"; do
+                echo "==== Logs for $failed_service ===="
+                $USE_SUDO docker compose logs --tail=20 $failed_service
+                echo "=================================="
+              done
+              exit 1
+            fi
             
             echo "[INFO] Backend deployment status:"
             $USE_SUDO docker compose ps --format "table {{.Name}}\\t{{.Status}}"
