@@ -303,10 +303,10 @@ jobs:
             
             echo "[CREATE] Creating comprehensive .env file for frontend deployment..."
             
-            # Create comprehensive .env file using cat heredoc
-            cat > .env << 'ENVEOF'
+            # Create comprehensive .env file using multiple echo statements to avoid YAML parsing issues
+            cat > .env << 'EOF'
 # ================================
-# CORS Configuration
+# CORS Configuration  
 # ================================
 CORS_POLICY_NAME=DefaultCorsPolicy
 CORS_ALLOWED_ORIGINS=*
@@ -319,89 +319,86 @@ CORS_PREFLIGHT_MAX_AGE=10
 # Environment Configuration
 # ================================
 ASPNETCORE_ENVIRONMENT=Docker
+EOF
 
+            # Add database configuration
+            cat >> .env << 'EOF'
 # ================================
 # Database Configuration
 # ================================
-# Identity Database
-IDENTITY_DB_USERNAME=${{ vars.IDENTITY_DB_USERNAME || 'identity_user' }}
-IDENTITY_DB_PASSWORD=${{ secrets.IDENTITY_DB_PASSWORD }}
-IDENTITY_DB_PORT=${{ vars.IDENTITY_DB_PORT || '5431' }}
+EOF
+            echo "IDENTITY_DB_USERNAME=${{ vars.IDENTITY_DB_USERNAME || 'identity_user' }}" >> .env
+            echo "IDENTITY_DB_PASSWORD=${{ secrets.IDENTITY_DB_PASSWORD }}" >> .env  
+            echo "IDENTITY_DB_PORT=${{ vars.IDENTITY_DB_PORT || '5431' }}" >> .env
+            echo "COREFINANCE_DB_USERNAME=${{ vars.COREFINANCE_DB_USERNAME || 'corefinance_user' }}" >> .env
+            echo "COREFINANCE_DB_PASSWORD=${{ secrets.COREFINANCE_DB_PASSWORD }}" >> .env
+            echo "COREFINANCE_DB_PORT=${{ vars.COREFINANCE_DB_PORT || '5432' }}" >> .env
+            echo "MONEYMANAGEMENT_DB_USERNAME=${{ vars.MONEYMANAGEMENT_DB_USERNAME || 'money_user' }}" >> .env
+            echo "MONEYMANAGEMENT_DB_PASSWORD=${{ secrets.MONEYMANAGEMENT_DB_PASSWORD }}" >> .env
+            echo "MONEYMANAGEMENT_DB_PORT=${{ vars.MONEYMANAGEMENT_DB_PORT || '5433' }}" >> .env
+            echo "PLANNINGINVESTMENT_DB_USERNAME=${{ vars.PLANNINGINVESTMENT_DB_USERNAME || 'planning_user' }}" >> .env
+            echo "PLANNINGINVESTMENT_DB_PASSWORD=${{ secrets.PLANNINGINVESTMENT_DB_PASSWORD }}" >> .env
+            echo "PLANNINGINVESTMENT_DB_PORT=${{ vars.PLANNINGINVESTMENT_DB_PORT || '5434' }}" >> .env
+            echo "REPORTING_DB_USERNAME=${{ vars.REPORTING_DB_USERNAME || 'reporting_user' }}" >> .env
+            echo "REPORTING_DB_PASSWORD=${{ secrets.REPORTING_DB_PASSWORD }}" >> .env
+            echo "REPORTING_DB_PORT=${{ vars.REPORTING_DB_PORT || '5435' }}" >> .env
 
-# CoreFinance Database
-COREFINANCE_DB_USERNAME=${{ vars.COREFINANCE_DB_USERNAME || 'corefinance_user' }}
-COREFINANCE_DB_PASSWORD=${{ secrets.COREFINANCE_DB_PASSWORD }}
-COREFINANCE_DB_PORT=${{ vars.COREFINANCE_DB_PORT || '5432' }}
-
-# MoneyManagement Database
-MONEYMANAGEMENT_DB_USERNAME=${{ vars.MONEYMANAGEMENT_DB_USERNAME || 'money_user' }}
-MONEYMANAGEMENT_DB_PASSWORD=${{ secrets.MONEYMANAGEMENT_DB_PASSWORD }}
-MONEYMANAGEMENT_DB_PORT=${{ vars.MONEYMANAGEMENT_DB_PORT || '5433' }}
-
-# PlanningInvestment Database
-PLANNINGINVESTMENT_DB_USERNAME=${{ vars.PLANNINGINVESTMENT_DB_USERNAME || 'planning_user' }}
-PLANNINGINVESTMENT_DB_PASSWORD=${{ secrets.PLANNINGINVESTMENT_DB_PASSWORD }}
-PLANNINGINVESTMENT_DB_PORT=${{ vars.PLANNINGINVESTMENT_DB_PORT || '5434' }}
-
-# Reporting Database
-REPORTING_DB_USERNAME=${{ vars.REPORTING_DB_USERNAME || 'reporting_user' }}
-REPORTING_DB_PASSWORD=${{ secrets.REPORTING_DB_PASSWORD }}
-REPORTING_DB_PORT=${{ vars.REPORTING_DB_PORT || '5435' }}
+            # Add authentication configuration  
+            cat >> .env << 'EOF'
 
 # ================================
 # Authentication Configuration
 # ================================
-JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}
-JWT_ISSUER=${{ vars.JWT_ISSUER || 'TiHoMo' }}
-JWT_AUDIENCE_IDENTITY_API=${{ vars.JWT_AUDIENCE_IDENTITY_API || 'TiHoMo.Identity.Api' }}
-JWT_AUDIENCE_COREFINANCE_API=${{ vars.JWT_AUDIENCE_COREFINANCE_API || 'TiHoMo.CoreFinance.Api' }}
-JWT_AUDIENCE_EXCEL_API=${{ vars.JWT_AUDIENCE_EXCEL_API || 'TiHoMo.Excel.Api' }}
-JWT_AUDIENCE_FRONTEND=${{ vars.JWT_AUDIENCE_FRONTEND || 'TiHoMo.Frontend' }}
-JWT_AUDIENCE_OCELOT_GATEWAY=${{ vars.JWT_AUDIENCE_OCELOT_GATEWAY || 'TiHoMo.Gateway' }}
+EOF
+            echo "JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}" >> .env
+            echo "JWT_ISSUER=${{ vars.JWT_ISSUER || 'TiHoMo' }}" >> .env
+            echo "JWT_AUDIENCE_IDENTITY_API=${{ vars.JWT_AUDIENCE_IDENTITY_API || 'TiHoMo.Identity.Api' }}" >> .env
+            echo "JWT_AUDIENCE_COREFINANCE_API=${{ vars.JWT_AUDIENCE_COREFINANCE_API || 'TiHoMo.CoreFinance.Api' }}" >> .env
+            echo "JWT_AUDIENCE_EXCEL_API=${{ vars.JWT_AUDIENCE_EXCEL_API || 'TiHoMo.Excel.Api' }}" >> .env
+            echo "JWT_AUDIENCE_FRONTEND=${{ vars.JWT_AUDIENCE_FRONTEND || 'TiHoMo.Frontend' }}" >> .env
+            echo "JWT_AUDIENCE_OCELOT_GATEWAY=${{ vars.JWT_AUDIENCE_OCELOT_GATEWAY || 'TiHoMo.Gateway' }}" >> .env
+
+            # Add external services configuration
+            cat >> .env << 'EOF'
 
 # ================================
 # External Services Configuration
 # ================================
-# Redis
-REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}
-REDIS_PORT=${{ vars.REDIS_PORT || '6379' }}
+EOF
+            echo "REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}" >> .env
+            echo "REDIS_PORT=${{ vars.REDIS_PORT || '6379' }}" >> .env
+            echo "RABBITMQ_PASSWORD=${{ secrets.RABBITMQ_PASSWORD }}" >> .env
+            echo "RABBITMQ_PORT=${{ vars.RABBITMQ_PORT || '5672' }}" >> .env
+            echo "RABBITMQ_MANAGEMENT_PORT=${{ vars.RABBITMQ_MANAGEMENT_PORT || '15672' }}" >> .env
+            echo "PROMETHEUS_PORT=${{ vars.PROMETHEUS_PORT || '9090' }}" >> .env
+            echo "GRAFANA_PORT=${{ vars.GRAFANA_PORT || '3000' }}" >> .env
+            echo "GRAFANA_ADMIN_PASSWORD=${{ secrets.GRAFANA_ADMIN_PASSWORD }}" >> .env
+            echo "MAILHOG_SMTP_PORT=${{ vars.MAILHOG_SMTP_PORT || '1025' }}" >> .env
+            echo "MAILHOG_UI_PORT=${{ vars.MAILHOG_UI_PORT || '8025' }}" >> .env
+            echo "GATEWAY_PORT=${{ vars.GATEWAY_PORT || '8080' }}" >> .env
 
-# RabbitMQ
-RABBITMQ_PASSWORD=${{ secrets.RABBITMQ_PASSWORD }}
-RABBITMQ_PORT=${{ vars.RABBITMQ_PORT || '5672' }}
-RABBITMQ_MANAGEMENT_PORT=${{ vars.RABBITMQ_MANAGEMENT_PORT || '15672' }}
-
-# Monitoring
-PROMETHEUS_PORT=${{ vars.PROMETHEUS_PORT || '9090' }}
-GRAFANA_PORT=${{ vars.GRAFANA_PORT || '3000' }}
-GRAFANA_ADMIN_PASSWORD=${{ secrets.GRAFANA_ADMIN_PASSWORD }}
-
-# Development Tools
-MAILHOG_SMTP_PORT=${{ vars.MAILHOG_SMTP_PORT || '1025' }}
-MAILHOG_UI_PORT=${{ vars.MAILHOG_UI_PORT || '8025' }}
-
-# Gateway
-GATEWAY_PORT=${{ vars.GATEWAY_PORT || '8080' }}
+            # Add API ports configuration
+            cat >> .env << 'EOF'
 
 # ================================
-# API Ports Configuration
+# API Ports Configuration  
 # ================================
-API_GATEWAY_PORT=${{ vars.API_GATEWAY_PORT || '8080' }}
-IDENTITY_API_PORT=${{ vars.IDENTITY_API_PORT || '5217' }}
-COREFINANCE_API_PORT=${{ vars.COREFINANCE_API_PORT || '7293' }}
-EXCEL_API_PORT=${{ vars.EXCEL_API_PORT || '5219' }}
-FRONTEND_PORT=${{ vars.FRONTEND_PORT || '3500' }}
+EOF
+            echo "API_GATEWAY_PORT=${{ vars.API_GATEWAY_PORT || '8080' }}" >> .env
+            echo "IDENTITY_API_PORT=${{ vars.IDENTITY_API_PORT || '5217' }}" >> .env
+            echo "COREFINANCE_API_PORT=${{ vars.COREFINANCE_API_PORT || '7293' }}" >> .env
+            echo "EXCEL_API_PORT=${{ vars.EXCEL_API_PORT || '5219' }}" >> .env
+            echo "FRONTEND_PORT=${{ vars.FRONTEND_PORT || '3500' }}" >> .env
+
+            # Add Docker and frontend configuration
+            cat >> .env << 'EOF'
 
 # ================================
 # Docker Build Configuration
 # ================================
-# Nuxt Build Target: production for deployment
 NUXT_BUILD_TARGET=production
-# Node Environment: production for deployment
 NODE_ENV=production
-# Docker User: 1001:1001 for production security
 DOCKER_USER=1001:1001
-# Production-specific settings
 NUXT_DEV_SSR=false
 NUXT_DEV_TOOLS=false
 NUXT_DEBUG=false
@@ -409,33 +406,38 @@ NUXT_DEBUG=false
 # ================================
 # Frontend Configuration
 # ================================
-FRONTEND_BASE_URL=${{ vars.FRONTEND_BASE_URL || 'http://localhost:3500' }}
-APP_PUBLIC_GOOGLE_CLIENT_ID=${{ vars.APP_PUBLIC_GOOGLE_CLIENT_ID }}
+EOF
+            echo "FRONTEND_BASE_URL=${{ vars.FRONTEND_BASE_URL || 'http://localhost:3500' }}" >> .env
+            echo "APP_PUBLIC_GOOGLE_CLIENT_ID=${{ vars.APP_PUBLIC_GOOGLE_CLIENT_ID }}" >> .env
+
+            # Add infrastructure configuration
+            cat >> .env << 'EOF'
 
 # ================================
 # Infrastructure Configuration
 # ================================
-# pgAdmin
-PGADMIN_PASSWORD=${{ secrets.PGADMIN_PASSWORD }}
-PGADMIN_PORT=${{ vars.PGADMIN_PORT || '8080' }}
+EOF
+            echo "PGADMIN_PASSWORD=${{ secrets.PGADMIN_PASSWORD }}" >> .env
+            echo "PGADMIN_PORT=${{ vars.PGADMIN_PORT || '8080' }}" >> .env
+            echo "LOKI_PORT=${{ vars.LOKI_PORT || '3100' }}" >> .env
+            echo "NGINX_HTTP_PORT=${{ vars.NGINX_HTTP_PORT || '80' }}" >> .env
+            echo "NGINX_HTTPS_PORT=${{ vars.NGINX_HTTPS_PORT || '443' }}" >> .env
 
-# Loki
-LOKI_PORT=${{ vars.LOKI_PORT || '3100' }}
-
-# Nginx
-NGINX_HTTP_PORT=${{ vars.NGINX_HTTP_PORT || '80' }}
-NGINX_HTTPS_PORT=${{ vars.NGINX_HTTPS_PORT || '443' }}
+            # Add network and project configuration
+            cat >> .env << 'EOF'
 
 # ================================
 # Network Configuration
 # ================================
-DOCKER_NETWORK_SUBNET=${{ vars.DOCKER_NETWORK_SUBNET || '172.20.0.0/16' }}
+EOF
+            echo "DOCKER_NETWORK_SUBNET=${{ vars.DOCKER_NETWORK_SUBNET || '172.20.0.0/16' }}" >> .env
+            cat >> .env << 'EOF'
 
 # ================================
 # Docker Compose Project Name
 # ================================
-COMPOSE_PROJECT_NAME=${{ env.COMPOSE_PROJECT_NAME }}
-ENVEOF
+EOF
+            echo "COMPOSE_PROJECT_NAME=${{ env.COMPOSE_PROJECT_NAME }}" >> .env
             
             echo "[OK] Comprehensive .env file created successfully"
             
