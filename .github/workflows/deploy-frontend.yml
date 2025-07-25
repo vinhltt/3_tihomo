@@ -299,7 +299,7 @@ jobs:
             echo "# ================================" >> .env
             echo "# Environment Configuration" >> .env
             echo "# ================================" >> .env
-            echo "ASPNETCORE_ENVIRONMENT=Production" >> .env
+            echo "ASPNETCORE_ENVIRONMENT=Docker" >> .env
             echo "" >> .env
             
             # Database Configuration
