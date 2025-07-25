@@ -285,11 +285,23 @@ jobs:
             
             echo "[CREATE] Creating comprehensive .env file for backend deployment..."
             
-            # Always create comprehensive .env file using echo statements
-            # This approach is more reliable in GitHub Actions
+            # Always create comprehensive .env file using bash variable assignment
+            # This approach avoids shell interpretation issues with special characters
             
             # Clear any existing .env file
             > .env
+            
+            # Setup environment variables from GitHub Secrets (no default values for secrets)
+            IDENTITY_DB_PASSWORD='${{ secrets.IDENTITY_DB_PASSWORD }}'
+            COREFINANCE_DB_PASSWORD='${{ secrets.COREFINANCE_DB_PASSWORD }}'
+            MONEYMANAGEMENT_DB_PASSWORD='${{ secrets.MONEYMANAGEMENT_DB_PASSWORD }}'
+            PLANNINGINVESTMENT_DB_PASSWORD='${{ secrets.PLANNINGINVESTMENT_DB_PASSWORD }}'
+            REPORTING_DB_PASSWORD='${{ secrets.REPORTING_DB_PASSWORD }}'
+            JWT_SECRET_KEY='${{ secrets.JWT_SECRET_KEY }}'
+            REDIS_PASSWORD='${{ secrets.REDIS_PASSWORD }}'
+            RABBITMQ_PASSWORD='${{ secrets.RABBITMQ_PASSWORD }}'
+            GRAFANA_ADMIN_PASSWORD='${{ secrets.GRAFANA_ADMIN_PASSWORD }}'
+            PGADMIN_PASSWORD='${{ secrets.PGADMIN_PASSWORD }}'
             
             # CORS Configuration
             echo "# ================================" >> .env
@@ -316,27 +328,27 @@ jobs:
             echo "# ================================" >> .env
             echo "# Identity Database" >> .env
             echo "IDENTITY_DB_USERNAME=${{ vars.IDENTITY_DB_USERNAME || 'identity_user' }}" >> .env
-            echo "IDENTITY_DB_PASSWORD=${{ secrets.IDENTITY_DB_PASSWORD || 'TiHoMo2024!DB' }}" >> .env
+            echo "IDENTITY_DB_PASSWORD=$IDENTITY_DB_PASSWORD" >> .env
             echo "IDENTITY_DB_PORT=${{ vars.IDENTITY_DB_PORT || '5431' }}" >> .env
             echo "" >> .env
             echo "# CoreFinance Database" >> .env
             echo "COREFINANCE_DB_USERNAME=${{ vars.COREFINANCE_DB_USERNAME || 'corefinance_user' }}" >> .env
-            echo "COREFINANCE_DB_PASSWORD=${{ secrets.COREFINANCE_DB_PASSWORD || secrets.IDENTITY_DB_PASSWORD || 'TiHoMo2024!DB' }}" >> .env
+            echo "COREFINANCE_DB_PASSWORD=$COREFINANCE_DB_PASSWORD" >> .env
             echo "COREFINANCE_DB_PORT=${{ vars.COREFINANCE_DB_PORT || '5432' }}" >> .env
             echo "" >> .env
             echo "# MoneyManagement Database" >> .env
             echo "MONEYMANAGEMENT_DB_USERNAME=${{ vars.MONEYMANAGEMENT_DB_USERNAME || 'money_user' }}" >> .env
-            echo "MONEYMANAGEMENT_DB_PASSWORD=${{ secrets.MONEYMANAGEMENT_DB_PASSWORD || secrets.IDENTITY_DB_PASSWORD || 'TiHoMo2024!DB' }}" >> .env
+            echo "MONEYMANAGEMENT_DB_PASSWORD=$MONEYMANAGEMENT_DB_PASSWORD" >> .env
             echo "MONEYMANAGEMENT_DB_PORT=${{ vars.MONEYMANAGEMENT_DB_PORT || '5433' }}" >> .env
             echo "" >> .env
             echo "# PlanningInvestment Database" >> .env
             echo "PLANNINGINVESTMENT_DB_USERNAME=${{ vars.PLANNINGINVESTMENT_DB_USERNAME || 'planning_user' }}" >> .env
-            echo "PLANNINGINVESTMENT_DB_PASSWORD=${{ secrets.PLANNINGINVESTMENT_DB_PASSWORD || secrets.IDENTITY_DB_PASSWORD || 'TiHoMo2024!DB' }}" >> .env
+            echo "PLANNINGINVESTMENT_DB_PASSWORD=$PLANNINGINVESTMENT_DB_PASSWORD" >> .env
             echo "PLANNINGINVESTMENT_DB_PORT=${{ vars.PLANNINGINVESTMENT_DB_PORT || '5434' }}" >> .env
             echo "" >> .env
             echo "# Reporting Database" >> .env
             echo "REPORTING_DB_USERNAME=${{ vars.REPORTING_DB_USERNAME || 'reporting_user' }}" >> .env
-            echo "REPORTING_DB_PASSWORD=${{ secrets.REPORTING_DB_PASSWORD || secrets.IDENTITY_DB_PASSWORD || 'TiHoMo2024!DB' }}" >> .env
+            echo "REPORTING_DB_PASSWORD=$REPORTING_DB_PASSWORD" >> .env
             echo "REPORTING_DB_PORT=${{ vars.REPORTING_DB_PORT || '5435' }}" >> .env
             echo "" >> .env
             
@@ -344,7 +356,7 @@ jobs:
             echo "# ================================" >> .env
             echo "# Authentication Configuration" >> .env
             echo "# ================================" >> .env
-            echo "JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}" >> .env
+            echo "JWT_SECRET_KEY=$JWT_SECRET_KEY" >> .env
             echo "JWT_ISSUER=${{ vars.JWT_ISSUER || 'TiHoMo' }}" >> .env
             echo "JWT_AUDIENCE_IDENTITY_API=${{ vars.JWT_AUDIENCE_IDENTITY_API || 'TiHoMo.Identity.Api' }}" >> .env
             echo "JWT_AUDIENCE_COREFINANCE_API=${{ vars.JWT_AUDIENCE_COREFINANCE_API || 'TiHoMo.CoreFinance.Api' }}" >> .env
@@ -358,18 +370,18 @@ jobs:
             echo "# External Services Configuration" >> .env
             echo "# ================================" >> .env
             echo "# Redis" >> .env
-            echo "REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}" >> .env
+            echo "REDIS_PASSWORD=$REDIS_PASSWORD" >> .env
             echo "REDIS_PORT=${{ vars.REDIS_PORT || '6379' }}" >> .env
             echo "" >> .env
             echo "# RabbitMQ" >> .env
-            echo "RABBITMQ_PASSWORD=${{ secrets.RABBITMQ_PASSWORD }}" >> .env
+            echo "RABBITMQ_PASSWORD=$RABBITMQ_PASSWORD" >> .env
             echo "RABBITMQ_PORT=${{ vars.RABBITMQ_PORT || '5672' }}" >> .env
             echo "RABBITMQ_MANAGEMENT_PORT=${{ vars.RABBITMQ_MANAGEMENT_PORT || '15672' }}" >> .env
             echo "" >> .env
             echo "# Monitoring" >> .env
             echo "PROMETHEUS_PORT=${{ vars.PROMETHEUS_PORT || '9090' }}" >> .env
             echo "GRAFANA_PORT=${{ vars.GRAFANA_PORT || '3000' }}" >> .env
-            echo "GRAFANA_ADMIN_PASSWORD=${{ secrets.GRAFANA_ADMIN_PASSWORD }}" >> .env
+            echo "GRAFANA_ADMIN_PASSWORD=$GRAFANA_ADMIN_PASSWORD" >> .env
             echo "" >> .env
             echo "# Development Tools" >> .env
             echo "MAILHOG_SMTP_PORT=${{ vars.MAILHOG_SMTP_PORT || '1025' }}" >> .env
@@ -419,7 +431,7 @@ jobs:
             echo "# Infrastructure Configuration" >> .env
             echo "# ================================" >> .env
             echo "# pgAdmin" >> .env
-            echo "PGADMIN_PASSWORD=${{ secrets.PGADMIN_PASSWORD }}" >> .env
+            echo "PGADMIN_PASSWORD=$PGADMIN_PASSWORD" >> .env
             echo "PGADMIN_PORT=${{ vars.PGADMIN_PORT || '8080' }}" >> .env
             echo "" >> .env
             echo "# Loki" >> .env
