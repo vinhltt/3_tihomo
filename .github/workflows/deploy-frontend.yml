@@ -248,7 +248,7 @@ jobs:
           REMOTE_EOF
         shell: bash
 
-      - name: "[6/9] Verify environment for frontend"
+      - name: "[6/9] Create comprehensive environment file for frontend"
         run: |
           ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << 'REMOTE_EOF'
             # Ensure directory exists and navigate to it
@@ -257,48 +257,160 @@ jobs:
             
             echo "[INFO] Working in directory: $(pwd)"
             
-            if [ ! -f .env ]; then
-              echo "[ERROR] .env file not found - infrastructure deployment may have failed"
-              exit 1
+            # Backup existing .env if it exists
+            if [ -f .env ]; then
+              echo "[BACKUP] Creating backup of existing .env..."
+              cp .env .env.backup.$(date +%Y%m%d_%H%M%S)
             fi
             
-            echo "[INFO] .env file exists, checking frontend-related variables..."
+            echo "[CREATE] Creating comprehensive .env file for frontend deployment..."
             
-            # Verify critical frontend variables exist
-            FRONTEND_VARS=("FRONTEND_PORT" "NUXT_BUILD_TARGET" "NODE_ENV")
-            MISSING_VARS=()
+            # Create comprehensive .env file with all required variables using echo statements
+            # This approach is more reliable in GitHub Actions
             
-            for var in "${FRONTEND_VARS[@]}"; do
-              if ! grep -q "^${var}=" .env; then
-                MISSING_VARS+=("$var")
-              fi
-            done
+            # Clear any existing .env file
+            > .env
             
-            if [ ${#MISSING_VARS[@]} -gt 0 ]; then
-              echo "[WARNING] Missing frontend variables: ${MISSING_VARS[*]}"
-              echo "[INFO] Adding missing frontend variables to .env..."
-              
-              # Add missing variables with default values
-              if ! grep -q "^FRONTEND_PORT=" .env; then
-                echo "FRONTEND_PORT=3500" >> .env
-              fi
-              if ! grep -q "^NUXT_BUILD_TARGET=" .env; then
-                echo "NUXT_BUILD_TARGET=production" >> .env
-              fi
-              if ! grep -q "^NODE_ENV=" .env; then
-                echo "NODE_ENV=production" >> .env
-              fi
-              
-              echo "[OK] Missing variables added to .env"
-            else
-              echo "[OK] All frontend variables are present"
-            fi
+            # CORS Configuration
+            echo "# ================================" >> .env
+            echo "# CORS Configuration" >> .env
+            echo "# ================================" >> .env
+            echo "CORS_POLICY_NAME=DefaultCorsPolicy" >> .env
+            echo "CORS_ALLOWED_ORIGINS=*" >> .env
+            echo "CORS_ALLOWED_METHODS=*" >> .env
+            echo "CORS_ALLOWED_HEADERS=*" >> .env
+            echo "CORS_EXPOSED_HEADERS=Token-Expired" >> .env
+            echo "CORS_PREFLIGHT_MAX_AGE=10" >> .env
+            echo "" >> .env
             
-            echo "[INFO] Frontend environment verified"
+            # Environment Configuration
+            echo "# ================================" >> .env
+            echo "# Environment Configuration" >> .env
+            echo "# ================================" >> .env
+            echo "ASPNETCORE_ENVIRONMENT=Production" >> .env
+            echo "" >> .env
+            
+            # Database Configuration
+            echo "# ================================" >> .env
+            echo "# Database Configuration" >> .env
+            echo "# ================================" >> .env
+            echo "# Identity Database" >> .env
+            echo "IDENTITY_DB_USERNAME=identity_user" >> .env
+            echo "IDENTITY_DB_PASSWORD=TiHoMo2024!DB" >> .env
+            echo "IDENTITY_DB_PORT=5431" >> .env
+            echo "" >> .env
+            echo "# CoreFinance Database" >> .env
+            echo "COREFINANCE_DB_USERNAME=corefinance_user" >> .env
+            echo "COREFINANCE_DB_PASSWORD=TiHoMo2024!DB" >> .env
+            echo "COREFINANCE_DB_PORT=5432" >> .env
+            echo "" >> .env
+            echo "# MoneyManagement Database" >> .env
+            echo "MONEYMANAGEMENT_DB_USERNAME=money_user" >> .env
+            echo "MONEYMANAGEMENT_DB_PASSWORD=TiHoMo2024!DB" >> .env
+            echo "MONEYMANAGEMENT_DB_PORT=5433" >> .env
+            echo "" >> .env
+            echo "# PlanningInvestment Database" >> .env
+            echo "PLANNINGINVESTMENT_DB_USERNAME=planning_user" >> .env
+            echo "PLANNINGINVESTMENT_DB_PASSWORD=TiHoMo2024!DB" >> .env
+            echo "PLANNINGINVESTMENT_DB_PORT=5434" >> .env
+            echo "" >> .env
+            echo "# Reporting Database" >> .env
+            echo "REPORTING_DB_USERNAME=reporting_user" >> .env
+            echo "REPORTING_DB_PASSWORD=TiHoMo2024!DB" >> .env
+            echo "REPORTING_DB_PORT=5435" >> .env
+            echo "" >> .env
+            
+            # Authentication Configuration
+            echo "# ================================" >> .env
+            echo "# Authentication Configuration" >> .env
+            echo "# ================================" >> .env
+            echo "JWT_SECRET_KEY=TiHoMo-Super-Secret-JWT-Key-2024-Production-Environment-Must-Be-At-Least-64-Characters" >> .env
+            echo "JWT_ISSUER=TiHoMo" >> .env
+            echo "JWT_AUDIENCE_IDENTITY_API=TiHoMo.Identity.Api" >> .env
+            echo "JWT_AUDIENCE_COREFINANCE_API=TiHoMo.CoreFinance.Api" >> .env
+            echo "JWT_AUDIENCE_EXCEL_API=TiHoMo.Excel.Api" >> .env
+            echo "JWT_AUDIENCE_FRONTEND=TiHoMo.Frontend" >> .env
+            echo "" >> .env
+            
+            # External Services Configuration
+            echo "# ================================" >> .env
+            echo "# External Services Configuration" >> .env
+            echo "# ================================" >> .env
+            echo "# Redis" >> .env
+            echo "REDIS_PASSWORD=TiHoMo2024!Redis" >> .env
+            echo "" >> .env
+            echo "# RabbitMQ" >> .env
+            echo "RABBITMQ_PASSWORD=TiHoMo2024!Rabbit" >> .env
+            echo "" >> .env
+            
+            # API Ports Configuration
+            echo "# ================================" >> .env
+            echo "# API Ports Configuration" >> .env
+            echo "# ================================" >> .env
+            echo "API_GATEWAY_PORT=8080" >> .env
+            echo "IDENTITY_API_PORT=5217" >> .env
+            echo "COREFINANCE_API_PORT=7293" >> .env
+            echo "EXCEL_API_PORT=5219" >> .env
+            echo "FRONTEND_PORT=3500" >> .env
+            echo "" >> .env
+            
+            # Docker Build Configuration
+            echo "# ================================" >> .env
+            echo "# Docker Build Configuration" >> .env
+            echo "# ================================" >> .env
+            echo "# Nuxt Build Target: production for deployment" >> .env
+            echo "NUXT_BUILD_TARGET=production" >> .env
+            echo "# Node Environment: production for deployment" >> .env
+            echo "NODE_ENV=production" >> .env
+            echo "# Docker User: 1001:1001 for production security" >> .env
+            echo "DOCKER_USER=1001:1001" >> .env
+            echo "# Production-specific settings" >> .env
+            echo "NUXT_DEV_SSR=false" >> .env
+            echo "NUXT_DEV_TOOLS=false" >> .env
+            echo "NUXT_DEBUG=false" >> .env
+            echo "" >> .env
+            
+            # Frontend Configuration
+            echo "# ================================" >> .env
+            echo "# Frontend Configuration" >> .env
+            echo "# ================================" >> .env
+            echo "FRONTEND_BASE_URL=http://localhost:3500" >> .env
+            echo "APP_PUBLIC_GOOGLE_CLIENT_ID=your-google-client-id" >> .env
+            echo "" >> .env
+            
+            # Infrastructure Configuration
+            echo "# ================================" >> .env
+            echo "# Infrastructure Configuration" >> .env
+            echo "# ================================" >> .env
+            echo "# pgAdmin" >> .env
+            echo "PGADMIN_PASSWORD=TiHoMo2024!pgAdmin" >> .env
+            echo "PGADMIN_PORT=8080" >> .env
+            echo "" >> .env
+            echo "# Loki" >> .env
+            echo "LOKI_PORT=3100" >> .env
+            echo "" >> .env
+            echo "# Nginx" >> .env
+            echo "NGINX_HTTP_PORT=80" >> .env
+            echo "NGINX_HTTPS_PORT=443" >> .env
+            echo "" >> .env
+            
+            # Docker Compose Project Name
+            echo "# ================================" >> .env
+            echo "# Docker Compose Project Name" >> .env
+            echo "# ================================" >> .env
+            echo "COMPOSE_PROJECT_NAME=tihomo_production" >> .env
+            
+            echo "[OK] Comprehensive .env file created successfully"
+            
+            # Display first few lines for verification (without sensitive data)
+            echo "[VERIFY] .env file content (first 20 lines):"
+            head -20 .env
+            
+            echo "[INFO] Frontend environment setup completed"
           REMOTE_EOF
         shell: bash
 
-      - name: "[7/9] Deploy frontend with graceful shutdown"
+      - name: "[7/9] Deploy frontend with complete cleanup and rebuild"
         run: |
           ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << 'REMOTE_EOF'
             set -e
@@ -312,29 +424,39 @@ jobs:
               USE_SUDO="sudo"
             fi
             
-            echo "[FRONTEND] Deploying frontend service..."
+            echo "[FRONTEND] Starting comprehensive frontend deployment..."
             
-            # Check if frontend is currently running
+            # Step 1: Stop and remove existing frontend containers
+            echo "[CLEANUP] Stopping and removing existing frontend containers..."
             if $USE_SUDO docker compose ps frontend-nuxt | grep -q "Up"; then
               echo "[INFO] Frontend is currently running, performing graceful shutdown..."
-              
-              # Graceful stop with timeout
               $USE_SUDO docker compose stop frontend-nuxt
-              
-              # Wait a moment for clean shutdown
-              sleep 5
+              sleep 3
             fi
             
-            # Build frontend image
-            echo "[BUILD] Building frontend image for ${{ inputs.environment }} environment..."
+            # Remove containers
+            echo "[CLEANUP] Removing frontend containers..."
+            $USE_SUDO docker compose rm -f frontend-nuxt 2>/dev/null || true
             
-            if [ "${{ inputs.force_rebuild }}" = "true" ]; then
-              echo "[BUILD] Force rebuilding frontend image..."
-              $USE_SUDO docker compose build --no-cache frontend-nuxt
-            else
-              echo "[BUILD] Building frontend image with cache..."
-              $USE_SUDO docker compose build frontend-nuxt
+            # Step 2: Clean up Docker images and system
+            echo "[CLEANUP] Cleaning up Docker images and system..."
+            
+            # Remove old frontend images
+            OLD_IMAGES=$($USE_SUDO docker images | grep "tihomo.*frontend" | awk '{print $3}' || true)
+            if [ ! -z "$OLD_IMAGES" ]; then
+              echo "[CLEANUP] Removing old frontend images..."
+              echo "$OLD_IMAGES" | xargs -r $USE_SUDO docker rmi -f 2>/dev/null || true
             fi
+            
+            # Clean up dangling images and volumes
+            $USE_SUDO docker system prune -f --volumes 2>/dev/null || true
+            
+            # Step 3: Force rebuild frontend image
+            echo "[BUILD] Force rebuilding frontend image for ${{ inputs.environment }} environment..."
+            echo "[BUILD] This will always use --no-cache for clean build..."
+            
+            # Always use no-cache for deployment to ensure latest code
+            $USE_SUDO docker compose build --no-cache --pull frontend-nuxt
             
             # Verify build succeeded
             if [ $? -ne 0 ]; then
@@ -375,43 +497,78 @@ jobs:
             
             echo "[BUILD] Frontend image built successfully"
             
-            # Deploy frontend
-            echo "[DEPLOY] Starting frontend service..."
+            # Step 4: Deploy frontend with enhanced monitoring
+            echo "[DEPLOY] Starting frontend service with enhanced monitoring..."
             $USE_SUDO docker compose up -d --no-deps --force-recreate frontend-nuxt
             
-            # Wait for frontend to be ready
-            max_attempts=20
+            # Step 5: Enhanced health check with better error reporting
+            echo "[HEALTH] Starting enhanced health check process..."
+            max_attempts=30
             attempt=1
+            
             while [ $attempt -le $max_attempts ]; do
+              echo "[HEALTH] Health check attempt $attempt/$max_attempts..."
+              
+              # Check if container is running
               if $USE_SUDO docker compose ps frontend-nuxt | grep -q "Up"; then
                 echo "[OK] Frontend container is running"
                 
-                # Wait for Nuxt to be ready
-                echo "[HEALTH] Waiting for Nuxt application to be ready..."
-                sleep 10
+                # Wait for Nuxt to initialize properly
+                echo "[WAIT] Waiting for Nuxt application to initialize (15 seconds)..."
+                sleep 15
                 
-                # Test if frontend is responding
+                # Test HTTP response
                 if $USE_SUDO docker compose exec -T frontend-nuxt curl -f http://localhost:3000/ >/dev/null 2>&1; then
-                  echo "[OK] Frontend is responding to HTTP requests"
+                  echo "[SUCCESS] ✅ Frontend is responding to HTTP requests!"
+                  break
+                elif $USE_SUDO docker compose exec -T frontend-nuxt curl -s http://localhost:3000/ | grep -q "html\|HTML"; then
+                  echo "[SUCCESS] ✅ Frontend is serving content (HTTP 200)!"
                   break
                 else
                   echo "[WAIT] Frontend not ready yet (attempt $attempt/$max_attempts)"
-                  sleep 15
+                  
+                  # Show logs every 5 attempts for debugging
+                  if [ $((attempt % 5)) -eq 0 ]; then
+                    echo "[DEBUG] Recent frontend logs (attempt $attempt):"
+                    $USE_SUDO docker compose logs --tail=15 frontend-nuxt
+                    echo "[DEBUG] Container status:"
+                    $USE_SUDO docker compose ps frontend-nuxt
+                  fi
+                  
+                  sleep 10
                   ((attempt++))
                 fi
               else
-                echo "[WAIT] Frontend container not up yet (attempt $attempt/$max_attempts)"
-                sleep 10
+                echo "[ERROR] Frontend container not running (attempt $attempt/$max_attempts)"
+                
+                # Show container status and logs for debugging
+                echo "[DEBUG] Container status:"
+                $USE_SUDO docker compose ps frontend-nuxt
+                echo "[DEBUG] Recent logs:"
+                $USE_SUDO docker compose logs --tail=10 frontend-nuxt
+                
+                sleep 5
                 ((attempt++))
               fi
             done
             
+            # Final error handling
             if [ $attempt -gt $max_attempts ]; then
-              echo "[ERROR] Frontend failed to start after $max_attempts attempts"
-              echo "[DEBUG] Frontend logs:"
-              $USE_SUDO docker compose logs --tail=30 frontend-nuxt
-              echo "[DEBUG] Container inspect:"
+              echo "[ERROR] ❌ Frontend failed to start after $max_attempts attempts"
+              echo "[DEBUG] Complete troubleshooting information:"
+              echo "==============================================" 
+              echo "[DEBUG] Container status:"
               $USE_SUDO docker compose ps frontend-nuxt
+              echo "=============================================="
+              echo "[DEBUG] Last 50 lines of frontend logs:"
+              $USE_SUDO docker compose logs --tail=50 frontend-nuxt
+              echo "=============================================="
+              echo "[DEBUG] Docker system info:"
+              $USE_SUDO docker system df
+              echo "=============================================="
+              echo "[DEBUG] Available images:"
+              $USE_SUDO docker images | grep -E "(frontend|nuxt|tihomo)" || echo "No matching images found"
+              echo "=============================================="
               exit 1
             fi
             
