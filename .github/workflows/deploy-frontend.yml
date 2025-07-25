@@ -309,17 +309,17 @@ jobs:
             > .env
             
             # Setup environment variables from GitHub Secrets (no default values for secrets)
-            IDENTITY_DB_PASSWORD='${{ secrets.IDENTITY_DB_PASSWORD }}'
-            COREFINANCE_DB_PASSWORD='${{ secrets.COREFINANCE_DB_PASSWORD }}'
-            MONEYMANAGEMENT_DB_PASSWORD='${{ secrets.MONEYMANAGEMENT_DB_PASSWORD }}'
-            PLANNINGINVESTMENT_DB_PASSWORD='${{ secrets.PLANNINGINVESTMENT_DB_PASSWORD }}'
-            REPORTING_DB_PASSWORD='${{ secrets.REPORTING_DB_PASSWORD }}'
-            JWT_SECRET_KEY='${{ secrets.JWT_SECRET_KEY }}'
-            REDIS_PASSWORD='${{ secrets.REDIS_PASSWORD }}'
-            RABBITMQ_PASSWORD='${{ secrets.RABBITMQ_PASSWORD }}'
-            GRAFANA_ADMIN_PASSWORD='${{ secrets.GRAFANA_ADMIN_PASSWORD }}'
-            PGADMIN_PASSWORD='${{ secrets.PGADMIN_PASSWORD }}'
-            
+            IDENTITY_DB_PASSWORD=${{ secrets.IDENTITY_DB_PASSWORD }}
+            COREFINANCE_DB_PASSWORD=${{ secrets.COREFINANCE_DB_PASSWORD }}
+            MONEYMANAGEMENT_DB_PASSWORD=${{ secrets.MONEYMANAGEMENT_DB_PASSWORD }}
+            PLANNINGINVESTMENT_DB_PASSWORD=${{ secrets.PLANNINGINVESTMENT_DB_PASSWORD }}
+            REPORTING_DB_PASSWORD=${{ secrets.REPORTING_DB_PASSWORD }}
+            JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}
+            REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}
+            RABBITMQ_PASSWORD=${{ secrets.RABBITMQ_PASSWORD }}
+            GRAFANA_ADMIN_PASSWORD=${{ secrets.GRAFANA_ADMIN_PASSWORD }}
+            PGADMIN_PASSWORD=${{ secrets.PGADMIN_PASSWORD }}
+
             # CORS Configuration
             echo "# ================================" >> .env
             echo "# CORS Configuration" >> .env
