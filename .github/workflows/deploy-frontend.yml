@@ -168,26 +168,38 @@ jobs:
           ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << 'REMOTE_EOF'
             echo "[PREP] Preparing frontend deployment directory..."
             
-            # Create required directories
-            mkdir -p ${{ env.TRUENAS_DEPLOY_DIR }}/src/fe/nuxt
-            mkdir -p ${{ env.TRUENAS_DEPLOY_DIR }}/.rsync-partial
+            DEPLOY_DIR="${{ env.TRUENAS_DEPLOY_DIR }}"
             
-            # Set proper permissions
-            chmod 755 ${{ env.TRUENAS_DEPLOY_DIR }}
-            chmod -R 755 ${{ env.TRUENAS_DEPLOY_DIR }}/src 2>/dev/null || true
-            chmod -R 755 ${{ env.TRUENAS_DEPLOY_DIR }}/.rsync-partial 2>/dev/null || true
+            # Create required directories with proper ownership
+            mkdir -p "$DEPLOY_DIR/src/fe/nuxt"
+            mkdir -p "$DEPLOY_DIR/.rsync-partial"
+            
+            # Set proper permissions and ownership
+            chmod 755 "$DEPLOY_DIR"
+            chmod -R 755 "$DEPLOY_DIR/src" 2>/dev/null || true
+            chmod -R 755 "$DEPLOY_DIR/.rsync-partial" 2>/dev/null || true
+            
+            # Fix ownership to current user to avoid permission issues
+            chown -R $(whoami):$(whoami) "$DEPLOY_DIR" 2>/dev/null || true
             
             # Cleanup any problematic files from previous deployments
-            if [ -d "${{ env.TRUENAS_DEPLOY_DIR }}/src/fe" ]; then
+            if [ -d "$DEPLOY_DIR/src/fe" ]; then
               echo "[CLEANUP] Cleaning previous frontend deployment files..."
-              find ${{ env.TRUENAS_DEPLOY_DIR }}/src/fe -type d -exec chmod 755 {} \; 2>/dev/null || true
-              find ${{ env.TRUENAS_DEPLOY_DIR }}/src/fe -type f -name "*.js" -exec chmod 644 {} \; 2>/dev/null || true
-              find ${{ env.TRUENAS_DEPLOY_DIR }}/src/fe -type f -name "*.ts" -exec chmod 644 {} \; 2>/dev/null || true
-              find ${{ env.TRUENAS_DEPLOY_DIR }}/src/fe -type f -name "*.vue" -exec chmod 644 {} \; 2>/dev/null || true
-              find ${{ env.TRUENAS_DEPLOY_DIR }}/src/fe -type f -name "*.json" -exec chmod 644 {} \; 2>/dev/null || true
+              
+              # Remove any hidden/temp files that might cause permission issues
+              find "$DEPLOY_DIR/src/fe" -name ".*" -type f -delete 2>/dev/null || true
+              find "$DEPLOY_DIR/src/fe" -name "*.tmp" -type f -delete 2>/dev/null || true
+              find "$DEPLOY_DIR/src/fe" -name ".rsync_*" -type f -delete 2>/dev/null || true
+              
+              # Fix permissions recursively
+              find "$DEPLOY_DIR/src/fe" -type d -exec chmod 755 {} \; 2>/dev/null || true
+              find "$DEPLOY_DIR/src/fe" -type f -exec chmod 644 {} \; 2>/dev/null || true
+              
+              # Fix ownership
+              chown -R $(whoami):$(whoami) "$DEPLOY_DIR/src/fe" 2>/dev/null || true
             fi
             
-            echo "[OK] Frontend deployment directory prepared"
+            echo "[OK] Frontend deployment directory prepared with proper permissions"
           REMOTE_EOF
         shell: bash
 
@@ -267,11 +279,20 @@ jobs:
       - name: "[6/9] Create comprehensive environment file for frontend"
         run: |
           ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << 'REMOTE_EOF'
-            # Ensure directory exists and navigate to it
-            mkdir -p ${{ env.TRUENAS_DEPLOY_DIR }}
-            cd ${{ env.TRUENAS_DEPLOY_DIR }}
+            # Set deployment directory and navigate to it
+            DEPLOY_DIR="${{ env.TRUENAS_DEPLOY_DIR }}"
+            
+            echo "[INFO] Navigating to deployment directory: $DEPLOY_DIR"
+            mkdir -p "$DEPLOY_DIR"
+            cd "$DEPLOY_DIR" || {
+              echo "[ERROR] Cannot navigate to deployment directory: $DEPLOY_DIR"
+              exit 1
+            }
             
             echo "[INFO] Working in directory: $(pwd)"
+            
+            # Ensure directory has proper permissions for writing files
+            chmod 755 "$(pwd)"
             
             # Backup existing .env if it exists
             if [ -f .env ]; then
