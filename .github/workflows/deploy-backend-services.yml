@@ -350,6 +350,7 @@ jobs:
             echo "JWT_AUDIENCE_COREFINANCE_API=TiHoMo.CoreFinance.Api" >> .env
             echo "JWT_AUDIENCE_EXCEL_API=TiHoMo.Excel.Api" >> .env
             echo "JWT_AUDIENCE_FRONTEND=TiHoMo.Frontend" >> .env
+            echo "JWT_AUDIENCE_OCELOT_GATEWAY=TiHoMo.Gateway" >> .env
             echo "" >> .env
             
             # External Services Configuration
@@ -414,6 +415,13 @@ jobs:
             echo "NGINX_HTTPS_PORT=443" >> .env
             echo "" >> .env
             
+            # Network Configuration
+            echo "# ================================" >> .env
+            echo "# Network Configuration" >> .env
+            echo "# ================================" >> .env
+            echo "DOCKER_NETWORK_SUBNET=172.20.0.0/16" >> .env
+            echo "" >> .env
+            
             # Docker Compose Project Name
             echo "# ================================" >> .env
             echo "# Docker Compose Project Name" >> .env
@@ -451,10 +459,36 @@ jobs:
             
             echo "[BACKEND] Deploying backend services: ${SERVICES_ARRAY[*]}"
             
+            # Ensure required infrastructure services are running
+            echo "[INFRA] Checking and starting required infrastructure services..."
+            REQUIRED_INFRA=("identity-postgres" "corefinance-postgres" "redis" "rabbitmq")
+            
+            for infra_service in "${REQUIRED_INFRA[@]}"; do
+              if ! $USE_SUDO docker compose ps $infra_service | grep -q "Up"; then
+                echo "[START] Starting infrastructure service: $infra_service"
+                $USE_SUDO docker compose up -d $infra_service
+                
+                # Wait for service to be ready
+                echo "[WAIT] Waiting for $infra_service to be ready..."
+                sleep 10
+                
+                # Verify it's running
+                if $USE_SUDO docker compose ps $infra_service | grep -q "Up"; then
+                  echo "[OK] $infra_service is running"
+                else
+                  echo "[ERROR] Failed to start $infra_service"
+                  $USE_SUDO docker compose logs --tail=10 $infra_service
+                  exit 1
+                fi
+              else
+                echo "[OK] $infra_service is already running"
+              fi
+            done
+            
             # Define service dependencies and deployment order
             declare -A SERVICE_DEPS
-            SERVICE_DEPS["identity-api"]="identity-postgres redis"
-            SERVICE_DEPS["corefinance-api"]="corefinance-postgres identity-api redis"
+            SERVICE_DEPS["identity-api"]="identity-postgres"
+            SERVICE_DEPS["corefinance-api"]="corefinance-postgres identity-api"
             SERVICE_DEPS["excel-api"]="corefinance-api"
             SERVICE_DEPS["ocelot-gateway"]="identity-api corefinance-api"
             

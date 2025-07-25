@@ -330,6 +330,7 @@ jobs:
             echo "JWT_AUDIENCE_COREFINANCE_API=TiHoMo.CoreFinance.Api" >> .env
             echo "JWT_AUDIENCE_EXCEL_API=TiHoMo.Excel.Api" >> .env
             echo "JWT_AUDIENCE_FRONTEND=TiHoMo.Frontend" >> .env
+            echo "JWT_AUDIENCE_OCELOT_GATEWAY=TiHoMo.Gateway" >> .env
             echo "" >> .env
             
             # External Services Configuration
@@ -392,6 +393,13 @@ jobs:
             echo "# Nginx" >> .env
             echo "NGINX_HTTP_PORT=80" >> .env
             echo "NGINX_HTTPS_PORT=443" >> .env
+            echo "" >> .env
+            
+            # Network Configuration
+            echo "# ================================" >> .env
+            echo "# Network Configuration" >> .env
+            echo "# ================================" >> .env
+            echo "DOCKER_NETWORK_SUBNET=172.20.0.0/16" >> .env
             echo "" >> .env
             
             # Docker Compose Project Name
