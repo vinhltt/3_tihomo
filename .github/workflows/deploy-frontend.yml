@@ -69,10 +69,17 @@ jobs:
 
       - name: Check backend readiness
         run: |
-          DEPLOY_DIR="${{ vars.DEPLOY_PATH_ON_TRUENAS }}/deploy_${GITHUB_REF_NAME}"
-          
-          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << 'REMOTE_EOF'
-            cd $DEPLOY_DIR
+          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << 'EOF'
+            # Navigate to deployment directory
+            DEPLOY_DIR="${{ vars.DEPLOY_PATH_ON_TRUENAS }}/deploy_${GITHUB_REF_NAME}"
+            echo "[INFO] Navigating to deployment directory: $DEPLOY_DIR"
+            cd "$DEPLOY_DIR" || {
+              echo "[ERROR] Cannot navigate to deployment directory: $DEPLOY_DIR"
+              exit 1
+            }
+            
+            echo "[INFO] Current directory: $(pwd)"
+            echo "[INFO] Checking for docker-compose.yml: $(test -f docker-compose.yml && echo 'EXISTS' || echo 'MISSING')"
             
             if docker ps >/dev/null 2>&1; then
               USE_SUDO=""
@@ -86,14 +93,20 @@ jobs:
             MISSING_SERVICES=()
             
             for service in "${REQUIRED_SERVICES[@]}"; do
+              echo "[DEBUG] Checking service: $service"
               if ! $USE_SUDO docker compose ps $service | grep -q "Up"; then
+                echo "[WARNING] Service $service is not running"
                 MISSING_SERVICES+=("$service")
+              else
+                echo "[OK] Service $service is running"
               fi
             done
             
             if [ ${#MISSING_SERVICES[@]} -gt 0 ]; then
               echo "[ERROR] Missing backend services: ${MISSING_SERVICES[*]}"
               echo "[ACTION] Please run backend deployment first"
+              echo "[DEBUG] Docker compose services status:"
+              $USE_SUDO docker compose ps --format "table {{.Name}}\\t{{.Status}}"
               exit 1
             fi
             
@@ -105,7 +118,7 @@ jobs:
             fi
             
             echo "[OK] Backend services are ready for frontend deployment"
-          REMOTE_EOF
+          EOF
         shell: bash
 
   deploy-frontend:
@@ -149,35 +162,48 @@ jobs:
 
       - name: "[4.5/9] Prepare deployment directory"
         run: |
-          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << 'REMOTE_EOF'
+          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << 'EOF'
             echo "[PREP] Preparing frontend deployment directory..."
             
-            # Create required directories
-            mkdir -p ${{ env.TRUENAS_DEPLOY_DIR }}/src/fe/nuxt
-            mkdir -p ${{ env.TRUENAS_DEPLOY_DIR }}/.rsync-partial
+            DEPLOY_DIR="${{ env.TRUENAS_DEPLOY_DIR }}"
             
-            # Set proper permissions
-            chmod 755 ${{ env.TRUENAS_DEPLOY_DIR }}
-            chmod -R 755 ${{ env.TRUENAS_DEPLOY_DIR }}/src 2>/dev/null || true
-            chmod -R 755 ${{ env.TRUENAS_DEPLOY_DIR }}/.rsync-partial 2>/dev/null || true
+            # Create required directories with proper ownership
+            mkdir -p "$DEPLOY_DIR/src/fe/nuxt"
+            mkdir -p "$DEPLOY_DIR/.rsync-partial"
+            
+            # Set proper permissions and ownership
+            chmod 755 "$DEPLOY_DIR"
+            chmod -R 755 "$DEPLOY_DIR/src" 2>/dev/null || true
+            chmod -R 755 "$DEPLOY_DIR/.rsync-partial" 2>/dev/null || true
+            
+            # Fix ownership to current user to avoid permission issues
+            chown -R $(whoami):$(whoami) "$DEPLOY_DIR" 2>/dev/null || true
             
             # Cleanup any problematic files from previous deployments
-            if [ -d "${{ env.TRUENAS_DEPLOY_DIR }}/src/fe" ]; then
+            if [ -d "$DEPLOY_DIR/src/fe" ]; then
               echo "[CLEANUP] Cleaning previous frontend deployment files..."
-              find ${{ env.TRUENAS_DEPLOY_DIR }}/src/fe -type d -exec chmod 755 {} \; 2>/dev/null || true
-              find ${{ env.TRUENAS_DEPLOY_DIR }}/src/fe -type f -name "*.js" -exec chmod 644 {} \; 2>/dev/null || true
-              find ${{ env.TRUENAS_DEPLOY_DIR }}/src/fe -type f -name "*.ts" -exec chmod 644 {} \; 2>/dev/null || true
-              find ${{ env.TRUENAS_DEPLOY_DIR }}/src/fe -type f -name "*.vue" -exec chmod 644 {} \; 2>/dev/null || true
-              find ${{ env.TRUENAS_DEPLOY_DIR }}/src/fe -type f -name "*.json" -exec chmod 644 {} \; 2>/dev/null || true
+              
+              # Remove any hidden/temp files that might cause permission issues
+              find "$DEPLOY_DIR/src/fe" -name ".*" -type f -delete 2>/dev/null || true
+              find "$DEPLOY_DIR/src/fe" -name "*.tmp" -type f -delete 2>/dev/null || true
+              find "$DEPLOY_DIR/src/fe" -name ".rsync_*" -type f -delete 2>/dev/null || true
+              
+              # Fix permissions recursively
+              find "$DEPLOY_DIR/src/fe" -type d -exec chmod 755 {} \; 2>/dev/null || true
+              find "$DEPLOY_DIR/src/fe" -type f -exec chmod 644 {} \; 2>/dev/null || true
+              
+              # Fix ownership
+              chown -R $(whoami):$(whoami) "$DEPLOY_DIR/src/fe" 2>/dev/null || true
             fi
             
-            echo "[OK] Frontend deployment directory prepared"
-          REMOTE_EOF
+            echo "[OK] Frontend deployment directory prepared with proper permissions"
+          EOF
         shell: bash
 
       - name: "[5/9] Sync frontend files"
         run: |
           echo "[SYNC] Starting frontend files sync to TrueNAS..."
+          DEPLOY_DIR="${{ env.TRUENAS_DEPLOY_DIR }}"
           
           # Enhanced rsync for frontend files with better error handling
           rsync -rltvz --safe-links \
@@ -198,7 +224,7 @@ jobs:
             --human-readable \
             -e "ssh -F $HOME/.ssh/config -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=30" \
             $GITHUB_WORKSPACE/ \
-            truenas-cf-tunnel:"${{ env.TRUENAS_DEPLOY_DIR }}/" || {
+            truenas-cf-tunnel:"$DEPLOY_DIR/" || {
               RSYNC_EXIT_CODE=$?
               echo "[ERROR] Rsync failed with exit code: $RSYNC_EXIT_CODE"
               
@@ -228,8 +254,9 @@ jobs:
           
           # Verify the synced files structure
           echo "[DEBUG] Verifying synced frontend files structure..."
-          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << 'REMOTE_EOF'
-            cd ${{ env.TRUENAS_DEPLOY_DIR }}
+          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << 'EOF'
+            DEPLOY_DIR="${{ env.TRUENAS_DEPLOY_DIR }}"
+            cd $DEPLOY_DIR
             echo "[DEBUG] Current directory: $(pwd)"
             echo "[DEBUG] Directory structure after rsync:"
             ls -la
@@ -245,17 +272,28 @@ jobs:
               find . -type d -name "*nuxt*" 2>/dev/null || echo "No nuxt directories found"
             fi
             echo "[DEBUG] docker-compose.yml exists: $(test -f docker-compose.yml && echo 'YES' || echo 'NO')"
-          REMOTE_EOF
+          EOF
         shell: bash
 
       - name: "[6/9] Create comprehensive environment file for frontend"
         run: |
-          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << 'REMOTE_EOF'
-            # Ensure directory exists and navigate to it
-            mkdir -p ${{ env.TRUENAS_DEPLOY_DIR }}
-            cd ${{ env.TRUENAS_DEPLOY_DIR }}
+          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << 'EOF'
+            # Set deployment directory and navigate to it
+            DEPLOY_DIR="${{ env.TRUENAS_DEPLOY_DIR }}"
+            echo "[INFO] Navigating to deployment directory: $DEPLOY_DIR"
+            mkdir -p "$DEPLOY_DIR"
+            cd "$DEPLOY_DIR" || {
+              echo "[ERROR] Cannot navigate to deployment directory: $DEPLOY_DIR"
+              echo "[DEBUG] Current working directory: $(pwd)"
+              echo "[DEBUG] Directory listing:"
+              ls -la
+              exit 1
+            }
             
             echo "[INFO] Working in directory: $(pwd)"
+            
+            # Ensure directory has proper permissions for writing files
+            chmod 755 "$(pwd)"
             
             # Backup existing .env if it exists
             if [ -f .env ]; then
@@ -272,17 +310,6 @@ jobs:
             > .env
             
             # Setup environment variables from GitHub Secrets (no default values for secrets)
-            IDENTITY_DB_PASSWORD='${{ secrets.IDENTITY_DB_PASSWORD }}'
-            COREFINANCE_DB_PASSWORD='${{ secrets.COREFINANCE_DB_PASSWORD }}'
-            MONEYMANAGEMENT_DB_PASSWORD='${{ secrets.MONEYMANAGEMENT_DB_PASSWORD }}'
-            PLANNINGINVESTMENT_DB_PASSWORD='${{ secrets.PLANNINGINVESTMENT_DB_PASSWORD }}'
-            REPORTING_DB_PASSWORD='${{ secrets.REPORTING_DB_PASSWORD }}'
-            JWT_SECRET_KEY='${{ secrets.JWT_SECRET_KEY }}'
-            REDIS_PASSWORD='${{ secrets.REDIS_PASSWORD }}'
-            RABBITMQ_PASSWORD='${{ secrets.RABBITMQ_PASSWORD }}'
-            GRAFANA_ADMIN_PASSWORD='${{ secrets.GRAFANA_ADMIN_PASSWORD }}'
-            PGADMIN_PASSWORD='${{ secrets.PGADMIN_PASSWORD }}'
-            
             # CORS Configuration
             echo "# ================================" >> .env
             echo "# CORS Configuration" >> .env
@@ -308,27 +335,27 @@ jobs:
             echo "# ================================" >> .env
             echo "# Identity Database" >> .env
             echo "IDENTITY_DB_USERNAME=${{ vars.IDENTITY_DB_USERNAME || 'identity_user' }}" >> .env
-            echo "IDENTITY_DB_PASSWORD=$IDENTITY_DB_PASSWORD" >> .env
+            echo "IDENTITY_DB_PASSWORD=${{ secrets.IDENTITY_DB_PASSWORD }}" >> .env
             echo "IDENTITY_DB_PORT=${{ vars.IDENTITY_DB_PORT || '5431' }}" >> .env
             echo "" >> .env
             echo "# CoreFinance Database" >> .env
             echo "COREFINANCE_DB_USERNAME=${{ vars.COREFINANCE_DB_USERNAME || 'corefinance_user' }}" >> .env
-            echo "COREFINANCE_DB_PASSWORD=$COREFINANCE_DB_PASSWORD" >> .env
+            echo "COREFINANCE_DB_PASSWORD=${{ secrets.COREFINANCE_DB_PASSWORD }}" >> .env
             echo "COREFINANCE_DB_PORT=${{ vars.COREFINANCE_DB_PORT || '5432' }}" >> .env
             echo "" >> .env
             echo "# MoneyManagement Database" >> .env
             echo "MONEYMANAGEMENT_DB_USERNAME=${{ vars.MONEYMANAGEMENT_DB_USERNAME || 'money_user' }}" >> .env
-            echo "MONEYMANAGEMENT_DB_PASSWORD=$MONEYMANAGEMENT_DB_PASSWORD" >> .env
+            echo "MONEYMANAGEMENT_DB_PASSWORD=${{ secrets.MONEYMANAGEMENT_DB_PASSWORD }}" >> .env
             echo "MONEYMANAGEMENT_DB_PORT=${{ vars.MONEYMANAGEMENT_DB_PORT || '5433' }}" >> .env
             echo "" >> .env
             echo "# PlanningInvestment Database" >> .env
             echo "PLANNINGINVESTMENT_DB_USERNAME=${{ vars.PLANNINGINVESTMENT_DB_USERNAME || 'planning_user' }}" >> .env
-            echo "PLANNINGINVESTMENT_DB_PASSWORD=$PLANNINGINVESTMENT_DB_PASSWORD" >> .env
+            echo "PLANNINGINVESTMENT_DB_PASSWORD=${{ secrets.PLANNINGINVESTMENT_DB_PASSWORD }}" >> .env
             echo "PLANNINGINVESTMENT_DB_PORT=${{ vars.PLANNINGINVESTMENT_DB_PORT || '5434' }}" >> .env
             echo "" >> .env
             echo "# Reporting Database" >> .env
             echo "REPORTING_DB_USERNAME=${{ vars.REPORTING_DB_USERNAME || 'reporting_user' }}" >> .env
-            echo "REPORTING_DB_PASSWORD=$REPORTING_DB_PASSWORD" >> .env
+            echo "REPORTING_DB_PASSWORD=${{ secrets.REPORTING_DB_PASSWORD }}" >> .env
             echo "REPORTING_DB_PORT=${{ vars.REPORTING_DB_PORT || '5435' }}" >> .env
             echo "" >> .env
             
@@ -336,7 +363,7 @@ jobs:
             echo "# ================================" >> .env
             echo "# Authentication Configuration" >> .env
             echo "# ================================" >> .env
-            echo "JWT_SECRET_KEY=$JWT_SECRET_KEY" >> .env
+            echo "JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}" >> .env
             echo "JWT_ISSUER=${{ vars.JWT_ISSUER || 'TiHoMo' }}" >> .env
             echo "JWT_AUDIENCE_IDENTITY_API=${{ vars.JWT_AUDIENCE_IDENTITY_API || 'TiHoMo.Identity.Api' }}" >> .env
             echo "JWT_AUDIENCE_COREFINANCE_API=${{ vars.JWT_AUDIENCE_COREFINANCE_API || 'TiHoMo.CoreFinance.Api' }}" >> .env
@@ -350,18 +377,18 @@ jobs:
             echo "# External Services Configuration" >> .env
             echo "# ================================" >> .env
             echo "# Redis" >> .env
-            echo "REDIS_PASSWORD=$REDIS_PASSWORD" >> .env
+            echo "REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}" >> .env
             echo "REDIS_PORT=${{ vars.REDIS_PORT || '6379' }}" >> .env
             echo "" >> .env
             echo "# RabbitMQ" >> .env
-            echo "RABBITMQ_PASSWORD=$RABBITMQ_PASSWORD" >> .env
+            echo "RABBITMQ_PASSWORD=${{ secrets.RABBITMQ_PASSWORD }}" >> .env
             echo "RABBITMQ_PORT=${{ vars.RABBITMQ_PORT || '5672' }}" >> .env
             echo "RABBITMQ_MANAGEMENT_PORT=${{ vars.RABBITMQ_MANAGEMENT_PORT || '15672' }}" >> .env
             echo "" >> .env
             echo "# Monitoring" >> .env
             echo "PROMETHEUS_PORT=${{ vars.PROMETHEUS_PORT || '9090' }}" >> .env
             echo "GRAFANA_PORT=${{ vars.GRAFANA_PORT || '3000' }}" >> .env
-            echo "GRAFANA_ADMIN_PASSWORD=$GRAFANA_ADMIN_PASSWORD" >> .env
+            echo "GRAFANA_ADMIN_PASSWORD=${{ secrets.GRAFANA_ADMIN_PASSWORD }}" >> .env
             echo "" >> .env
             echo "# Development Tools" >> .env
             echo "MAILHOG_SMTP_PORT=${{ vars.MAILHOG_SMTP_PORT || '1025' }}" >> .env
@@ -411,7 +438,7 @@ jobs:
             echo "# Infrastructure Configuration" >> .env
             echo "# ================================" >> .env
             echo "# pgAdmin" >> .env
-            echo "PGADMIN_PASSWORD=$PGADMIN_PASSWORD" >> .env
+            echo "PGADMIN_PASSWORD=${{ secrets.PGADMIN_PASSWORD }}" >> .env
             echo "PGADMIN_PORT=${{ vars.PGADMIN_PORT || '8080' }}" >> .env
             echo "" >> .env
             echo "# Loki" >> .env
@@ -442,14 +469,15 @@ jobs:
             head -20 .env
             
             echo "[INFO] Frontend environment setup completed"
-          REMOTE_EOF
+          EOF
         shell: bash
 
       - name: "[7/9] Deploy frontend with complete cleanup and rebuild"
         run: |
-          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << 'REMOTE_EOF'
+          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << 'EOF'
             set -e
-            cd ${{ env.TRUENAS_DEPLOY_DIR }}
+            DEPLOY_DIR="${{ env.TRUENAS_DEPLOY_DIR }}"
+            cd $DEPLOY_DIR
             
             source .env
             
@@ -616,13 +644,14 @@ jobs:
             # Show recent logs for verification
             echo "[LOGS] Recent frontend logs:"
             $USE_SUDO docker compose logs --tail=10 frontend-nuxt
-          REMOTE_EOF
+          EOF
         shell: bash
 
       - name: "[8/9] Final health check and notification"
         run: |
-          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << 'REMOTE_EOF'
-            cd ${{ env.TRUENAS_DEPLOY_DIR }}
+          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << 'EOF'
+            DEPLOY_DIR="${{ env.TRUENAS_DEPLOY_DIR }}"
+            cd $DEPLOY_DIR
             
             if docker ps >/dev/null 2>&1; then
               USE_SUDO=""
@@ -661,7 +690,7 @@ jobs:
             
             echo "[INFO] Full system status:"
             $USE_SUDO docker compose ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}"
-          REMOTE_EOF
+          EOF
           
           # Send Discord notification
           webhook_url="${{ secrets.DISCORD_WEBHOOK_URL }}"
