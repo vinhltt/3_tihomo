@@ -165,10 +165,11 @@ jobs:
 
       - name: "[4.5/9] Prepare deployment directory"
         run: |
-          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel /bin/bash << 'EOF'
+          DEPLOY_DIR="${{ env.TRUENAS_DEPLOY_DIR }}"
+          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel /bin/bash << EOF
             echo "[PREP] Preparing frontend deployment directory..."
             
-            DEPLOY_DIR="${{ env.TRUENAS_DEPLOY_DIR }}"
+            DEPLOY_DIR="$DEPLOY_DIR"
             
             # Create required directories with proper ownership
             mkdir -p "$DEPLOY_DIR/src/fe/nuxt"
@@ -205,6 +206,7 @@ jobs:
 
       - name: "[5/9] Sync frontend files"
         run: |
+          DEPLOY_DIR="${{ env.TRUENAS_DEPLOY_DIR }}"
           echo "[SYNC] Starting frontend files sync to TrueNAS..."
           
           # Enhanced rsync for frontend files with better error handling
@@ -226,7 +228,7 @@ jobs:
             --human-readable \
             -e "ssh -F $HOME/.ssh/config -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=30" \
             $GITHUB_WORKSPACE/ \
-            truenas-cf-tunnel:"${{ env.TRUENAS_DEPLOY_DIR }}/" || {
+            truenas-cf-tunnel:"$DEPLOY_DIR/" || {
               RSYNC_EXIT_CODE=$?
               echo "[ERROR] Rsync failed with exit code: $RSYNC_EXIT_CODE"
               
@@ -256,8 +258,8 @@ jobs:
           
           # Verify the synced files structure
           echo "[DEBUG] Verifying synced frontend files structure..."
-          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel /bin/bash << 'EOF'
-            cd ${{ env.TRUENAS_DEPLOY_DIR }}
+          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel /bin/bash << EOF
+            cd $DEPLOY_DIR
             echo "[DEBUG] Current directory: $(pwd)"
             echo "[DEBUG] Directory structure after rsync:"
             ls -la
@@ -278,9 +280,10 @@ jobs:
 
       - name: "[6/9] Create comprehensive environment file for frontend"
         run: |
-          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel /bin/bash << 'EOF'
+          DEPLOY_DIR="${{ env.TRUENAS_DEPLOY_DIR }}"
+          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel /bin/bash << EOF
             # Set deployment directory and navigate to it
-            DEPLOY_DIR="${{ env.TRUENAS_DEPLOY_DIR }}"
+            DEPLOY_DIR="$DEPLOY_DIR"
             
             echo "[INFO] Navigating to deployment directory: $DEPLOY_DIR"
             mkdir -p "$DEPLOY_DIR"
@@ -473,9 +476,10 @@ jobs:
 
       - name: "[7/9] Deploy frontend with complete cleanup and rebuild"
         run: |
-          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel /bin/bash << 'EOF'
+          DEPLOY_DIR="${{ env.TRUENAS_DEPLOY_DIR }}"
+          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel /bin/bash << EOF
             set -e
-            cd ${{ env.TRUENAS_DEPLOY_DIR }}
+            cd $DEPLOY_DIR
             
             source .env
             
@@ -647,8 +651,9 @@ jobs:
 
       - name: "[8/9] Final health check and notification"
         run: |
-          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel /bin/bash << 'EOF'
-            cd ${{ env.TRUENAS_DEPLOY_DIR }}
+          DEPLOY_DIR="${{ env.TRUENAS_DEPLOY_DIR }}"
+          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel /bin/bash << EOF
+            cd $DEPLOY_DIR
             
             if docker ps >/dev/null 2>&1; then
               USE_SUDO=""
