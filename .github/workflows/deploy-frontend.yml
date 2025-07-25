@@ -439,10 +439,10 @@ jobs:
 
       - name: "[7/9] Deploy frontend with complete cleanup and rebuild"
         run: |
-          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << 'EOF'
+          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << EOF
             set -e
             DEPLOY_DIR="${{ env.TRUENAS_DEPLOY_DIR }}"
-            cd $DEPLOY_DIR
+            cd \$DEPLOY_DIR
             
             source .env
             
@@ -456,52 +456,52 @@ jobs:
             
             # Step 1: Stop and remove existing frontend containers
             echo "[CLEANUP] Stopping and removing existing frontend containers..."
-            if $USE_SUDO docker compose ps frontend-nuxt | grep -q "Up"; then
+            if \$USE_SUDO docker compose ps frontend-nuxt | grep -q "Up"; then
               echo "[INFO] Frontend is currently running, performing graceful shutdown..."
-              $USE_SUDO docker compose stop frontend-nuxt
+              \$USE_SUDO docker compose stop frontend-nuxt
               sleep 3
             fi
             
             # Remove containers
             echo "[CLEANUP] Removing frontend containers..."
-            $USE_SUDO docker compose rm -f frontend-nuxt 2>/dev/null || true
+            \$USE_SUDO docker compose rm -f frontend-nuxt 2>/dev/null || true
             
             # Step 2: Clean up Docker images and system
             echo "[CLEANUP] Cleaning up Docker images and system..."
             
             # Remove old frontend images
-            OLD_IMAGES=$($USE_SUDO docker images | grep "tihomo.*frontend" | awk '{print $3}' || true)
-            if [ ! -z "$OLD_IMAGES" ]; then
+            OLD_IMAGES=\$(\$USE_SUDO docker images | grep "tihomo.*frontend" | awk '{print \$3}' || true)
+            if [ ! -z "\$OLD_IMAGES" ]; then
               echo "[CLEANUP] Removing old frontend images..."
-              echo "$OLD_IMAGES" | xargs -r $USE_SUDO docker rmi -f 2>/dev/null || true
+              echo "\$OLD_IMAGES" | xargs -r \$USE_SUDO docker rmi -f 2>/dev/null || true
             fi
             
             # Clean up dangling images and volumes
-            $USE_SUDO docker system prune -f --volumes 2>/dev/null || true
+            \$USE_SUDO docker system prune -f --volumes 2>/dev/null || true
             
             # Step 3: Force rebuild frontend image
             echo "[BUILD] Force rebuilding frontend image for ${{ inputs.environment }} environment..."
             echo "[BUILD] This will always use --no-cache for clean build..."
             
             # Always use no-cache for deployment to ensure latest code
-            $USE_SUDO docker compose build --no-cache --pull frontend-nuxt
+            \$USE_SUDO docker compose build --no-cache --pull frontend-nuxt
             
             # Verify build succeeded
-            if [ $? -ne 0 ]; then
+            if [ \$? -ne 0 ]; then
               echo "[ERROR] Frontend build failed"
               echo "[DEBUG] Checking build context and files..."
               
-              echo "[DEBUG] Current directory: $(pwd)"
+              echo "[DEBUG] Current directory: \$(pwd)"
               echo "[DEBUG] Contents of current directory:"
               ls -la
               
-              echo "[DEBUG] Docker-compose file exists: $(test -f docker-compose.yml && echo 'YES' || echo 'NO')"
+              echo "[DEBUG] Docker-compose file exists: \$(test -f docker-compose.yml && echo 'YES' || echo 'NO')"
               
               if [ -d "src/fe/nuxt" ]; then
                 echo "[DEBUG] Frontend directory contents:"
                 ls -la src/fe/nuxt/
-                echo "[DEBUG] Dockerfile exists: $(test -f src/fe/nuxt/Dockerfile && echo 'YES' || echo 'NO')"
-                echo "[DEBUG] package.json exists: $(test -f src/fe/nuxt/package.json && echo 'YES' || echo 'NO')"
+                echo "[DEBUG] Dockerfile exists: \$(test -f src/fe/nuxt/Dockerfile && echo 'YES' || echo 'NO')"
+                echo "[DEBUG] package.json exists: \$(test -f src/fe/nuxt/package.json && echo 'YES' || echo 'NO')"
                 echo "[DEBUG] Nuxt config:"
                 cat src/fe/nuxt/nuxt.config.ts | head -20 2>/dev/null || echo "No nuxt.config.ts found"
                 
@@ -527,18 +527,18 @@ jobs:
             
             # Step 4: Deploy frontend with enhanced monitoring
             echo "[DEPLOY] Starting frontend service with enhanced monitoring..."
-            $USE_SUDO docker compose up -d --no-deps --force-recreate frontend-nuxt
+            \$USE_SUDO docker compose up -d --no-deps --force-recreate frontend-nuxt
             
             # Step 5: Enhanced health check with better error reporting
             echo "[HEALTH] Starting enhanced health check process..."
             max_attempts=30
             attempt=1
             
-            while [ $attempt -le $max_attempts ]; do
-              echo "[HEALTH] Health check attempt $attempt/$max_attempts..."
+            while [ \$attempt -le \$max_attempts ]; do
+              echo "[HEALTH] Health check attempt \$attempt/\$max_attempts..."
               
               # Check if container is running
-              if $USE_SUDO docker compose ps frontend-nuxt | grep -q "Up"; then
+              if \$USE_SUDO docker compose ps frontend-nuxt | grep -q "Up"; then
                 echo "[OK] Frontend container is running"
                 
                 # Wait for Nuxt to initialize properly
@@ -546,34 +546,34 @@ jobs:
                 sleep 15
                 
                 # Test HTTP response
-                if $USE_SUDO docker compose exec -T frontend-nuxt curl -f http://localhost:3000/ >/dev/null 2>&1; then
+                if \$USE_SUDO docker compose exec -T frontend-nuxt curl -f http://localhost:3000/ >/dev/null 2>&1; then
                   echo "[SUCCESS] ✅ Frontend is responding to HTTP requests!"
                   break
-                elif $USE_SUDO docker compose exec -T frontend-nuxt curl -s http://localhost:3000/ | grep -q "html\|HTML"; then
+                elif \$USE_SUDO docker compose exec -T frontend-nuxt curl -s http://localhost:3000/ | grep -q "html\\|HTML"; then
                   echo "[SUCCESS] ✅ Frontend is serving content (HTTP 200)!"
                   break
                 else
-                  echo "[WAIT] Frontend not ready yet (attempt $attempt/$max_attempts)"
+                  echo "[WAIT] Frontend not ready yet (attempt \$attempt/\$max_attempts)"
                   
                   # Show logs every 5 attempts for debugging
-                  if [ $((attempt % 5)) -eq 0 ]; then
-                    echo "[DEBUG] Recent frontend logs (attempt $attempt):"
-                    $USE_SUDO docker compose logs --tail=15 frontend-nuxt
+                  if [ \$((\$attempt % 5)) -eq 0 ]; then
+                    echo "[DEBUG] Recent frontend logs (attempt \$attempt):"
+                    \$USE_SUDO docker compose logs --tail=15 frontend-nuxt
                     echo "[DEBUG] Container status:"
-                    $USE_SUDO docker compose ps frontend-nuxt
+                    \$USE_SUDO docker compose ps frontend-nuxt
                   fi
                   
                   sleep 10
                   ((attempt++))
                 fi
               else
-                echo "[ERROR] Frontend container not running (attempt $attempt/$max_attempts)"
+                echo "[ERROR] Frontend container not running (attempt \$attempt/\$max_attempts)"
                 
                 # Show container status and logs for debugging
                 echo "[DEBUG] Container status:"
-                $USE_SUDO docker compose ps frontend-nuxt
+                \$USE_SUDO docker compose ps frontend-nuxt
                 echo "[DEBUG] Recent logs:"
-                $USE_SUDO docker compose logs --tail=10 frontend-nuxt
+                \$USE_SUDO docker compose logs --tail=10 frontend-nuxt
                 
                 sleep 5
                 ((attempt++))
@@ -581,21 +581,21 @@ jobs:
             done
             
             # Final error handling
-            if [ $attempt -gt $max_attempts ]; then
-              echo "[ERROR] ❌ Frontend failed to start after $max_attempts attempts"
+            if [ \$attempt -gt \$max_attempts ]; then
+              echo "[ERROR] ❌ Frontend failed to start after \$max_attempts attempts"
               echo "[DEBUG] Complete troubleshooting information:"
               echo "=============================================="
               echo "[DEBUG] Container status:"
-              $USE_SUDO docker compose ps frontend-nuxt
+              \$USE_SUDO docker compose ps frontend-nuxt
               echo "=============================================="
               echo "[DEBUG] Last 50 lines of frontend logs:"
-              $USE_SUDO docker compose logs --tail=50 frontend-nuxt
+              \$USE_SUDO docker compose logs --tail=50 frontend-nuxt
               echo "=============================================="
               echo "[DEBUG] Docker system info:"
-              $USE_SUDO docker system df
+              \$USE_SUDO docker system df
               echo "=============================================="
               echo "[DEBUG] Available images:"
-              $USE_SUDO docker images | grep -E "(frontend|nuxt|tihomo)" || echo "No matching images found"
+              \$USE_SUDO docker images | grep -E "(frontend|nuxt|tihomo)" || echo "No matching images found"
               echo "=============================================="
               exit 1
             fi
@@ -604,19 +604,19 @@ jobs:
             
             # Show final status
             echo "[STATUS] Frontend service status:"
-            $USE_SUDO docker compose ps frontend-nuxt
+            \$USE_SUDO docker compose ps frontend-nuxt
             
             # Show recent logs for verification
             echo "[LOGS] Recent frontend logs:"
-            $USE_SUDO docker compose logs --tail=10 frontend-nuxt
+            \$USE_SUDO docker compose logs --tail=10 frontend-nuxt
           EOF
         shell: bash
 
       - name: "[8/9] Final health check and notification"
         run: |
-          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << 'EOF'
+          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << EOF
             DEPLOY_DIR="${{ env.TRUENAS_DEPLOY_DIR }}"
-            cd $DEPLOY_DIR
+            cd \$DEPLOY_DIR
             
             if docker ps >/dev/null 2>&1; then
               USE_SUDO=""
@@ -627,15 +627,15 @@ jobs:
             echo "[HEALTH] Final frontend health check..."
             
             # Check container status
-            if $USE_SUDO docker compose ps frontend-nuxt | grep -q "Up"; then
+            if \$USE_SUDO docker compose ps frontend-nuxt | grep -q "Up"; then
               echo "[OK] Frontend container is running"
               
               # Check HTTP response
-              if $USE_SUDO docker compose exec -T frontend-nuxt curl -f http://localhost:3000/ >/dev/null 2>&1; then
+              if \$USE_SUDO docker compose exec -T frontend-nuxt curl -f http://localhost:3000/ >/dev/null 2>&1; then
                 echo "[OK] Frontend is serving HTTP requests"
                 
                 # Check API connectivity from frontend
-                if $USE_SUDO docker compose exec -T frontend-nuxt curl -f http://ocelot-gateway:8080/health >/dev/null 2>&1; then
+                if \$USE_SUDO docker compose exec -T frontend-nuxt curl -f http://ocelot-gateway:8080/health >/dev/null 2>&1; then
                   echo "[OK] Frontend can connect to backend gateway"
                 else
                   echo "[WARNING] Frontend cannot connect to backend gateway"
@@ -644,17 +644,17 @@ jobs:
                 echo "[SUCCESS] Frontend health check passed"
               else
                 echo "[ERROR] Frontend HTTP check failed"
-                $USE_SUDO docker compose logs --tail=20 frontend-nuxt
+                \$USE_SUDO docker compose logs --tail=20 frontend-nuxt
                 exit 1
               fi
             else
               echo "[ERROR] Frontend container is not running"
-              $USE_SUDO docker compose ps frontend-nuxt
+              \$USE_SUDO docker compose ps frontend-nuxt
               exit 1
             fi
             
             echo "[INFO] Full system status:"
-            $USE_SUDO docker compose ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}"
+            \$USE_SUDO docker compose ps --format "table {{.Name}}\\t{{.Status}}\\t{{.Ports}}"
           EOF
           
           # Send Discord notification
