@@ -126,7 +126,7 @@ jobs:
           # Clean project name - remove special characters and ensure lowercase
           CLEAN_ENV=$(echo "${{ inputs.environment }}" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]//g')
           echo "TRUENAS_DEPLOY_DIR=${{ vars.DEPLOY_PATH_ON_TRUENAS }}/deploy_${GITHUB_REF_NAME}" >> $GITHUB_ENV
-          echo "COMPOSE_PROJECT_NAME=tihomo_${CLEAN_ENV}" >> $GITHUB_ENV
+          # Skip setting COMPOSE_PROJECT_NAME in GitHub env to avoid masking issues
           echo "[INFO] Environment: '${{ inputs.environment }}' → cleaned: '${CLEAN_ENV}'"
           
           # Parse services input
@@ -429,7 +429,7 @@ jobs:
             echo "# ================================" >> .env
             echo "# Docker Compose Project Name" >> .env
             echo "# ================================" >> .env
-            echo "COMPOSE_PROJECT_NAME=${{ env.COMPOSE_PROJECT_NAME }}" >> .env
+            echo "COMPOSE_PROJECT_NAME=tihomo_prod" >> .env
             
             echo "[OK] Comprehensive .env file created successfully"
             
