@@ -429,7 +429,9 @@ jobs:
             echo "# ================================" >> .env
             echo "# Docker Compose Project Name" >> .env
             echo "# ================================" >> .env
-            echo "COMPOSE_PROJECT_NAME=tihomo_prod" >> .env
+            # Create dynamic project name based on environment input
+            ENV_CLEAN=$(echo "${{ inputs.environment }}" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]//g')
+            echo "COMPOSE_PROJECT_NAME=tihomo_${ENV_CLEAN}" >> .env
             
             echo "[OK] Comprehensive .env file created successfully"
             
