@@ -323,29 +323,25 @@ jobs:
     
     steps:
       - name: Send deployment summary notification
-        uses: appleboy/discord-action@v1.2.0
-        with:
-          webhook_url: ${{ secrets.DISCORD_WEBHOOK_URL }}
-          message: |
-            ${{ job.status == 'success' && '✅ **TiHoMo Deployment Orchestration COMPLETE**' || '❌ **TiHoMo Deployment Orchestration FAILED**' }}
+        run: |
+          webhook_url="${{ secrets.DISCORD_WEBHOOK_URL }}"
+          if [ -n "$webhook_url" ]; then
+            # Determine overall status
+            if [ "${{ job.status }}" = "success" ]; then
+              status_emoji="✅"
+              status_text="TiHoMo Deployment Orchestration COMPLETE"
+              footer_text="🎉 **System ready for use!**"
+            else
+              status_emoji="❌" 
+              status_text="TiHoMo Deployment Orchestration FAILED"
+              footer_text="🚨 **Manual intervention may be required**"
+            fi
             
-            📋 **Deployment Summary:**
-            • **Strategy:** `${{ needs.plan-deployment.outputs.deployment-strategy }}`
-            • **Environment:** `${{ inputs.environment }}`
-            • **Branch:** `${{ github.ref_name }}`
-            • **Force Rebuild:** `${{ inputs.force_rebuild }}`
-            
-            🏗️ **Component Status:**
-            • **Infrastructure:** ${{ needs.deploy-infrastructure.result == 'success' && '✅ SUCCESS' || needs.deploy-infrastructure.result == 'skipped' && '⏭️ SKIPPED' || needs.deploy-infrastructure.result == 'failure' && '❌ FAILED' || '⏸️ NOT RUN' }}
-            • **Backend Services:** ${{ needs.deploy-backend.result == 'success' && '✅ SUCCESS' || needs.deploy-backend.result == 'skipped' && '⏭️ SKIPPED' || needs.deploy-backend.result == 'failure' && '❌ FAILED' || '⏸️ NOT RUN' }}
-            • **Frontend:** ${{ needs.deploy-frontend.result == 'success' && '✅ SUCCESS' || needs.deploy-frontend.result == 'skipped' && '⏭️ SKIPPED' || needs.deploy-frontend.result == 'failure' && '❌ FAILED' || '⏸️ NOT RUN' }}
-            • **Health Check:** ${{ needs.comprehensive-health-check.result == 'success' && '✅ PASSED' || needs.comprehensive-health-check.result == 'skipped' && '⏭️ SKIPPED' || needs.comprehensive-health-check.result == 'failure' && '❌ FAILED' || '⏸️ NOT RUN' }}
-            
-            🔗 **Access Points:**
-            • **Frontend:** `http://<TRUENAS_IP>:${{ vars.FRONTEND_PORT || '3500' }}`
-            • **API Gateway:** `http://<TRUENAS_IP>:${{ vars.GATEWAY_PORT || '5000' }}`
-            • **Monitoring:** `http://<TRUENAS_IP>:${{ vars.GRAFANA_PORT || '3002' }}`
-            
-            ${{ job.status == 'success' && '🎉 **System ready for use!**' || '🚨 **Manual intervention may be required**' }}
-            
-            [📋 View Detailed Logs](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            curl -H "Content-Type: application/json" \
+                 -d "{
+                   \"content\": \"$status_emoji **$status_text**\\n\\n📋 **Deployment Summary:**\\n• **Strategy:** \\\`${{ needs.plan-deployment.outputs.deployment-strategy }}\\\`\\n• **Environment:** \\\`${{ inputs.environment }}\\\`\\n• **Branch:** \\\`${{ github.ref_name }}\\\`\\n• **Force Rebuild:** \\\`${{ inputs.force_rebuild }}\\\`\\n\\n🏗️ **Component Status:**\\n• **Infrastructure:** ${{ needs.deploy-infrastructure.result == 'success' && '✅ SUCCESS' || needs.deploy-infrastructure.result == 'skipped' && '⏭️ SKIPPED' || needs.deploy-infrastructure.result == 'failure' && '❌ FAILED' || '⏸️ NOT RUN' }}\\n• **Backend Services:** ${{ needs.deploy-backend.result == 'success' && '✅ SUCCESS' || needs.deploy-backend.result == 'skipped' && '⏭️ SKIPPED' || needs.deploy-backend.result == 'failure' && '❌ FAILED' || '⏸️ NOT RUN' }}\\n• **Frontend:** ${{ needs.deploy-frontend.result == 'success' && '✅ SUCCESS' || needs.deploy-frontend.result == 'skipped' && '⏭️ SKIPPED' || needs.deploy-frontend.result == 'failure' && '❌ FAILED' || '⏸️ NOT RUN' }}\\n• **Health Check:** ${{ needs.comprehensive-health-check.result == 'success' && '✅ PASSED' || needs.comprehensive-health-check.result == 'skipped' && '⏭️ SKIPPED' || needs.comprehensive-health-check.result == 'failure' && '❌ FAILED' || '⏸️ NOT RUN' }}\\n\\n🔗 **Access Points:**\\n• **Frontend:** \\\`http://<TRUENAS_IP>:${{ vars.FRONTEND_PORT || '3500' }}\\\`\\n• **API Gateway:** \\\`http://<TRUENAS_IP>:${{ vars.GATEWAY_PORT || '5000' }}\\\`\\n• **Monitoring:** \\\`http://<TRUENAS_IP>:${{ vars.GRAFANA_PORT || '3002' }}\\\`\\n\\n$footer_text\\n\\n[📋 View Detailed Logs](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})\"
+                 }" \
+                 "$webhook_url" || echo "Discord notification failed"
+          else
+            echo "Discord webhook URL not configured - skipping notification"
+          fi
