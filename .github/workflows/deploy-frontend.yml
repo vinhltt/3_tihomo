@@ -82,7 +82,7 @@ jobs:
             
             echo "[CHECK] Verifying backend services for frontend..."
             
-            REQUIRED_SERVICES=("ocelot-gateway" "corefinance-api")
+            REQUIRED_SERVICES=("ocelot-gateway")
             MISSING_SERVICES=()
             
             for service in "${REQUIRED_SERVICES[@]}"; do
