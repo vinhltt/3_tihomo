@@ -185,9 +185,12 @@ jobs:
 
       - name: Comprehensive system health check
         run: |
-          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << 'REMOTE_EOF'
-            # Use full path and ensure directory navigation
-            DEPLOY_DIR="${{ vars.DEPLOY_PATH_ON_TRUENAS }}/deploy_${GITHUB_REF_NAME}"
+          # Set variables outside SSH session to ensure proper expansion
+          DEPLOY_DIR="${{ vars.DEPLOY_PATH_ON_TRUENAS }}/deploy_${{ github.ref_name }}"
+          
+          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << REMOTE_EOF
+            # Use deployment directory passed from GitHub Actions
+            DEPLOY_DIR="$DEPLOY_DIR"
             
             echo "[INFO] Navigating to deployment directory: $DEPLOY_DIR"
             cd "$DEPLOY_DIR" || {
