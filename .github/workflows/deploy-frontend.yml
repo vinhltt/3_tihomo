@@ -71,8 +71,18 @@ jobs:
         run: |
           DEPLOY_DIR="${{ vars.DEPLOY_PATH_ON_TRUENAS }}/deploy_${GITHUB_REF_NAME}"
           
-          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << 'REMOTE_EOF'
-            cd $DEPLOY_DIR
+          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << REMOTE_EOF
+            # Set deployment directory and navigate to it
+            DEPLOY_DIR="$DEPLOY_DIR"
+            
+            echo "[INFO] Navigating to deployment directory: \$DEPLOY_DIR"
+            cd "\$DEPLOY_DIR" || {
+              echo "[ERROR] Cannot navigate to deployment directory: \$DEPLOY_DIR"
+              exit 1
+            }
+            
+            echo "[INFO] Current directory: \$(pwd)"
+            echo "[INFO] Checking for docker-compose.yml: \$(test -f docker-compose.yml && echo 'EXISTS' || echo 'MISSING')"
             
             if docker ps >/dev/null 2>&1; then
               USE_SUDO=""
@@ -85,20 +95,26 @@ jobs:
             REQUIRED_SERVICES=("ocelot-gateway")
             MISSING_SERVICES=()
             
-            for service in "${REQUIRED_SERVICES[@]}"; do
-              if ! $USE_SUDO docker compose ps $service | grep -q "Up"; then
-                MISSING_SERVICES+=("$service")
+            for service in "\${REQUIRED_SERVICES[@]}"; do
+              echo "[DEBUG] Checking service: \$service"
+              if ! \$USE_SUDO docker compose ps \$service | grep -q "Up"; then
+                echo "[WARNING] Service \$service is not running"
+                MISSING_SERVICES+=("\$service")
+              else
+                echo "[OK] Service \$service is running"
               fi
             done
             
-            if [ ${#MISSING_SERVICES[@]} -gt 0 ]; then
-              echo "[ERROR] Missing backend services: ${MISSING_SERVICES[*]}"
+            if [ \${#MISSING_SERVICES[@]} -gt 0 ]; then
+              echo "[ERROR] Missing backend services: \${MISSING_SERVICES[*]}"
               echo "[ACTION] Please run backend deployment first"
+              echo "[DEBUG] Docker compose services status:"
+              \$USE_SUDO docker compose ps --format "table {{.Name}}\\t{{.Status}}"
               exit 1
             fi
             
             # Test API connectivity
-            if $USE_SUDO docker compose exec -T ocelot-gateway curl -f http://localhost:8080/health >/dev/null 2>&1; then
+            if \$USE_SUDO docker compose exec -T ocelot-gateway curl -f http://localhost:8080/health >/dev/null 2>&1; then
               echo "[OK] Gateway is responsive"
             else
               echo "[WARNING] Gateway health check failed but container is running"
