@@ -69,9 +69,12 @@ jobs:
 
       - name: Check backend readiness
         run: |
-          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << EOF
-            # Navigate to deployment directory
-            DEPLOY_DIR="${{ vars.DEPLOY_PATH_ON_TRUENAS }}/deploy_${{ github.ref_name }}"
+          # Set deployment directory outside SSH session to ensure proper expansion
+          DEPLOY_DIR="${{ vars.DEPLOY_PATH_ON_TRUENAS }}/deploy_${{ github.ref_name }}"
+          
+          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << REMOTE_EOF
+            # Use deployment directory passed from GitHub Actions
+            DEPLOY_DIR="$DEPLOY_DIR"
             echo "[INFO] Navigating to deployment directory: \$DEPLOY_DIR"
             cd "\$DEPLOY_DIR" || {
               echo "[ERROR] Cannot navigate to deployment directory: \$DEPLOY_DIR"
@@ -118,7 +121,7 @@ jobs:
             fi
             
             echo "[OK] Backend services are ready for frontend deployment"
-          EOF
+          REMOTE_EOF
         shell: bash
 
   deploy-frontend:
@@ -162,10 +165,14 @@ jobs:
 
       - name: "[4.5/9] Prepare deployment directory"
         run: |
-          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << EOF
+          # Set deployment directory outside SSH session to ensure proper expansion
+          DEPLOY_DIR="${{ env.TRUENAS_DEPLOY_DIR }}"
+          
+          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << REMOTE_EOF
             echo "[PREP] Preparing frontend deployment directory..."
             
-            DEPLOY_DIR="${{ env.TRUENAS_DEPLOY_DIR }}"
+            # Use deployment directory passed from GitHub Actions
+            DEPLOY_DIR="$DEPLOY_DIR"
             
             # Create required directories with proper ownership
             mkdir -p "\$DEPLOY_DIR/src/fe/nuxt"
@@ -197,7 +204,7 @@ jobs:
             fi
             
             echo "[OK] Frontend deployment directory prepared with proper permissions"
-          EOF
+          REMOTE_EOF
         shell: bash
 
       - name: "[5/9] Sync frontend files"
@@ -254,8 +261,12 @@ jobs:
           
           # Verify the synced files structure
           echo "[DEBUG] Verifying synced frontend files structure..."
-          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << EOF
-            DEPLOY_DIR="${{ env.TRUENAS_DEPLOY_DIR }}"
+          # Set deployment directory outside SSH session to ensure proper expansion
+          DEPLOY_DIR="${{ env.TRUENAS_DEPLOY_DIR }}"
+          
+          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << REMOTE_EOF
+            # Use deployment directory passed from GitHub Actions
+            DEPLOY_DIR="$DEPLOY_DIR"
             cd \$DEPLOY_DIR
             echo "[DEBUG] Current directory: \$(pwd)"
             echo "[DEBUG] Directory structure after rsync:"
@@ -272,14 +283,18 @@ jobs:
               find . -type d -name "*nuxt*" 2>/dev/null || echo "No nuxt directories found"
             fi
             echo "[DEBUG] docker-compose.yml exists: \$(test -f docker-compose.yml && echo 'YES' || echo 'NO')"
-          EOF
+          REMOTE_EOF
         shell: bash
 
       - name: "[6/9] Create comprehensive environment file for frontend"
         run: |
-          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << EOF
-            # Set deployment directory and navigate to it
-            DEPLOY_DIR="${{ env.TRUENAS_DEPLOY_DIR }}"
+          # Set deployment directory outside SSH session to ensure proper expansion
+          DEPLOY_DIR="${{ env.TRUENAS_DEPLOY_DIR }}"
+          
+          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << REMOTE_EOF
+            # Use deployment directory passed from GitHub Actions
+            DEPLOY_DIR="$DEPLOY_DIR"
+            
             echo "[INFO] Navigating to deployment directory: \$DEPLOY_DIR"
             mkdir -p "\$DEPLOY_DIR"
             cd "\$DEPLOY_DIR" || {
@@ -303,29 +318,29 @@ jobs:
             
             echo "[CREATE] Creating comprehensive .env file for frontend deployment..."
             
-            # Create .env file using echo commands to avoid YAML parsing issues with nested heredoc
+            # Create .env file using cat heredoc to avoid echo command issues
             rm -f .env
             
+            # Create static content first
+            cat > .env << 'ENVEOF'
+            # ================================
             # CORS Configuration
-            echo "# ================================" >> .env
-            echo "# CORS Configuration" >> .env  
-            echo "# ================================" >> .env
-            echo "CORS_POLICY_NAME=DefaultCorsPolicy" >> .env
-            echo "CORS_ALLOWED_ORIGINS=*" >> .env
-            echo "CORS_ALLOWED_METHODS=*" >> .env
-            echo "CORS_ALLOWED_HEADERS=*" >> .env
-            echo "CORS_EXPOSED_HEADERS=Token-Expired" >> .env
-            echo "CORS_PREFLIGHT_MAX_AGE=10" >> .env
-            echo "" >> .env
-            
-            # Environment Configuration
-            echo "# ================================" >> .env
-            echo "# Environment Configuration" >> .env
-            echo "# ================================" >> .env
-            echo "ASPNETCORE_ENVIRONMENT=Docker" >> .env
-            echo "" >> .env
+            # ================================
+            CORS_POLICY_NAME=DefaultCorsPolicy
+            CORS_ALLOWED_ORIGINS=*
+            CORS_ALLOWED_METHODS=*
+            CORS_ALLOWED_HEADERS=*
+            CORS_EXPOSED_HEADERS=Token-Expired
+            CORS_PREFLIGHT_MAX_AGE=10
 
-            # Add database configuration
+            # ================================
+            # Environment Configuration
+            # ================================
+            ASPNETCORE_ENVIRONMENT=Docker
+            ENVEOF
+
+            # Add variables that need GitHub Actions substitution
+            echo "" >> .env
             echo "# ================================" >> .env
             echo "# Database Configuration" >> .env
             echo "# ================================" >> .env
@@ -434,14 +449,18 @@ jobs:
             head -20 .env
             
             echo "[INFO] Frontend environment setup completed"
-          EOF
+          REMOTE_EOF
         shell: bash
 
       - name: "[7/9] Deploy frontend with complete cleanup and rebuild"
         run: |
-          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << EOF
+          # Set deployment directory outside SSH session to ensure proper expansion
+          DEPLOY_DIR="${{ env.TRUENAS_DEPLOY_DIR }}"
+          
+          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << REMOTE_EOF
             set -e
-            DEPLOY_DIR="${{ env.TRUENAS_DEPLOY_DIR }}"
+            # Use deployment directory passed from GitHub Actions
+            DEPLOY_DIR="$DEPLOY_DIR"
             cd \$DEPLOY_DIR
             
             source .env
@@ -609,13 +628,17 @@ jobs:
             # Show recent logs for verification
             echo "[LOGS] Recent frontend logs:"
             \$USE_SUDO docker compose logs --tail=10 frontend-nuxt
-          EOF
+          REMOTE_EOF
         shell: bash
 
       - name: "[8/9] Final health check and notification"
         run: |
-          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << EOF
-            DEPLOY_DIR="${{ env.TRUENAS_DEPLOY_DIR }}"
+          # Set deployment directory outside SSH session to ensure proper expansion
+          DEPLOY_DIR="${{ env.TRUENAS_DEPLOY_DIR }}"
+          
+          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << REMOTE_EOF
+            # Use deployment directory passed from GitHub Actions
+            DEPLOY_DIR="$DEPLOY_DIR"
             cd \$DEPLOY_DIR
             
             if docker ps >/dev/null 2>&1; then
@@ -655,7 +678,7 @@ jobs:
             
             echo "[INFO] Full system status:"
             \$USE_SUDO docker compose ps --format "table {{.Name}}\\t{{.Status}}\\t{{.Ports}}"
-          EOF
+          REMOTE_EOF
           
           # Send Discord notification
           webhook_url="${{ secrets.DISCORD_WEBHOOK_URL }}"
