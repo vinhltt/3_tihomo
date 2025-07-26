@@ -450,22 +450,20 @@ jobs:
             cd $DEPLOY_DIR
             
             # Clean up any corrupted .env file from previous failed deployments
-            if [ -f .env ]; then
-              echo "[CLEANUP] Checking for corrupted .env file..."
-              if ! grep -q "^[A-Z_][A-Z0-9_]*=" .env 2>/dev/null || grep -q "echo\|>>" .env 2>/dev/null; then
-                echo "[WARNING] Found corrupted .env file, removing it"
-                rm -f .env
-                echo "[INFO] Corrupted .env file removed, will be recreated"
-              else
-                echo "[OK] .env file appears clean"
-              fi
-            fi
+            echo "[CLEANUP] Removing any existing .env file to prevent parsing errors..."
+            rm -f .env
+            echo "[INFO] .env file cleanup completed"
             
-            # Source .env only if it exists and is clean
-            if [ -f .env ]; then
-              source .env
-            else
-              echo "[WARNING] No .env file found, using defaults"
+            # Create basic .env file if it doesn't exist (step 6 should have created it)
+            if [ ! -f .env ]; then
+              echo "[WARNING] .env file not found, creating basic one..."
+              cat > .env << 'BASICENV'
+COMPOSE_PROJECT_NAME=${{ env.COMPOSE_PROJECT_NAME }}
+DOCKER_USER=1001:1001
+NODE_ENV=production
+NUXT_BUILD_TARGET=production
+BASICENV
+              echo "[INFO] Basic .env file created"
             fi
             
             if docker ps >/dev/null 2>&1; then
