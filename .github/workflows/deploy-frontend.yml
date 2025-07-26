@@ -201,10 +201,17 @@ jobs:
               echo "[CLEANUP] Previous frontend directory removed completely"
             fi
             
-            # Recreate clean frontend directory structure
+            # Recreate clean frontend directory structure with proper ownership
             mkdir -p "$DEPLOY_DIR/src/fe/nuxt"
-            chmod -R 755 "$DEPLOY_DIR/src"
-            chown -R $(whoami):$(whoami) "$DEPLOY_DIR/src" 2>/dev/null || true
+            
+            # Fix ownership of entire deployment directory first
+            if command -v sudo >/dev/null 2>&1; then
+              sudo chown -R $(whoami):$(whoami) "$DEPLOY_DIR" 2>/dev/null || true
+              sudo chmod -R 755 "$DEPLOY_DIR" 2>/dev/null || true
+            else
+              chown -R $(whoami):$(whoami) "$DEPLOY_DIR" 2>/dev/null || true
+              chmod -R 755 "$DEPLOY_DIR" 2>/dev/null || true
+            fi
             
             echo "[OK] Frontend deployment directory prepared with proper permissions"
           EOF
@@ -267,6 +274,26 @@ jobs:
           fi
           
           echo "[OK] Frontend files synced successfully"
+          
+          # Fix permissions after rsync
+          echo "[FIX] Fixing permissions after rsync..."
+          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel /bin/bash << 'PERMS_EOF'
+            DEPLOY_DIR="${{ env.TRUENAS_DEPLOY_DIR }}"
+            cd "$DEPLOY_DIR"
+            
+            # Fix ownership and permissions
+            if command -v sudo >/dev/null 2>&1; then
+              sudo chown -R $(whoami):$(whoami) . 2>/dev/null || true
+              sudo chmod -R 755 . 2>/dev/null || true
+              sudo find . -type f -exec chmod 644 {} \; 2>/dev/null || true
+            else
+              chown -R $(whoami):$(whoami) . 2>/dev/null || true
+              chmod -R 755 . 2>/dev/null || true
+              find . -type f -exec chmod 644 {} \; 2>/dev/null || true
+            fi
+            
+            echo "[OK] Permissions fixed"
+          PERMS_EOF
           
           # Verify the synced files structure
           echo "[DEBUG] Verifying synced frontend files structure..."
