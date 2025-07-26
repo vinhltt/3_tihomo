@@ -112,7 +112,7 @@ COPY --chown=nuxt:nodejs docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh
 
 # Create necessary directories with proper ownership for both production and potential rebuild scenarios
-RUN mkdir -p /app/logs /app/uploads /app/node_modules /app/.nuxt && \
+RUN mkdir -p /app/logs /app/uploads /app/.nuxt && \
     chown -R nuxt:nodejs /app && \
     chmod -R 755 /app
 
