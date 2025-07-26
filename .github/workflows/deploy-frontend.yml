@@ -644,13 +644,13 @@ jobs:
                   ((attempt++))
                 fi
               else
-                echo "[ERROR] Frontend container not running (attempt \$attempt/\$max_attempts)"
+                echo "[ERROR] Frontend container not running (attempt $attempt/$max_attempts)"
                 
                 # Show container status and logs for debugging
                 echo "[DEBUG] Container status:"
-                \$USE_SUDO docker compose ps frontend-nuxt
+                $USE_SUDO docker compose ps frontend-nuxt
                 echo "[DEBUG] Recent logs:"
-                \$USE_SUDO docker compose logs --tail=10 frontend-nuxt
+                $USE_SUDO docker compose logs --tail=10 frontend-nuxt
                 
                 sleep 5
                 ((attempt++))
