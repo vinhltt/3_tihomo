@@ -643,8 +643,8 @@ jobs:
                 echo "[OK] Frontend container is running"
                 
                 # Wait for Nuxt to initialize properly
-                echo "[WAIT] Waiting for Nuxt application to initialize (15 seconds)..."
-                sleep 15
+                echo "[WAIT] Waiting for Nuxt application to initialize (60 seconds)..."
+                sleep 60
                 
                 # Test HTTP response
                 if $USE_SUDO docker compose exec -T frontend-nuxt curl -f http://localhost:3000/ >/dev/null 2>&1; then

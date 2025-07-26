@@ -357,8 +357,8 @@ services:
       test: ["CMD-SHELL", "curl -f http://localhost:3000/api/health || curl -f http://localhost:3000/ || exit 1"]
       interval: 30s
       timeout: 15s
-      start_period: ${FRONTEND_HEALTHCHECK_START_PERIOD:-60s}  # Environment-aware start period
-      retries: 5
+      start_period: ${FRONTEND_HEALTHCHECK_START_PERIOD:-300s}  # 5 minutes for production build
+      retries: 10
 
   # Ocelot API Gateway
   ocelot-gateway:
