@@ -457,12 +457,10 @@ jobs:
             # Create basic .env file if it doesn't exist (step 6 should have created it)
             if [ ! -f .env ]; then
               echo "[WARNING] .env file not found, creating basic one..."
-              cat > .env << 'BASICENV'
-COMPOSE_PROJECT_NAME=${{ env.COMPOSE_PROJECT_NAME }}
-DOCKER_USER=1001:1001
-NODE_ENV=production
-NUXT_BUILD_TARGET=production
-BASICENV
+              echo "COMPOSE_PROJECT_NAME=${{ env.COMPOSE_PROJECT_NAME }}" > .env
+              echo "DOCKER_USER=1001:1001" >> .env
+              echo "NODE_ENV=production" >> .env
+              echo "NUXT_BUILD_TARGET=production" >> .env
               echo "[INFO] Basic .env file created"
             fi
             
