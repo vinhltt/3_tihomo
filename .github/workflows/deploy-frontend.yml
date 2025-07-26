@@ -682,10 +682,10 @@ jobs:
           # Set deployment directory outside SSH session to ensure proper expansion
           DEPLOY_DIR="${{ env.TRUENAS_DEPLOY_DIR }}"
           
-          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << REMOTE_EOF
+          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel /bin/bash << 'REMOTE_EOF'
             # Use deployment directory passed from GitHub Actions
-            DEPLOY_DIR="$DEPLOY_DIR"
-            cd \$DEPLOY_DIR
+            DEPLOY_DIR="${{ env.TRUENAS_DEPLOY_DIR }}"
+            cd $DEPLOY_DIR
             
             # Check Docker permissions and set USE_SUDO appropriately
             if docker ps >/dev/null 2>&1; then

@@ -75,7 +75,7 @@ if [ "${NODE_ENV:-development}" != "production" ]; then
   echo "Contents of node_modules/.bin:"
   ls -la node_modules/.bin 2>/dev/null || echo "No .bin directory found"
   
-  # Check for Nuxt executable
+  # Check for Nuxt executable and ensure it's properly set up
   if [ -f "node_modules/.bin/nuxt" ]; then
     echo "✅ Found Nuxt executable at node_modules/.bin/nuxt"
   elif [ -f "node_modules/nuxt/bin/nuxt.mjs" ]; then
@@ -83,9 +83,26 @@ if [ "${NODE_ENV:-development}" != "production" ]; then
     mkdir -p node_modules/.bin
     ln -sf ../nuxt/bin/nuxt.mjs node_modules/.bin/nuxt
     chmod +x node_modules/.bin/nuxt
+  elif [ -f "node_modules/.bin/nuxi" ]; then
+    echo "⚙️ Found nuxi, creating nuxt symlink..."
+    ln -sf nuxi node_modules/.bin/nuxt
   else
     echo "🔍 Searching for Nuxt executable..."
-    find node_modules -name "nuxt*" | grep -v "node_modules/.*node_modules"
+    find node_modules -name "nuxt*" -type f | grep -v "node_modules/.*node_modules" | head -10
+    echo "🔧 Creating fallback nuxt command..."
+    mkdir -p node_modules/.bin
+    cat > node_modules/.bin/nuxt << 'NUXT_SCRIPT'
+#!/bin/sh
+if [ -f "node_modules/nuxt/bin/nuxt.mjs" ]; then
+  exec node node_modules/nuxt/bin/nuxt.mjs "$@"
+elif [ -f "node_modules/.bin/nuxi" ]; then
+  exec node_modules/.bin/nuxi "$@"
+else
+  echo "Error: Nuxt executable not found"
+  exit 1
+fi
+NUXT_SCRIPT
+    chmod +x node_modules/.bin/nuxt
   fi
   
   # Clean up any problematic .output directory before starting
@@ -145,6 +162,31 @@ else
     # Build the application
     echo "🏗️ Building Nuxt application..."
     export PATH="/app/node_modules/.bin:$PATH"
+    
+    # Ensure nuxt command is available
+    if [ ! -f "node_modules/.bin/nuxt" ]; then
+      echo "🔧 Setting up nuxt command for production build..."
+      mkdir -p node_modules/.bin
+      if [ -f "node_modules/nuxt/bin/nuxt.mjs" ]; then
+        ln -sf ../nuxt/bin/nuxt.mjs node_modules/.bin/nuxt
+        chmod +x node_modules/.bin/nuxt
+      elif [ -f "node_modules/.bin/nuxi" ]; then
+        ln -sf nuxi node_modules/.bin/nuxt
+      else
+        cat > node_modules/.bin/nuxt << 'NUXT_SCRIPT'
+#!/bin/sh
+if [ -f "node_modules/nuxt/bin/nuxt.mjs" ]; then
+  exec node node_modules/nuxt/bin/nuxt.mjs "$@"
+elif [ -f "node_modules/.bin/nuxi" ]; then
+  exec node_modules/.bin/nuxi "$@"
+else
+  echo "Error: Nuxt executable not found"
+  exit 1
+fi
+NUXT_SCRIPT
+        chmod +x node_modules/.bin/nuxt
+      fi
+    fi
     
     # Use a retry mechanism for build to handle EBUSY errors
     build_attempt=1
