@@ -22,6 +22,11 @@ on:
         required: false
         default: false
         type: boolean
+      force_recreate_env:
+        description: 'Force recreate .env file even if it exists'
+        required: false
+        default: false
+        type: boolean
   workflow_call:
     inputs:
       environment:
@@ -32,6 +37,10 @@ on:
         type: boolean
         default: false
       skip_backend_check:
+        required: false
+        type: boolean
+        default: false
+      force_recreate_env:
         required: false
         type: boolean
         default: false
@@ -325,7 +334,7 @@ jobs:
           EOF
         shell: bash
 
-      - name: "[6/9] Create comprehensive environment file for frontend"
+      - name: "[6/9] Check and create environment file if needed"
         run: |
           # Set deployment directory outside SSH session to ensure proper expansion
           DEPLOY_DIR="${{ env.TRUENAS_DEPLOY_DIR }}"
@@ -349,10 +358,37 @@ jobs:
             # Ensure directory has proper permissions for writing files
             chmod 755 "$(pwd)"
             
-            # Remove corrupted .env file if it exists
-            if [ -f .env ]; then
-              echo "[CLEANUP] Removing corrupted .env file..."
+            # Check if force recreate is requested
+            if [ "${{ inputs.force_recreate_env }}" = "true" ]; then
+              echo "[FORCE] Force recreate .env requested, removing existing file..."
               rm -f .env
+              echo "[INFO] Creating new .env file..."
+            elif [ -f .env ]; then
+              echo "[CHECK] .env file exists, validating..."
+              
+              # Check if .env file has minimum required variables
+              required_vars="COMPOSE_PROJECT_NAME NODE_ENV"
+              missing_vars=""
+              
+              for var in $required_vars; do
+                if ! grep -q "^${var}=" .env; then
+                  missing_vars="$missing_vars $var"
+                fi
+              done
+              
+              if [ -z "$missing_vars" ]; then
+                echo "[OK] Existing .env file is valid and complete"
+                echo "[INFO] Skipping .env creation - using existing file"
+                echo "[DEBUG] .env file content (first 10 lines):"
+                head -10 .env
+                exit 0
+              else
+                echo "[WARNING] .env file exists but missing required variables: $missing_vars"
+                echo "[ACTION] Recreating .env file..."
+                rm -f .env
+              fi
+            else
+              echo "[INFO] No .env file found, creating new one..."
             fi
             
             echo "[CREATE] Creating comprehensive .env file for frontend deployment..."
@@ -379,56 +415,56 @@ jobs:
             echo "ASPNETCORE_ENVIRONMENT=Docker" >> .env
             echo "" >> .env
             echo "# Database Configuration" >> .env
-            echo "IDENTITY_DB_USERNAME=${{ vars.IDENTITY_DB_USERNAME || 'identity_user' }}" >> .env
-            echo "IDENTITY_DB_PASSWORD=${{ secrets.IDENTITY_DB_PASSWORD }}" >> .env  
-            echo "IDENTITY_DB_PORT=${{ vars.IDENTITY_DB_PORT || '5431' }}" >> .env
-            echo "COREFINANCE_DB_USERNAME=${{ vars.COREFINANCE_DB_USERNAME || 'corefinance_user' }}" >> .env
-            echo "COREFINANCE_DB_PASSWORD=${{ secrets.COREFINANCE_DB_PASSWORD }}" >> .env
-            echo "COREFINANCE_DB_PORT=${{ vars.COREFINANCE_DB_PORT || '5432' }}" >> .env
-            echo "MONEYMANAGEMENT_DB_USERNAME=${{ vars.MONEYMANAGEMENT_DB_USERNAME || 'money_user' }}" >> .env
-            echo "MONEYMANAGEMENT_DB_PASSWORD=${{ secrets.MONEYMANAGEMENT_DB_PASSWORD }}" >> .env
-            echo "MONEYMANAGEMENT_DB_PORT=${{ vars.MONEYMANAGEMENT_DB_PORT || '5433' }}" >> .env
-            echo "PLANNINGINVESTMENT_DB_USERNAME=${{ vars.PLANNINGINVESTMENT_DB_USERNAME || 'planning_user' }}" >> .env
-            echo "PLANNINGINVESTMENT_DB_PASSWORD=${{ secrets.PLANNINGINVESTMENT_DB_PASSWORD }}" >> .env
-            echo "PLANNINGINVESTMENT_DB_PORT=${{ vars.PLANNINGINVESTMENT_DB_PORT || '5434' }}" >> .env
-            echo "REPORTING_DB_USERNAME=${{ vars.REPORTING_DB_USERNAME || 'reporting_user' }}" >> .env
-            echo "REPORTING_DB_PASSWORD=${{ secrets.REPORTING_DB_PASSWORD }}" >> .env
-            echo "REPORTING_DB_PORT=${{ vars.REPORTING_DB_PORT || '5435' }}" >> .env
+            echo "IDENTITY_DB_USERNAME='${{ vars.IDENTITY_DB_USERNAME || 'identity_user' }}'" >> .env
+            echo "IDENTITY_DB_PASSWORD='${{ secrets.IDENTITY_DB_PASSWORD || 'temp_password' }}'" >> .env  
+            echo "IDENTITY_DB_PORT='${{ vars.IDENTITY_DB_PORT || '5431' }}'" >> .env
+            echo "COREFINANCE_DB_USERNAME='${{ vars.COREFINANCE_DB_USERNAME || 'corefinance_user' }}'" >> .env
+            echo "COREFINANCE_DB_PASSWORD='${{ secrets.COREFINANCE_DB_PASSWORD || 'temp_password' }}'" >> .env
+            echo "COREFINANCE_DB_PORT='${{ vars.COREFINANCE_DB_PORT || '5432' }}'" >> .env
+            echo "MONEYMANAGEMENT_DB_USERNAME='${{ vars.MONEYMANAGEMENT_DB_USERNAME || 'money_user' }}'" >> .env
+            echo "MONEYMANAGEMENT_DB_PASSWORD='${{ secrets.MONEYMANAGEMENT_DB_PASSWORD || 'temp_password' }}'" >> .env
+            echo "MONEYMANAGEMENT_DB_PORT='${{ vars.MONEYMANAGEMENT_DB_PORT || '5433' }}'" >> .env
+            echo "PLANNINGINVESTMENT_DB_USERNAME='${{ vars.PLANNINGINVESTMENT_DB_USERNAME || 'planning_user' }}'" >> .env
+            echo "PLANNINGINVESTMENT_DB_PASSWORD='${{ secrets.PLANNINGINVESTMENT_DB_PASSWORD || 'temp_password' }}'" >> .env
+            echo "PLANNINGINVESTMENT_DB_PORT='${{ vars.PLANNINGINVESTMENT_DB_PORT || '5434' }}'" >> .env
+            echo "REPORTING_DB_USERNAME='${{ vars.REPORTING_DB_USERNAME || 'reporting_user' }}'" >> .env
+            echo "REPORTING_DB_PASSWORD='${{ secrets.REPORTING_DB_PASSWORD || 'temp_password' }}'" >> .env
+            echo "REPORTING_DB_PORT='${{ vars.REPORTING_DB_PORT || '5435' }}'" >> .env
 
             # Add authentication configuration  
             echo "" >> .env
             echo "# Authentication Configuration" >> .env
-            echo "JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}" >> .env
-            echo "JWT_ISSUER=${{ vars.JWT_ISSUER || 'TiHoMo' }}" >> .env
-            echo "JWT_AUDIENCE_IDENTITY_API=${{ vars.JWT_AUDIENCE_IDENTITY_API || 'TiHoMo.Identity.Api' }}" >> .env
-            echo "JWT_AUDIENCE_COREFINANCE_API=${{ vars.JWT_AUDIENCE_COREFINANCE_API || 'TiHoMo.CoreFinance.Api' }}" >> .env
-            echo "JWT_AUDIENCE_EXCEL_API=${{ vars.JWT_AUDIENCE_EXCEL_API || 'TiHoMo.Excel.Api' }}" >> .env
-            echo "JWT_AUDIENCE_FRONTEND=${{ vars.JWT_AUDIENCE_FRONTEND || 'TiHoMo.Frontend' }}" >> .env
-            echo "JWT_AUDIENCE_OCELOT_GATEWAY=${{ vars.JWT_AUDIENCE_OCELOT_GATEWAY || 'TiHoMo.Gateway' }}" >> .env
+            echo "JWT_SECRET_KEY='${{ secrets.JWT_SECRET_KEY || 'temp_jwt_secret_key_123456789' }}'" >> .env
+            echo "JWT_ISSUER='${{ vars.JWT_ISSUER || 'TiHoMo' }}'" >> .env
+            echo "JWT_AUDIENCE_IDENTITY_API='${{ vars.JWT_AUDIENCE_IDENTITY_API || 'TiHoMo.Identity.Api' }}'" >> .env
+            echo "JWT_AUDIENCE_COREFINANCE_API='${{ vars.JWT_AUDIENCE_COREFINANCE_API || 'TiHoMo.CoreFinance.Api' }}'" >> .env
+            echo "JWT_AUDIENCE_EXCEL_API='${{ vars.JWT_AUDIENCE_EXCEL_API || 'TiHoMo.Excel.Api' }}'" >> .env
+            echo "JWT_AUDIENCE_FRONTEND='${{ vars.JWT_AUDIENCE_FRONTEND || 'TiHoMo.Frontend' }}'" >> .env
+            echo "JWT_AUDIENCE_OCELOT_GATEWAY='${{ vars.JWT_AUDIENCE_OCELOT_GATEWAY || 'TiHoMo.Gateway' }}'" >> .env
 
             # Add external services configuration
             echo "" >> .env
             echo "# External Services Configuration" >> .env
-            echo "REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}" >> .env
-            echo "REDIS_PORT=${{ vars.REDIS_PORT || '6379' }}" >> .env
-            echo "RABBITMQ_PASSWORD=${{ secrets.RABBITMQ_PASSWORD }}" >> .env
-            echo "RABBITMQ_PORT=${{ vars.RABBITMQ_PORT || '5672' }}" >> .env
-            echo "RABBITMQ_MANAGEMENT_PORT=${{ vars.RABBITMQ_MANAGEMENT_PORT || '15672' }}" >> .env
-            echo "PROMETHEUS_PORT=${{ vars.PROMETHEUS_PORT || '9090' }}" >> .env
-            echo "GRAFANA_PORT=${{ vars.GRAFANA_PORT || '3000' }}" >> .env
-            echo "GRAFANA_ADMIN_PASSWORD=${{ secrets.GRAFANA_ADMIN_PASSWORD }}" >> .env
-            echo "MAILHOG_SMTP_PORT=${{ vars.MAILHOG_SMTP_PORT || '1025' }}" >> .env
-            echo "MAILHOG_UI_PORT=${{ vars.MAILHOG_UI_PORT || '8025' }}" >> .env
-            echo "GATEWAY_PORT=${{ vars.GATEWAY_PORT || '8080' }}" >> .env
+            echo "REDIS_PASSWORD='${{ secrets.REDIS_PASSWORD || 'temp_redis_password' }}'" >> .env
+            echo "REDIS_PORT='${{ vars.REDIS_PORT || '6379' }}'" >> .env
+            echo "RABBITMQ_PASSWORD='${{ secrets.RABBITMQ_PASSWORD || 'temp_rabbitmq_password' }}'" >> .env
+            echo "RABBITMQ_PORT='${{ vars.RABBITMQ_PORT || '5672' }}'" >> .env
+            echo "RABBITMQ_MANAGEMENT_PORT='${{ vars.RABBITMQ_MANAGEMENT_PORT || '15672' }}'" >> .env
+            echo "PROMETHEUS_PORT='${{ vars.PROMETHEUS_PORT || '9090' }}'" >> .env
+            echo "GRAFANA_PORT='${{ vars.GRAFANA_PORT || '3000' }}'" >> .env
+            echo "GRAFANA_ADMIN_PASSWORD='${{ secrets.GRAFANA_ADMIN_PASSWORD || 'temp_grafana_password' }}'" >> .env
+            echo "MAILHOG_SMTP_PORT='${{ vars.MAILHOG_SMTP_PORT || '1025' }}'" >> .env
+            echo "MAILHOG_UI_PORT='${{ vars.MAILHOG_UI_PORT || '8025' }}'" >> .env
+            echo "GATEWAY_PORT='${{ vars.GATEWAY_PORT || '8080' }}'" >> .env
 
             # Add API ports configuration
             echo "" >> .env
             echo "# API Ports Configuration" >> .env
-            echo "API_GATEWAY_PORT=${{ vars.API_GATEWAY_PORT || '8080' }}" >> .env
-            echo "IDENTITY_API_PORT=${{ vars.IDENTITY_API_PORT || '5217' }}" >> .env
-            echo "COREFINANCE_API_PORT=${{ vars.COREFINANCE_API_PORT || '7293' }}" >> .env
-            echo "EXCEL_API_PORT=${{ vars.EXCEL_API_PORT || '5219' }}" >> .env
-            echo "FRONTEND_PORT=${{ vars.FRONTEND_PORT || '3500' }}" >> .env
+            echo "API_GATEWAY_PORT='${{ vars.API_GATEWAY_PORT || '8080' }}'" >> .env
+            echo "IDENTITY_API_PORT='${{ vars.IDENTITY_API_PORT || '5217' }}'" >> .env
+            echo "COREFINANCE_API_PORT='${{ vars.COREFINANCE_API_PORT || '7293' }}'" >> .env
+            echo "EXCEL_API_PORT='${{ vars.EXCEL_API_PORT || '5219' }}'" >> .env
+            echo "FRONTEND_PORT='${{ vars.FRONTEND_PORT || '3500' }}'" >> .env
 
             # Add Docker and frontend configuration
             echo "" >> .env
@@ -441,22 +477,22 @@ jobs:
             echo "NUXT_DEBUG=false" >> .env
             echo "" >> .env
             echo "# Frontend Configuration" >> .env
-            echo "FRONTEND_BASE_URL=${{ vars.FRONTEND_BASE_URL || 'http://localhost:3500' }}" >> .env
-            echo "APP_PUBLIC_GOOGLE_CLIENT_ID=${{ vars.APP_PUBLIC_GOOGLE_CLIENT_ID }}" >> .env
+            echo "FRONTEND_BASE_URL='${{ vars.FRONTEND_BASE_URL || 'http://localhost:3500' }}'" >> .env
+            echo "APP_PUBLIC_GOOGLE_CLIENT_ID='${{ vars.APP_PUBLIC_GOOGLE_CLIENT_ID || '' }}'" >> .env
 
             # Add infrastructure configuration
             echo "" >> .env
             echo "# Infrastructure Configuration" >> .env
-            echo "PGADMIN_PASSWORD=${{ secrets.PGADMIN_PASSWORD }}" >> .env
-            echo "PGADMIN_PORT=${{ vars.PGADMIN_PORT || '8080' }}" >> .env
-            echo "LOKI_PORT=${{ vars.LOKI_PORT || '3100' }}" >> .env
-            echo "NGINX_HTTP_PORT=${{ vars.NGINX_HTTP_PORT || '80' }}" >> .env
-            echo "NGINX_HTTPS_PORT=${{ vars.NGINX_HTTPS_PORT || '443' }}" >> .env
+            echo "PGADMIN_PASSWORD='${{ secrets.PGADMIN_PASSWORD || 'temp_pgadmin_password' }}'" >> .env
+            echo "PGADMIN_PORT='${{ vars.PGADMIN_PORT || '8080' }}'" >> .env
+            echo "LOKI_PORT='${{ vars.LOKI_PORT || '3100' }}'" >> .env
+            echo "NGINX_HTTP_PORT='${{ vars.NGINX_HTTP_PORT || '80' }}'" >> .env
+            echo "NGINX_HTTPS_PORT='${{ vars.NGINX_HTTPS_PORT || '443' }}'" >> .env
 
             # Add network and project configuration
             echo "" >> .env
             echo "# Network Configuration" >> .env
-            echo "DOCKER_NETWORK_SUBNET=${{ vars.DOCKER_NETWORK_SUBNET || '172.20.0.0/16' }}" >> .env
+            echo "DOCKER_NETWORK_SUBNET='${{ vars.DOCKER_NETWORK_SUBNET || '172.20.0.0/16' }}'" >> .env
             echo "" >> .env
             echo "# Docker Compose Project Name" >> .env
             echo "COMPOSE_PROJECT_NAME=${{ env.COMPOSE_PROJECT_NAME }}" >> .env
@@ -727,7 +763,7 @@ jobs:
             
             echo "[INFO] Full system status:"
             $USE_SUDO docker compose ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}"
-          EOF
+          REMOTE_EOF
           
           # Send Discord notification
           webhook_url="${{ secrets.DISCORD_WEBHOOK_URL }}"

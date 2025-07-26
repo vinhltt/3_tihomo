@@ -76,33 +76,58 @@ if [ "${NODE_ENV:-development}" != "production" ]; then
   ls -la node_modules/.bin 2>/dev/null || echo "No .bin directory found"
   
   # Check for Nuxt executable and ensure it's properly set up
+  echo "🔧 Setting up nuxt command for development..."
+  mkdir -p node_modules/.bin
+  
   if [ -f "node_modules/.bin/nuxt" ]; then
-    echo "✅ Found Nuxt executable at node_modules/.bin/nuxt"
+    echo "✅ Found existing Nuxt executable at node_modules/.bin/nuxt"
   elif [ -f "node_modules/nuxt/bin/nuxt.mjs" ]; then
-    echo "⚙️ Creating symlink to Nuxt executable..."
-    mkdir -p node_modules/.bin
+    echo "⚙️ Creating symlink to nuxt.mjs..."
     ln -sf ../nuxt/bin/nuxt.mjs node_modules/.bin/nuxt
     chmod +x node_modules/.bin/nuxt
   elif [ -f "node_modules/.bin/nuxi" ]; then
     echo "⚙️ Found nuxi, creating nuxt symlink..."
     ln -sf nuxi node_modules/.bin/nuxt
+  elif [ -f "node_modules/nuxi/bin/nuxi.mjs" ]; then
+    echo "⚙️ Found nuxi.mjs, creating symlink..."
+    ln -sf ../nuxi/bin/nuxi.mjs node_modules/.bin/nuxt
+    chmod +x node_modules/.bin/nuxt
   else
     echo "🔍 Searching for Nuxt executable..."
-    find node_modules -name "nuxt*" -type f | grep -v "node_modules/.*node_modules" | head -10
+    find node_modules -name "*nuxt*" -type f | grep -v "node_modules/.*node_modules" | head -10
     echo "🔧 Creating fallback nuxt command..."
-    mkdir -p node_modules/.bin
-    cat > node_modules/.bin/nuxt << 'NUXT_SCRIPT'
+    cat > node_modules/.bin/nuxt << 'EOF'
 #!/bin/sh
+# Fallback nuxt wrapper script for development
+
+# Try different possible locations for Nuxt
 if [ -f "node_modules/nuxt/bin/nuxt.mjs" ]; then
   exec node node_modules/nuxt/bin/nuxt.mjs "$@"
 elif [ -f "node_modules/.bin/nuxi" ]; then
   exec node_modules/.bin/nuxi "$@"
+elif [ -f "node_modules/nuxi/bin/nuxi.mjs" ]; then
+  exec node node_modules/nuxi/bin/nuxi.mjs "$@"
+elif command -v npx >/dev/null 2>&1; then
+  exec npx nuxt "$@"
 else
-  echo "Error: Nuxt executable not found"
+  echo "Error: Nuxt executable not found in any expected location"
+  echo "Available files in node_modules/.bin:"
+  ls -la node_modules/.bin/ 2>/dev/null || echo "No .bin directory"
+  echo "Available nuxt-related files:"
+  find node_modules -name "*nuxt*" -type f 2>/dev/null | head -10 || echo "No nuxt files found"
   exit 1
 fi
-NUXT_SCRIPT
+EOF
     chmod +x node_modules/.bin/nuxt
+    echo "✅ Fallback nuxt wrapper created"
+  fi
+  
+  # Verify the nuxt command works
+  echo "🔍 Testing nuxt command..."
+  if node_modules/.bin/nuxt --version >/dev/null 2>&1; then
+    echo "✅ Nuxt command is working"
+  else
+    echo "⚠️ Nuxt command test failed, but proceeding..."
   fi
   
   # Clean up any problematic .output directory before starting
@@ -163,29 +188,63 @@ else
     echo "🏗️ Building Nuxt application..."
     export PATH="/app/node_modules/.bin:$PATH"
     
-    # Ensure nuxt command is available
-    if [ ! -f "node_modules/.bin/nuxt" ]; then
-      echo "🔧 Setting up nuxt command for production build..."
-      mkdir -p node_modules/.bin
-      if [ -f "node_modules/nuxt/bin/nuxt.mjs" ]; then
-        ln -sf ../nuxt/bin/nuxt.mjs node_modules/.bin/nuxt
-        chmod +x node_modules/.bin/nuxt
-      elif [ -f "node_modules/.bin/nuxi" ]; then
-        ln -sf nuxi node_modules/.bin/nuxt
-      else
-        cat > node_modules/.bin/nuxt << 'NUXT_SCRIPT'
+    # Ensure nuxt command is available for production build
+    echo "🔧 Setting up nuxt command for production build..."
+    mkdir -p node_modules/.bin
+    
+    # Check for different Nuxt executables and create proper wrapper
+    if [ -f "node_modules/nuxt/bin/nuxt.mjs" ]; then
+      echo "✅ Found nuxt.mjs, creating symlink..."
+      ln -sf ../nuxt/bin/nuxt.mjs node_modules/.bin/nuxt
+      chmod +x node_modules/.bin/nuxt
+    elif [ -f "node_modules/.bin/nuxi" ]; then
+      echo "✅ Found nuxi, creating symlink..."
+      ln -sf nuxi node_modules/.bin/nuxt
+    elif [ -f "node_modules/nuxi/bin/nuxi.mjs" ]; then
+      echo "✅ Found nuxi.mjs, creating symlink..."
+      ln -sf ../nuxi/bin/nuxi.mjs node_modules/.bin/nuxt
+      chmod +x node_modules/.bin/nuxt
+    else
+      echo "🔧 Creating fallback nuxt wrapper script..."
+      cat > node_modules/.bin/nuxt << 'EOF'
 #!/bin/sh
+# Fallback nuxt wrapper script
+
+# Try different possible locations for Nuxt
 if [ -f "node_modules/nuxt/bin/nuxt.mjs" ]; then
   exec node node_modules/nuxt/bin/nuxt.mjs "$@"
 elif [ -f "node_modules/.bin/nuxi" ]; then
   exec node_modules/.bin/nuxi "$@"
+elif [ -f "node_modules/nuxi/bin/nuxi.mjs" ]; then
+  exec node node_modules/nuxi/bin/nuxi.mjs "$@"
+elif command -v npx >/dev/null 2>&1; then
+  exec npx nuxt "$@"
 else
-  echo "Error: Nuxt executable not found"
+  echo "Error: Nuxt executable not found in any expected location"
+  echo "Searched locations:"
+  echo "  - node_modules/nuxt/bin/nuxt.mjs"
+  echo "  - node_modules/.bin/nuxi"
+  echo "  - node_modules/nuxi/bin/nuxi.mjs"
+  echo "  - npx nuxt (fallback)"
+  echo ""
+  echo "Available files in node_modules/.bin:"
+  ls -la node_modules/.bin/ 2>/dev/null || echo "No .bin directory"
+  echo ""
+  echo "Available nuxt-related files:"
+  find node_modules -name "*nuxt*" -type f 2>/dev/null | head -10 || echo "No nuxt files found"
   exit 1
 fi
-NUXT_SCRIPT
-        chmod +x node_modules/.bin/nuxt
-      fi
+EOF
+      chmod +x node_modules/.bin/nuxt
+      echo "✅ Fallback nuxt wrapper created"
+    fi
+    
+    # Verify the nuxt command works
+    echo "🔍 Testing nuxt command..."
+    if node_modules/.bin/nuxt --version >/dev/null 2>&1; then
+      echo "✅ Nuxt command is working"
+    else
+      echo "⚠️ Nuxt command test failed, but proceeding with build..."
     fi
     
     # Use a retry mechanism for build to handle EBUSY errors

@@ -27,6 +27,11 @@ on:
         required: false
         default: false
         type: boolean
+      force_recreate_env:
+        description: 'Force recreate .env file even if it exists'
+        required: false
+        default: false
+        type: boolean
   workflow_call:
     inputs:
       environment:
@@ -41,6 +46,10 @@ on:
         type: boolean
         default: false
       skip_infrastructure_check:
+        required: false
+        type: boolean
+        default: false
+      force_recreate_env:
         required: false
         type: boolean
         default: false
@@ -268,7 +277,7 @@ jobs:
           echo "[OK] Project files synced successfully"
         shell: bash
 
-      - name: "[7/10] Create comprehensive environment file for backend"
+      - name: "[7/10] Check and create environment file if needed"
         run: |
           ssh -F "$HOME/.ssh/config" truenas-cf-tunnel /bin/bash << 'EOF'
             # Ensure directory exists and navigate to it
@@ -277,10 +286,43 @@ jobs:
             
             echo "[INFO] Working in directory: $(pwd)"
             
-            # Backup existing .env if it exists
-            if [ -f .env ]; then
-              echo "[BACKUP] Creating backup of existing .env..."
-              cp .env .env.backup.$(date +%Y%m%d_%H%M%S)
+            # Check if force recreate is requested
+            if [ "${{ inputs.force_recreate_env }}" = "true" ]; then
+              echo "[FORCE] Force recreate .env requested, removing existing file..."
+              if [ -f .env ]; then
+                echo "[BACKUP] Creating backup before force recreate..."
+                cp .env .env.backup.$(date +%Y%m%d_%H%M%S)
+              fi
+              rm -f .env
+              echo "[INFO] Creating new .env file..."
+            elif [ -f .env ]; then
+              echo "[CHECK] .env file exists, validating..."
+              
+              # Check if .env file has minimum required variables for backend
+              required_vars="COMPOSE_PROJECT_NAME ASPNETCORE_ENVIRONMENT JWT_SECRET_KEY"
+              missing_vars=""
+              
+              for var in $required_vars; do
+                if ! grep -q "^${var}=" .env; then
+                  missing_vars="$missing_vars $var"
+                fi
+              done
+              
+              if [ -z "$missing_vars" ]; then
+                echo "[OK] Existing .env file is valid and complete"
+                echo "[INFO] Skipping .env creation - using existing file"
+                echo "[DEBUG] .env file content (first 15 lines):"
+                head -15 .env
+                exit 0
+              else
+                echo "[WARNING] .env file exists but missing required variables: $missing_vars"
+                echo "[ACTION] Recreating .env file..."
+                echo "[BACKUP] Creating backup of corrupted .env..."
+                cp .env .env.backup.$(date +%Y%m%d_%H%M%S)
+                rm -f .env
+              fi
+            else
+              echo "[INFO] No .env file found, creating new one..."
             fi
             
             echo "[CREATE] Creating comprehensive .env file for backend deployment..."
