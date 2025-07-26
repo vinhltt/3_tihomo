@@ -16,6 +16,29 @@ type LoginCredentials = {
 }
 
 /**
+ * Get secure cookie settings based on environment
+ * Lấy cài đặt cookie bảo mật dựa trên môi trường
+ */
+function getSecureCookieSettings() {
+  const isSecure = process.env.NODE_ENV === 'production' && process.env.HTTPS_ENABLED === 'true'
+  
+  if (process.dev) {
+    console.log('🍪 Cookie security settings:', {
+      isSecure,
+      nodeEnv: process.env.NODE_ENV,
+      httpsEnabled: process.env.HTTPS_ENABLED,
+      sameSite: isSecure ? 'strict' : 'lax'
+    })
+  }
+  
+  return {
+    httpOnly: false,
+    secure: isSecure,
+    sameSite: isSecure ? 'strict' : 'lax',
+  } as const
+}
+
+/**
  * Authentication store for managing user login, logout, and session state (EN)
  * Store xác thực để quản lý đăng nhập, đăng xuất và trạng thái phiên của người dùng (VI)
  */
@@ -35,6 +58,12 @@ export const useAuthStore = defineStore('auth', {
      * Khởi tạo xác thực - kiểm tra token hiện có
      */
     async initAuth(): Promise<void> {
+      // Skip initialization on server-side to prevent hydration issues
+      // Bỏ qua khởi tạo trên server-side để tránh vấn đề hydration
+      if (process.server) {
+        return
+      }
+      
       this.isLoading = true
       this.error = null
 
@@ -50,10 +79,21 @@ export const useAuthStore = defineStore('auth', {
           
           // In a real implementation, validate token with server
           // For now, assume token is valid if it exists
+        } else {
+          // No token found, ensure clean state
+          this.isAuthenticated = false
+          this.token = null
+          this.refreshToken = null
+          this.user = null
         }
       } catch (error: any) {
         console.error('Auth initialization error:', error)
         this.error = 'Failed to initialize authentication'
+        // Set clean state on error
+        this.isAuthenticated = false
+        this.token = null
+        this.refreshToken = null
+        this.user = null
       } finally {
         this.isLoading = false
       }
@@ -80,17 +120,16 @@ export const useAuthStore = defineStore('auth', {
           this.user = data.user
           this.isAuthenticated = true
 
-          // Store tokens in cookies for SSR
+          // Store tokens in cookies for SSR with environment-appropriate security settings
+          // Lưu tokens trong cookies cho SSR với cài đặt bảo mật phù hợp với môi trường
+          const cookieSettings = getSecureCookieSettings()
+          
           const tokenCookie = useCookie('auth-token', {
-            httpOnly: false,
-            secure: true,
-            sameSite: 'strict',
+            ...cookieSettings,
             maxAge: 60 * 60 * 24 * 7, // 7 days
           })
           const refreshCookie = useCookie('refresh-token', {
-            httpOnly: false,
-            secure: true,
-            sameSite: 'strict',
+            ...cookieSettings,
             maxAge: 60 * 60 * 24 * 30, // 30 days
           })
 
@@ -233,17 +272,16 @@ export const useAuthStore = defineStore('auth', {
         
         this.isAuthenticated = true
 
-        // Store tokens in cookies for SSR
+        // Store tokens in cookies for SSR with environment-appropriate security settings
+        // Lưu tokens trong cookies cho SSR với cài đặt bảo mật phù hợp với môi trường
+        const cookieSettings = getSecureCookieSettings()
+        
         const tokenCookie = useCookie('auth-token', {
-          httpOnly: false,
-          secure: true,
-          sameSite: 'strict',
+          ...cookieSettings,
           maxAge: 60 * 60 * 24 * 7, // 7 days
         })
         const refreshCookie = useCookie('refresh-token', {
-          httpOnly: false,
-          secure: true,
-          sameSite: 'strict',
+          ...cookieSettings,
           maxAge: 60 * 60 * 24 * 30, // 30 days
         })
 

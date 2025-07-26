@@ -9,31 +9,52 @@
  * - Allows access to public routes without authentication
  */
 export default defineNuxtRouteMiddleware(async (to) => {
-  // Skip middleware on server-side rendering initial load
-  if (process.server) {
-    return
-  }
+  // Check authentication on both server and client to prevent hydration mismatch
+  // Kiểm tra xác thực trên cả server và client để tránh hydration mismatch
   
   const authStore = useAuthStore()
+  
+  // Debug logging
+  if (process.dev) {
+    console.log(`🔐 [${process.server ? 'SERVER' : 'CLIENT'}] Auth middleware for:`, to.path)
+  }
+  
+  // On server-side, check for auth token in cookies directly
+  // Trên server-side, kiểm tra auth token trong cookies trực tiếp
+  let isAuthenticated = false
+  
+  if (process.server) {
+    // Server-side: Check cookies directly
+    const tokenCookie = useCookie('auth-token', { default: () => null })
+    isAuthenticated = !!tokenCookie.value
+    if (process.dev) {
+      console.log(`🔍 [SERVER] Token check:`, isAuthenticated ? '✅ Has token' : '❌ No token')
+    }
+  } else {
+    // Client-side: Use store state or initialize if needed
+    if (!authStore.isAuthenticated && !authStore.isLoading) {
+      try {
+        await authStore.initAuth()
+      } catch (error) {
+        console.warn('Failed to initialize auth:', error)
+      }
+    }
+    isAuthenticated = authStore.isAuthenticated
+    if (process.dev) {
+      console.log(`🔍 [CLIENT] Auth state:`, isAuthenticated ? '✅ Authenticated' : '❌ Not authenticated')
+    }
+  }
+  
     // Check if route has auth disabled in page meta
   if (to.meta.auth === false) {
     // If user is already authenticated and trying to access login pages, redirect to home
-    if (authStore.isAuthenticated && (to.path.startsWith('/auth/login') || to.path.startsWith('/auth/cover-login'))) {
+    if (isAuthenticated && (to.path.startsWith('/auth/login') || to.path.startsWith('/auth/cover-login'))) {
       console.log('🏠 User already authenticated, redirecting to home')
       return navigateTo('/')
     }
     return
   }
-  
-  // Initialize auth state if not already done
-  if (!authStore.isAuthenticated && !authStore.isLoading) {
-    try {
-      await authStore.initAuth()
-    } catch (error) {
-      console.warn('Failed to initialize auth:', error)
-    }
-  }
-  
+
   // List of public routes that don't require authentication (fallback)
   const publicRoutes = [
     '/auth/login',
@@ -49,7 +70,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
     // If it's a public route, allow access
   if (isPublicRoute) {
     // If user is already authenticated and trying to access login pages, redirect to home
-    if (authStore.isAuthenticated && (to.path.startsWith('/auth/login') || to.path.startsWith('/auth/cover-login'))) {
+    if (isAuthenticated && (to.path.startsWith('/auth/login') || to.path.startsWith('/auth/cover-login'))) {
       console.log('🏠 User already authenticated, redirecting to home')
       return navigateTo('/')
     }
@@ -57,12 +78,14 @@ export default defineNuxtRouteMiddleware(async (to) => {
   }
   
   // For protected routes, check authentication
-  if (!authStore.isAuthenticated) {
+  if (!isAuthenticated) {
     console.log('🔒 User not authenticated for protected route:', to.path)
     console.log('🧹 Clearing auth state and redirecting to login')
     
-    // Clear authentication state and cookies
-    authStore.clearAuthState()
+    // Clear authentication state and cookies (only on client-side)
+    if (process.client) {
+      authStore.clearAuthState()
+    }
       // Redirect to cover-login page with return URL
     const returnUrl = to.fullPath !== '/' ? `?returnUrl=${encodeURIComponent(to.fullPath)}` : ''
     return navigateTo(`/auth/cover-login${returnUrl}`)
