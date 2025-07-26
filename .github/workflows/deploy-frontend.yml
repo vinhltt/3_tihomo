@@ -215,50 +215,56 @@ jobs:
           echo "[SYNC] Starting frontend files sync to TrueNAS..."
           DEPLOY_DIR="${{ env.TRUENAS_DEPLOY_DIR }}"
           
-          # Enhanced rsync for frontend files with better error handling
+          # Sync specific files needed for frontend deployment
+          # First sync docker-compose.yml
           rsync -rltvz --safe-links \
             --chmod=Du=rwx,Dgo=rx,Fu=rw,Fgo=r \
             --no-perms --no-owner --no-group \
-            --ignore-errors \
-            --force \
-            --include="src/" \
-            --include="src/fe/" \
-            --include="src/fe/nuxt/" \
-            --include="src/fe/nuxt/**" \
-            --include="docker-compose.yml" \
-            --include=".env*" \
-            --exclude="*" \
-            --partial \
-            --partial-dir=.rsync-partial \
             --progress \
-            --human-readable \
             -e "ssh -F $HOME/.ssh/config -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=30" \
-            $GITHUB_WORKSPACE/ \
-            truenas-cf-tunnel:"$DEPLOY_DIR/" || {
-              RSYNC_EXIT_CODE=$?
-              echo "[ERROR] Rsync failed with exit code: $RSYNC_EXIT_CODE"
-              
-              case $RSYNC_EXIT_CODE in
-                1)  echo "[ERROR] Syntax or usage error" ;;
-                2)  echo "[ERROR] Protocol incompatibility" ;;
-                3)  echo "[ERROR] Errors selecting input/output files, dirs" ;;
-                11) echo "[ERROR] Error in file I/O" ;;
-                12) echo "[ERROR] Error in rsync protocol data stream" ;;
-                13) echo "[ERROR] Errors with program diagnostics" ;;
-                23) echo "[WARNING] Partial transfer due to error - some files may not have transferred correctly" ;;
-                24) echo "[ERROR] Partial transfer due to vanished source files" ;;
-                *)  echo "[ERROR] Unknown rsync error code: $RSYNC_EXIT_CODE" ;;
-              esac
-              
-              # Handle common non-critical errors that shouldn't stop deployment
-              if [ $RSYNC_EXIT_CODE -eq 23 ]; then
-                echo "[WARNING] Continuing deployment despite rsync warnings (exit code $RSYNC_EXIT_CODE)"
-                echo "[INFO] This usually indicates file permission/attribute warnings that don't affect functionality"
-              else
-                echo "[ERROR] Critical rsync error, stopping deployment"
-                exit $RSYNC_EXIT_CODE
-              fi
-            }
+            $GITHUB_WORKSPACE/docker-compose.yml \
+            truenas-cf-tunnel:"$DEPLOY_DIR/"
+            
+          # Then sync frontend source files
+          rsync -rltvz --safe-links \
+            --chmod=Du=rwx,Dgo=rx,Fu=rw,Fgo=r \
+            --no-perms --no-owner --no-group \
+            --exclude="node_modules/" \
+            --exclude=".nuxt/" \
+            --exclude=".output/" \
+            --exclude="dist/" \
+            --exclude="logs/" \
+            --progress \
+            -e "ssh -F $HOME/.ssh/config -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=30" \
+            $GITHUB_WORKSPACE/src/fe/ \
+            truenas-cf-tunnel:"$DEPLOY_DIR/src/fe/"
+          
+          # Check if rsync succeeded
+          if [ $? -ne 0 ]; then
+            RSYNC_EXIT_CODE=$?
+            echo "[ERROR] Frontend files rsync failed with exit code: $RSYNC_EXIT_CODE"
+            
+            case $RSYNC_EXIT_CODE in
+              1)  echo "[ERROR] Syntax or usage error" ;;
+              2)  echo "[ERROR] Protocol incompatibility" ;;
+              3)  echo "[ERROR] Errors selecting input/output files, dirs" ;;
+              11) echo "[ERROR] Error in file I/O" ;;
+              12) echo "[ERROR] Error in rsync protocol data stream" ;;
+              13) echo "[ERROR] Errors with program diagnostics" ;;
+              23) echo "[WARNING] Partial transfer due to error - some files may not have transferred correctly" ;;
+              24) echo "[ERROR] Partial transfer due to vanished source files" ;;
+              *)  echo "[ERROR] Unknown rsync error code: $RSYNC_EXIT_CODE" ;;
+            esac
+            
+            # Handle common non-critical errors that shouldn't stop deployment
+            if [ $RSYNC_EXIT_CODE -eq 23 ]; then
+              echo "[WARNING] Continuing deployment despite rsync warnings (exit code $RSYNC_EXIT_CODE)"
+              echo "[INFO] This usually indicates file permission/attribute warnings that don't affect functionality"
+            else
+              echo "[ERROR] Critical rsync error, stopping deployment"
+              exit $RSYNC_EXIT_CODE
+            fi
+          fi
           
           echo "[OK] Frontend files synced successfully"
           
