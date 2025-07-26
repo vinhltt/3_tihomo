@@ -100,15 +100,21 @@ if [ "${NODE_ENV:-development}" != "production" ]; then
 #!/bin/sh
 # Fallback nuxt wrapper script for development
 
+echo "🔧 Nuxt wrapper: Starting with args: $*"
+
 # Try different possible locations for Nuxt
 if [ -f "node_modules/nuxt/bin/nuxt.mjs" ]; then
+  echo "✅ Using node_modules/nuxt/bin/nuxt.mjs"
   exec node node_modules/nuxt/bin/nuxt.mjs "$@"
 elif [ -f "node_modules/.bin/nuxi" ]; then
+  echo "✅ Using node_modules/.bin/nuxi"
   exec node_modules/.bin/nuxi "$@"
 elif [ -f "node_modules/nuxi/bin/nuxi.mjs" ]; then
+  echo "✅ Using node_modules/nuxi/bin/nuxi.mjs"
   exec node node_modules/nuxi/bin/nuxi.mjs "$@"
 elif command -v npx >/dev/null 2>&1; then
-  exec npx nuxt "$@"
+  echo "✅ Fallback to npx nuxt"
+  exec timeout 60 npx nuxt "$@"
 else
   echo "Error: Nuxt executable not found in any expected location"
   echo "Available files in node_modules/.bin:"
@@ -122,12 +128,21 @@ EOF
     echo "✅ Fallback nuxt wrapper created"
   fi
   
-  # Verify the nuxt command works
+  # Verify the nuxt command works with timeout
   echo "🔍 Testing nuxt command..."
-  if node_modules/.bin/nuxt --version >/dev/null 2>&1; then
+  if timeout 10 node_modules/.bin/nuxt --version >/dev/null 2>&1; then
     echo "✅ Nuxt command is working"
   else
-    echo "⚠️ Nuxt command test failed, but proceeding..."
+    echo "⚠️ Nuxt command test failed or timeout, but proceeding..."
+    echo "🔧 Checking nuxt executable directly..."
+    ls -la node_modules/.bin/nuxt 2>/dev/null || echo "No nuxt executable found"
+    echo "🔧 Testing executable permissions..."
+    if [ -x "node_modules/.bin/nuxt" ]; then
+      echo "✅ Nuxt executable has correct permissions"
+    else
+      echo "⚠️ Nuxt executable may not have correct permissions"
+      chmod +x node_modules/.bin/nuxt 2>/dev/null || true
+    fi
   fi
   
   # Clean up any problematic .output directory before starting
@@ -210,15 +225,21 @@ else
 #!/bin/sh
 # Fallback nuxt wrapper script
 
+echo "🔧 Nuxt wrapper (production): Starting with args: $*"
+
 # Try different possible locations for Nuxt
 if [ -f "node_modules/nuxt/bin/nuxt.mjs" ]; then
+  echo "✅ Using node_modules/nuxt/bin/nuxt.mjs"
   exec node node_modules/nuxt/bin/nuxt.mjs "$@"
 elif [ -f "node_modules/.bin/nuxi" ]; then
+  echo "✅ Using node_modules/.bin/nuxi"
   exec node_modules/.bin/nuxi "$@"
 elif [ -f "node_modules/nuxi/bin/nuxi.mjs" ]; then
+  echo "✅ Using node_modules/nuxi/bin/nuxi.mjs"
   exec node node_modules/nuxi/bin/nuxi.mjs "$@"
 elif command -v npx >/dev/null 2>&1; then
-  exec npx nuxt "$@"
+  echo "✅ Fallback to npx nuxt"
+  exec timeout 60 npx nuxt "$@"
 else
   echo "Error: Nuxt executable not found in any expected location"
   echo "Searched locations:"
@@ -239,12 +260,21 @@ EOF
       echo "✅ Fallback nuxt wrapper created"
     fi
     
-    # Verify the nuxt command works
+    # Verify the nuxt command works with timeout
     echo "🔍 Testing nuxt command..."
-    if node_modules/.bin/nuxt --version >/dev/null 2>&1; then
+    if timeout 10 node_modules/.bin/nuxt --version >/dev/null 2>&1; then
       echo "✅ Nuxt command is working"
     else
-      echo "⚠️ Nuxt command test failed, but proceeding with build..."
+      echo "⚠️ Nuxt command test failed or timeout, but proceeding with build..."
+      echo "🔧 Checking nuxt executable directly..."
+      ls -la node_modules/.bin/nuxt 2>/dev/null || echo "No nuxt executable found"
+      echo "🔧 Testing executable permissions..."
+      if [ -x "node_modules/.bin/nuxt" ]; then
+        echo "✅ Nuxt executable has correct permissions"
+      else
+        echo "⚠️ Nuxt executable may not have correct permissions"
+        chmod +x node_modules/.bin/nuxt 2>/dev/null || true
+      fi
     fi
     
     # Use a retry mechanism for build to handle EBUSY errors
