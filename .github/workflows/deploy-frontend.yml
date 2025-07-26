@@ -522,9 +522,7 @@ jobs:
             # Step 2: Clean up Docker images and system
             echo "[CLEANUP] Cleaning up Docker images and system..."
             
-            # Stop any remaining containers first
-            echo "[CLEANUP] Ensuring all containers are stopped..."
-            $USE_SUDO docker compose down --remove-orphans 2>/dev/null || true
+            # Additional cleanup (containers should already be stopped above)
             
             # Remove old frontend images
             OLD_IMAGES=$($USE_SUDO docker images | grep "tihomo.*frontend" | awk '{print $3}' || true)
