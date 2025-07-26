@@ -449,7 +449,24 @@ jobs:
             DEPLOY_DIR="${{ env.TRUENAS_DEPLOY_DIR }}"
             cd $DEPLOY_DIR
             
-            source .env
+            # Clean up any corrupted .env file from previous failed deployments
+            if [ -f .env ]; then
+              echo "[CLEANUP] Checking for corrupted .env file..."
+              if ! grep -q "^[A-Z_][A-Z0-9_]*=" .env 2>/dev/null || grep -q "echo\|>>" .env 2>/dev/null; then
+                echo "[WARNING] Found corrupted .env file, removing it"
+                rm -f .env
+                echo "[INFO] Corrupted .env file removed, will be recreated"
+              else
+                echo "[OK] .env file appears clean"
+              fi
+            fi
+            
+            # Source .env only if it exists and is clean
+            if [ -f .env ]; then
+              source .env
+            else
+              echo "[WARNING] No .env file found, using defaults"
+            fi
             
             if docker ps >/dev/null 2>&1; then
               USE_SUDO=""
