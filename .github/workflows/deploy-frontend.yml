@@ -138,7 +138,7 @@ jobs:
     needs: [check-backend]
     if: always() && (needs.check-backend.result == 'success' || inputs.skip_backend_check)
     environment: ${{ inputs.environment }}
-    timeout-minutes: 20
+    timeout-minutes: 30
     
     steps:
       - name: "[1/9] Checkout code"
@@ -564,45 +564,29 @@ jobs:
             echo "[BUILD] Force rebuilding frontend image for ${{ inputs.environment }} environment..."
             echo "[BUILD] This will always use --no-cache for clean build..."
             
-            # Always use no-cache for deployment to ensure latest code
-            $USE_SUDO docker compose build --no-cache --pull frontend-nuxt
+            # Always use no-cache for deployment to ensure latest code with retry
+            build_attempts=0
+            max_build_attempts=3
             
-            # Verify build succeeded
-            if [ $? -ne 0 ]; then
-              echo "[ERROR] Frontend build failed"
-              echo "[DEBUG] Checking build context and files..."
+            while [ $build_attempts -lt $max_build_attempts ]; do
+              echo "[BUILD] Build attempt $((build_attempts + 1))/$max_build_attempts..."
               
-              echo "[DEBUG] Current directory: $(pwd)"
-              echo "[DEBUG] Contents of current directory:"
-              ls -la
-              
-              echo "[DEBUG] Docker-compose file exists: $(test -f docker-compose.yml && echo 'YES' || echo 'NO')"
-              
-              if [ -d "src/fe/nuxt" ]; then
-                echo "[DEBUG] Frontend directory contents:"
-                ls -la src/fe/nuxt/
-                echo "[DEBUG] Dockerfile exists: $(test -f src/fe/nuxt/Dockerfile && echo 'YES' || echo 'NO')"
-                echo "[DEBUG] package.json exists: $(test -f src/fe/nuxt/package.json && echo 'YES' || echo 'NO')"
-                echo "[DEBUG] Nuxt config:"
-                cat src/fe/nuxt/nuxt.config.ts | head -20 2>/dev/null || echo "No nuxt.config.ts found"
-                
-                if [ -f src/fe/nuxt/Dockerfile ]; then
-                  echo "[DEBUG] Dockerfile first 10 lines:"
-                  head -10 src/fe/nuxt/Dockerfile
-                else
-                  echo "[ERROR] Dockerfile missing in src/fe/nuxt/"
-                fi
+              if $USE_SUDO docker compose build --no-cache --pull frontend-nuxt; then
+                echo "[BUILD] Build succeeded on attempt $((build_attempts + 1))"
+                break
               else
-                echo "[ERROR] src/fe/nuxt directory not found!"
-                echo "[DEBUG] Searching for nuxt directories:"
-                find . -name "*nuxt*" -type d 2>/dev/null || echo "No nuxt directories found"
+                build_attempts=$((build_attempts + 1))
+                if [ $build_attempts -lt $max_build_attempts ]; then
+                  echo "[BUILD] Build failed, retrying in 30 seconds..."
+                  sleep 30
+                  # Clean up any partial images
+                  $USE_SUDO docker system prune -f 2>/dev/null || true
+                else
+                  echo "[BUILD] Build failed after $max_build_attempts attempts"
+                  exit 1
+                fi
               fi
-              
-              echo "[DEBUG] Docker-compose frontend service definition:"
-              grep -A 10 "frontend-nuxt:" docker-compose.yml 2>/dev/null || echo "No frontend-nuxt service found in docker-compose.yml"
-              
-              exit 1
-            fi
+            done
             
             echo "[BUILD] Frontend image built successfully"
             
