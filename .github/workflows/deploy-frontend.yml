@@ -80,10 +80,13 @@ jobs:
             echo "[INFO] Current directory: $(pwd)"
             echo "[INFO] Checking for docker-compose.yml: $(test -f docker-compose.yml && echo 'EXISTS' || echo 'MISSING')"
             
+            # Check Docker permissions and set USE_SUDO appropriately
             if docker ps >/dev/null 2>&1; then
               USE_SUDO=""
+              echo "[INFO] Docker accessible without sudo"
             else
               USE_SUDO="sudo"
+              echo "[INFO] Docker requires sudo access"
             fi
             
             echo "[CHECK] Verifying backend services for frontend..."
@@ -499,10 +502,13 @@ jobs:
               echo "[INFO] Basic .env file created"
             fi
             
+            # Check Docker permissions and set USE_SUDO appropriately
             if docker ps >/dev/null 2>&1; then
               USE_SUDO=""
+              echo "[INFO] Docker accessible without sudo"
             else
               USE_SUDO="sudo"
+              echo "[INFO] Docker requires sudo access"
             fi
             
             echo "[FRONTEND] Starting comprehensive frontend deployment..."
@@ -697,10 +703,13 @@ jobs:
             DEPLOY_DIR="$DEPLOY_DIR"
             cd \$DEPLOY_DIR
             
+            # Check Docker permissions and set USE_SUDO appropriately
             if docker ps >/dev/null 2>&1; then
               USE_SUDO=""
+              echo "[INFO] Docker accessible without sudo"
             else
               USE_SUDO="sudo"
+              echo "[INFO] Docker requires sudo access"
             fi
             
             echo "[HEALTH] Final frontend health check..."
