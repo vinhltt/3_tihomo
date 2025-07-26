@@ -612,7 +612,7 @@ jobs:
             
             # Step 5: Enhanced health check with better error reporting
             echo "[HEALTH] Starting enhanced health check process..."
-            max_attempts=30
+            max_attempts=5
             attempt=1
             
             while [ $attempt -le $max_attempts ]; do
