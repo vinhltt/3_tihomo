@@ -113,10 +113,19 @@ elif [ -f "node_modules/nuxi/bin/nuxi.mjs" ]; then
   echo "✅ Using node_modules/nuxi/bin/nuxi.mjs"
   exec node node_modules/nuxi/bin/nuxi.mjs "$@"
 elif command -v npx >/dev/null 2>&1; then
-  echo "✅ Fallback to npx nuxt"
-  # Remove timeout from exec to prevent infinite loop
-  npx nuxt "$@"
-  exit $?
+  echo "✅ Fallback to direct node execution"
+  # Bypass npx to prevent infinite loop - use node directly
+  if [ -f "node_modules/nuxt/package.json" ]; then
+    exec node -e "
+      const nuxtBin = require.resolve('nuxt/bin/nuxt.mjs');
+      const { spawn } = require('child_process');
+      const child = spawn('node', [nuxtBin, ...process.argv.slice(2)], { stdio: 'inherit' });
+      child.on('exit', (code) => process.exit(code));
+    " -- "$@"
+  else
+    echo "❌ No nuxt package found, cannot proceed"
+    exit 1
+  fi
 else
   echo "Error: Nuxt executable not found in any expected location"
   echo "Available files in node_modules/.bin:"
@@ -185,6 +194,15 @@ else
   
   # Check if we're in a development container with production NODE_ENV
   # Check for .output/server/index.mjs OR any partial build structure
+  echo "🔍 Checking for pre-built .output..."
+  echo "📁 Current directory: $(pwd)"
+  echo "📁 Directory contents:"
+  ls -la ./
+  echo "📁 .output directory check:"
+  ls -la .output/ 2>/dev/null || echo "❌ No .output directory found"
+  echo "📁 .output/server check:"
+  ls -la .output/server/ 2>/dev/null || echo "❌ No .output/server directory found"
+  
   if [ ! -f ".output/server/index.mjs" ]; then
     echo "⚠️  Production NODE_ENV detected but no .output directory"
     echo "🔨 Building application for production..."
@@ -240,10 +258,19 @@ elif [ -f "node_modules/nuxi/bin/nuxi.mjs" ]; then
   echo "✅ Using node_modules/nuxi/bin/nuxi.mjs"
   exec node node_modules/nuxi/bin/nuxi.mjs "$@"
 elif command -v npx >/dev/null 2>&1; then
-  echo "✅ Fallback to npx nuxt"
-  # Remove timeout from exec to prevent infinite loop
-  npx nuxt "$@"
-  exit $?
+  echo "✅ Fallback to direct node execution"
+  # Bypass npx to prevent infinite loop - use node directly
+  if [ -f "node_modules/nuxt/package.json" ]; then
+    exec node -e "
+      const nuxtBin = require.resolve('nuxt/bin/nuxt.mjs');
+      const { spawn } = require('child_process');
+      const child = spawn('node', [nuxtBin, ...process.argv.slice(2)], { stdio: 'inherit' });
+      child.on('exit', (code) => process.exit(code));
+    " -- "$@"
+  else
+    echo "❌ No nuxt package found, cannot proceed"
+    exit 1
+  fi
 else
   echo "Error: Nuxt executable not found in any expected location"
   echo "Searched locations:"
@@ -564,10 +591,12 @@ EOF
     echo "✅ Build completed successfully"
   elif [ ! -f ".output/server/index.mjs" ]; then
     echo "❌ ERROR: Pre-built application not found - .output/server/index.mjs missing"
-    echo "Checking .output directory:"
+    echo "📁 Checking .output directory:"
     ls -la .output/ 2>/dev/null || echo "No .output directory found"
-    echo "Checking /app directory:"
+    echo "📁 Checking /app directory:"
     ls -la /app/
+    echo "🔍 This suggests .output was not properly copied from builder stage"
+    echo "🔍 Or source mount is overriding the pre-built .output"
     exit 1
   fi
   
