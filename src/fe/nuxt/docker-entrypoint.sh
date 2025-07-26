@@ -114,16 +114,31 @@ elif [ -f "node_modules/nuxi/bin/nuxi.mjs" ]; then
   exec node node_modules/nuxi/bin/nuxi.mjs "$@"
 elif command -v npx >/dev/null 2>&1; then
   echo "✅ Fallback to direct node execution"
-  # Bypass npx to prevent infinite loop - use node directly
+  # Debug: Check what nuxt packages we have
+  echo "🔍 Checking available nuxt packages..."
+  find node_modules -name "*nuxt*" -type d | head -10
+  ls -la node_modules/nuxt/ 2>/dev/null || echo "❌ No nuxt directory"
+  ls -la node_modules/@nuxt/ 2>/dev/null || echo "❌ No @nuxt directory"
+  
+  # Try multiple approaches to find nuxt
   if [ -f "node_modules/nuxt/package.json" ]; then
+    echo "✅ Found nuxt package, using require.resolve"
     exec node -e "
       const nuxtBin = require.resolve('nuxt/bin/nuxt.mjs');
       const { spawn } = require('child_process');
       const child = spawn('node', [nuxtBin, ...process.argv.slice(2)], { stdio: 'inherit' });
       child.on('exit', (code) => process.exit(code));
     " -- "$@"
+  elif [ -f "node_modules/nuxt/bin/nuxt.mjs" ]; then
+    echo "✅ Found nuxt.mjs directly"
+    exec node node_modules/nuxt/bin/nuxt.mjs "$@"
+  elif [ -f "node_modules/@nuxt/cli/bin/nuxt.mjs" ]; then
+    echo "✅ Found @nuxt/cli"
+    exec node node_modules/@nuxt/cli/bin/nuxt.mjs "$@"
   else
-    echo "❌ No nuxt package found, cannot proceed"
+    echo "❌ No nuxt executable found in any location"
+    echo "🔍 Available packages:"
+    ls -la node_modules/ | grep nuxt || echo "No nuxt packages found"
     exit 1
   fi
 else
@@ -259,16 +274,31 @@ elif [ -f "node_modules/nuxi/bin/nuxi.mjs" ]; then
   exec node node_modules/nuxi/bin/nuxi.mjs "$@"
 elif command -v npx >/dev/null 2>&1; then
   echo "✅ Fallback to direct node execution"
-  # Bypass npx to prevent infinite loop - use node directly
+  # Debug: Check what nuxt packages we have
+  echo "🔍 Checking available nuxt packages..."
+  find node_modules -name "*nuxt*" -type d | head -10
+  ls -la node_modules/nuxt/ 2>/dev/null || echo "❌ No nuxt directory"
+  ls -la node_modules/@nuxt/ 2>/dev/null || echo "❌ No @nuxt directory"
+  
+  # Try multiple approaches to find nuxt
   if [ -f "node_modules/nuxt/package.json" ]; then
+    echo "✅ Found nuxt package, using require.resolve"
     exec node -e "
       const nuxtBin = require.resolve('nuxt/bin/nuxt.mjs');
       const { spawn } = require('child_process');
       const child = spawn('node', [nuxtBin, ...process.argv.slice(2)], { stdio: 'inherit' });
       child.on('exit', (code) => process.exit(code));
     " -- "$@"
+  elif [ -f "node_modules/nuxt/bin/nuxt.mjs" ]; then
+    echo "✅ Found nuxt.mjs directly"
+    exec node node_modules/nuxt/bin/nuxt.mjs "$@"
+  elif [ -f "node_modules/@nuxt/cli/bin/nuxt.mjs" ]; then
+    echo "✅ Found @nuxt/cli"
+    exec node node_modules/@nuxt/cli/bin/nuxt.mjs "$@"
   else
-    echo "❌ No nuxt package found, cannot proceed"
+    echo "❌ No nuxt executable found in any location"
+    echo "🔍 Available packages:"
+    ls -la node_modules/ | grep nuxt || echo "No nuxt packages found"
     exit 1
   fi
 else
