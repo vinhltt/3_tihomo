@@ -491,6 +491,11 @@ jobs:
               echo "DOCKER_USER=1001:1001" >> .env
               echo "NODE_ENV=production" >> .env
               echo "NUXT_BUILD_TARGET=production" >> .env
+              echo "DOCKER_NETWORK_SUBNET=${{ vars.DOCKER_NETWORK_SUBNET || '172.20.0.0/16' }}" >> .env
+              echo "REPORTING_DB_USERNAME=${{ vars.REPORTING_DB_USERNAME || 'reporting_user' }}" >> .env
+              echo "REPORTING_DB_PASSWORD=${{ secrets.REPORTING_DB_PASSWORD || 'temp_password' }}" >> .env
+              echo "REPORTING_DB_PORT=${{ vars.REPORTING_DB_PORT || '5435' }}" >> .env
+              echo "RABBITMQ_MANAGEMENT_PORT=${{ vars.RABBITMQ_MANAGEMENT_PORT || '15672' }}" >> .env
               echo "[INFO] Basic .env file created"
             fi
             
@@ -517,6 +522,10 @@ jobs:
             # Step 2: Clean up Docker images and system
             echo "[CLEANUP] Cleaning up Docker images and system..."
             
+            # Stop any remaining containers first
+            echo "[CLEANUP] Ensuring all containers are stopped..."
+            $USE_SUDO docker compose down --remove-orphans 2>/dev/null || true
+            
             # Remove old frontend images
             OLD_IMAGES=$($USE_SUDO docker images | grep "tihomo.*frontend" | awk '{print $3}' || true)
             if [ ! -z "$OLD_IMAGES" ]; then
@@ -524,8 +533,9 @@ jobs:
               echo "$OLD_IMAGES" | xargs -r $USE_SUDO docker rmi -f 2>/dev/null || true
             fi
             
-            # Clean up dangling images and volumes
-            $USE_SUDO docker system prune -f --volumes 2>/dev/null || true
+            # Clean up dangling images and volumes (but not networks)
+            $USE_SUDO docker image prune -f 2>/dev/null || true
+            $USE_SUDO docker volume prune -f 2>/dev/null || true
             
             # Step 3: Force rebuild frontend image
             # Verify required files before building
