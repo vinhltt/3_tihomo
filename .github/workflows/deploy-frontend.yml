@@ -196,18 +196,15 @@ jobs:
             if [ -d "$DEPLOY_DIR/src/fe" ]; then
               echo "[CLEANUP] Cleaning previous frontend deployment files..."
               
-              # Remove any hidden/temp files that might cause permission issues
-              find "$DEPLOY_DIR/src/fe" -name ".*" -type f -delete 2>/dev/null || true
-              find "$DEPLOY_DIR/src/fe" -name "*.tmp" -type f -delete 2>/dev/null || true
-              find "$DEPLOY_DIR/src/fe" -name ".rsync_*" -type f -delete 2>/dev/null || true
-              
-              # Fix permissions recursively
-              find "$DEPLOY_DIR/src/fe" -type d -exec chmod 755 {} \; 2>/dev/null || true
-              find "$DEPLOY_DIR/src/fe" -type f -exec chmod 644 {} \; 2>/dev/null || true
-              
-              # Fix ownership
-              chown -R $(whoami):$(whoami) "$DEPLOY_DIR/src/fe" 2>/dev/null || true
+              # Remove the entire frontend directory to avoid permission conflicts
+              rm -rf "$DEPLOY_DIR/src/fe" 2>/dev/null || true
+              echo "[CLEANUP] Previous frontend directory removed completely"
             fi
+            
+            # Recreate clean frontend directory structure
+            mkdir -p "$DEPLOY_DIR/src/fe/nuxt"
+            chmod -R 755 "$DEPLOY_DIR/src"
+            chown -R $(whoami):$(whoami) "$DEPLOY_DIR/src" 2>/dev/null || true
             
             echo "[OK] Frontend deployment directory prepared with proper permissions"
           EOF
@@ -498,6 +495,25 @@ jobs:
             $USE_SUDO docker system prune -f --volumes 2>/dev/null || true
             
             # Step 3: Force rebuild frontend image
+            # Verify required files before building
+            echo "[VERIFY] Checking required files for build..."
+            if [ ! -f "src/fe/nuxt/Dockerfile" ]; then
+              echo "[ERROR] Dockerfile not found at src/fe/nuxt/Dockerfile"
+              echo "[DEBUG] Current directory: $(pwd)"
+              echo "[DEBUG] Contents of src/fe/nuxt/:"
+              ls -la src/fe/nuxt/ 2>/dev/null || echo "Directory src/fe/nuxt/ does not exist"
+              echo "[DEBUG] Searching for Dockerfile..."
+              find . -name "Dockerfile" -type f 2>/dev/null || echo "No Dockerfile found"
+              exit 1
+            fi
+            
+            if [ ! -f "src/fe/nuxt/package.json" ]; then
+              echo "[ERROR] package.json not found at src/fe/nuxt/package.json"
+              exit 1
+            fi
+            
+            echo "[OK] Required files verified"
+            
             echo "[BUILD] Force rebuilding frontend image for ${{ inputs.environment }} environment..."
             echo "[BUILD] This will always use --no-cache for clean build..."
             
