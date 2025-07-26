@@ -347,8 +347,12 @@ EOF
       
       # Add timeout to prevent infinite hang
       echo "⏱️ Starting build with 10 minute timeout..."
-      timeout 600 npm run build 2>&1 | tee build.log
+      echo "🔧 Debug: Running npm run build with full output..."
+      timeout 600 npm run build
       build_exit_code=$?
+      
+      echo "📋 Build log contents:"
+      cat build.log 2>/dev/null || echo "No build.log file found"
       
       echo "🔍 Build exit code: $build_exit_code"
       if [ $build_exit_code -eq 124 ]; then
@@ -358,12 +362,30 @@ EOF
       echo "🔍 Build process completed with exit code: $build_exit_code"
       
       # Check if build output exists regardless of exit code (EBUSY may cause false failure)
+      echo "🔍 Checking build output..."
+      echo "📁 Current directory contents after build:"
+      ls -la ./
+      echo "📁 Looking for .output directory:"
+      ls -la .output/ 2>/dev/null || echo "❌ No .output directory"
+      echo "📁 Looking for .nuxt directory:"
+      ls -la .nuxt/ 2>/dev/null || echo "❌ No .nuxt directory"
+      
       if [ -f ".output/server/index.mjs" ]; then
         echo "✅ Build completed successfully on attempt $build_attempt (found .output/server/index.mjs)"
         break
       elif [ $build_exit_code -eq 0 ]; then
-        echo "✅ Build completed successfully on attempt $build_attempt"
-        break
+        echo "⚠️ Build exit code 0 but checking for actual output..."
+        
+        # Check for any build artifacts
+        if [ -d ".output" ] && [ "$(ls -A .output 2>/dev/null)" ]; then
+          echo "✅ Found .output directory with content"
+          ls -la .output/
+          break
+        elif [ -d ".nuxt" ] && [ "$(ls -A .nuxt 2>/dev/null)" ]; then
+          echo "⚠️ Found .nuxt but no .output - build may be incomplete"
+        else
+          echo "❌ Build reported success but no output found"
+        fi
       else
         echo "⚠️ Build attempt $build_attempt failed (exit code: $build_exit_code)"
         
