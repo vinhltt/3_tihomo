@@ -114,7 +114,9 @@ elif [ -f "node_modules/nuxi/bin/nuxi.mjs" ]; then
   exec node node_modules/nuxi/bin/nuxi.mjs "$@"
 elif command -v npx >/dev/null 2>&1; then
   echo "✅ Fallback to npx nuxt"
-  exec timeout 60 npx nuxt "$@"
+  # Remove timeout from exec to prevent infinite loop
+  npx nuxt "$@"
+  exit $?
 else
   echo "Error: Nuxt executable not found in any expected location"
   echo "Available files in node_modules/.bin:"
@@ -239,7 +241,9 @@ elif [ -f "node_modules/nuxi/bin/nuxi.mjs" ]; then
   exec node node_modules/nuxi/bin/nuxi.mjs "$@"
 elif command -v npx >/dev/null 2>&1; then
   echo "✅ Fallback to npx nuxt"
-  exec timeout 60 npx nuxt "$@"
+  # Remove timeout from exec to prevent infinite loop
+  npx nuxt "$@"
+  exit $?
 else
   echo "Error: Nuxt executable not found in any expected location"
   echo "Searched locations:"
@@ -284,9 +288,15 @@ EOF
     while [ $build_attempt -le $max_attempts ]; do
       echo "🔨 Build attempt $build_attempt of $max_attempts..."
       
-      # Capture build exit code but continue to check output
-      npm run build 2>&1 | tee build.log
+      # Add timeout to prevent infinite hang
+      echo "⏱️ Starting build with 10 minute timeout..."
+      timeout 600 npm run build 2>&1 | tee build.log
       build_exit_code=$?
+      
+      echo "🔍 Build exit code: $build_exit_code"
+      if [ $build_exit_code -eq 124 ]; then
+        echo "⏰ Build timed out after 10 minutes"
+      fi
       
       echo "🔍 Build process completed with exit code: $build_exit_code"
       
@@ -312,14 +322,18 @@ EOF
         fi
         
         if [ $build_attempt -eq $max_attempts ]; then
-          echo "❌ All build attempts failed. Checking for partial build..."
+          echo "❌ All $max_attempts build attempts failed. Checking for partial build..."
           
           # Check if we have at least some output
           if [ -f ".output/server/index.mjs" ]; then
             echo "✅ Partial build found, proceeding with existing .output"
             break
           else
-            echo "❌ No usable build output found"
+            echo "❌ No usable build output found after $max_attempts attempts"
+            echo "🔍 Final directory check:"
+            ls -la /app/
+            echo "🔍 Node modules check:"
+            ls -la /app/node_modules/.bin/ | head -10
             exit 1
           fi
         else
