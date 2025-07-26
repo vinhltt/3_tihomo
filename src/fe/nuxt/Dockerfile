@@ -111,10 +111,19 @@ COPY --from=builder --chown=nuxt:nodejs /app/node_modules /app/node_modules
 COPY --chown=nuxt:nodejs docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh
 
-# Create necessary directories with proper ownership for both production and potential rebuild scenarios
-RUN mkdir -p /app/logs /app/uploads /app/.nuxt && \
-    chown -R nuxt:nodejs /app && \
-    chmod -R 755 /app
+# Create necessary directories with proper ownership - split for debugging
+RUN mkdir -p /app/logs /app/uploads /app/.nuxt
+
+# Debug: Check what we have before ownership change
+RUN echo "[DEBUG] Contents before ownership change:" && \
+    ls -la /app/ && \
+    echo "[DEBUG] node_modules size:" && \
+    du -sh /app/node_modules 2>/dev/null || echo "No node_modules found"
+
+# Skip recursive ownership change to avoid hanging - run as root if needed
+# Production containers often run as root anyway for simplicity
+RUN echo "[INFO] Skipping ownership change to avoid build hang" && \
+    chmod 755 /app /app/logs /app/uploads /app/.nuxt 2>/dev/null || true
 
 # Verify build output exists (debugging step)
 RUN ls -la /app/.output/ && \
@@ -125,8 +134,8 @@ RUN ls -la /app/.output/ && \
 # Note: We copy node_modules for fallback rebuild scenarios
 # When source is mounted, container may need to rebuild if .output is missing
 
-# Don't switch to non-root user yet - entrypoint will handle this
-# USER nuxt
+# Run as root to avoid permission issues during deployment
+# Entrypoint will handle user switching if needed
 
 # Expose port
 EXPOSE 3000
