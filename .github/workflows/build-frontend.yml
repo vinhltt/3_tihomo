@@ -76,8 +76,8 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: ./src/fe/nuxt
-          file: ./src/fe/nuxt/Dockerfile
-          platforms: linux/amd64,linux/arm64
+          file: ./src/fe/nuxt/Dockerfile.fast  # Sử dụng optimized Dockerfile
+          platforms: linux/amd64  # Tạm thời chỉ build amd64 để tối ưu thời gian
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
