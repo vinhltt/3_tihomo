@@ -1,149 +1,121 @@
-# Dockerfile for TiHoMo Nuxt Frontend
-# Multi-stage build để tối ưu hóa kích thước image và support development mode
+# syntax=docker/dockerfile:1
+# Optimized Dockerfile for TiHoMo Nuxt Frontend with GHCR best practices
 
-# Stage 1: Build stage
-FROM node:20-alpine AS builder
+# Build arguments for metadata
+ARG BUILDTIME
+ARG VERSION  
+ARG COMMIT_SHA
 
-# Set working directory
+# Stage 1: Dependencies
+FROM node:20-alpine AS dependencies
+
 WORKDIR /app
+
+# Install system dependencies for native modules
+RUN apk add --no-cache \
+    python3 \
+    make \
+    g++ \
+    curl \
+    && ln -sf python3 /usr/bin/python
 
 # Copy package files
 COPY package*.json ./
 
-# Install necessary build tools for native dependencies
-RUN apk add --no-cache python3 make g++ curl && \
-    ln -sf python3 /usr/bin/python
+# Install production dependencies with cache mount
+RUN --mount=type=cache,target=/root/.npm \
+    --mount=type=cache,target=/app/node_modules/.cache \
+    npm ci --only=production --legacy-peer-deps
 
-# Remove potential problematic files and install dependencies
-# This addresses the npm optional dependencies bug with rollup and esbuild version conflicts
-RUN rm -rf node_modules package-lock.json 2>/dev/null || true && \
-    npm cache clean --force && \
-    # Set npm to use exact versions for esbuild to avoid conflicts
-    npm config set fund false && \
-    npm config set audit false && \
-    # Install dependencies with platform-specific handling for Alpine Linux
-    # Note: We need optional dependencies for native modules like @rollup/rollup-linux-x64-musl
-    npm install --legacy-peer-deps && \
-    # Ensure rollup native binaries are properly installed for musl
-    npm install @rollup/rollup-linux-x64-musl --save-optional && \
-    # Clear any esbuild cache that might cause version conflicts
-    rm -rf ~/.cache/esbuild 2>/dev/null || true && \
-    # Force clean install of esbuild to ensure version consistency
-    npm uninstall esbuild && npm install esbuild@0.23.1
+# Stage 2: Build
+FROM node:20-alpine AS build
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apk add --no-cache \
+    python3 \
+    make \
+    g++ \
+    && ln -sf python3 /usr/bin/python
+
+# Copy package files
+COPY package*.json ./
+
+# Install all dependencies with cache mount
+RUN --mount=type=cache,target=/root/.npm \
+    --mount=type=cache,target=/app/node_modules/.cache \
+    npm ci --legacy-peer-deps
 
 # Copy source code
 COPY . .
 
-# Build the application
+# Build application with build arguments
+ARG BUILDTIME
+ARG VERSION
+ARG COMMIT_SHA
+
+ENV NUXT_BUILD_TARGET=production \
+    NODE_ENV=production \
+    NUXT_DEV_SSR=false \
+    NUXT_DEV_TOOLS=false \
+    NUXT_DEBUG=false
+
+# Add build metadata as environment variables
+ENV BUILD_TIME=$BUILDTIME \
+    BUILD_VERSION=$VERSION \
+    BUILD_COMMIT=$COMMIT_SHA
+
 RUN npm run build
 
-# Stage 2: Development stage (for development mode)
-FROM node:20-alpine AS development
+# Stage 3: Runtime
+FROM node:20-alpine AS runtime
 
-# Set working directory  
+# Create non-root user
+RUN addgroup -g 1001 -S nuxt && \
+    adduser -S nuxt -u 1001 -G nuxt
+
+# Install runtime dependencies
+RUN apk add --no-cache \
+    curl \
+    dumb-init \
+    && rm -rf /var/cache/apk/*
+
 WORKDIR /app
 
-# Install curl for health checks and su-exec for user switching
-RUN apk add --no-cache curl python3 make g++ su-exec && \
-    ln -sf python3 /usr/bin/python
+# Copy production dependencies from dependencies stage
+COPY --from=dependencies --chown=nuxt:nuxt /app/node_modules ./node_modules
 
-# Copy package files
-COPY package*.json ./
+# Copy built application from build stage
+COPY --from=build --chown=nuxt:nuxt /app/.output ./.output
 
-# Install all dependencies including dev dependencies for development
-RUN npm install --legacy-peer-deps
+# Copy necessary configuration files
+COPY --from=build --chown=nuxt:nuxt /app/package.json ./package.json
 
-# Create non-root user for security
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nuxt -u 1001
+# Add build metadata labels
+ARG BUILDTIME
+ARG VERSION
+ARG COMMIT_SHA
 
-# Copy entrypoint script
-COPY docker-entrypoint.sh /docker-entrypoint.sh
-RUN chmod +x /docker-entrypoint.sh
+LABEL org.opencontainers.image.title="TiHoMo Frontend" \
+      org.opencontainers.image.description="Nuxt 3 Frontend for TiHoMo Application" \
+      org.opencontainers.image.version=${VERSION} \
+      org.opencontainers.image.created=${BUILDTIME} \
+      org.opencontainers.image.revision=${COMMIT_SHA} \
+      org.opencontainers.image.vendor="TiHoMo Team"
 
-# Change ownership of app directory
-RUN chown -R nuxt:nodejs /app
-
-# Create .nuxt directory with proper permissions
-RUN mkdir -p /app/.nuxt /app/.output /app/logs /app/uploads && \
-    chown -R nuxt:nodejs /app/.nuxt /app/.output /app/logs /app/uploads && \
-    chmod -R 755 /app/.nuxt /app/.output /app/logs /app/uploads
-
-# For development mode, we'll handle user switching in entrypoint
-# to avoid permission issues with volume mounts
-# USER nuxt
+# Switch to non-root user
+USER nuxt
 
 # Expose port
 EXPOSE 3000
 
-# Set development environment variables
-ENV NODE_ENV=development
-ENV NUXT_HOST=0.0.0.0
-ENV NUXT_PORT=3000
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
+    CMD curl -f http://localhost:3000/health || exit 1
 
-# Start the application in development mode using our entrypoint script
-ENTRYPOINT ["/docker-entrypoint.sh"]
+# Use dumb-init to handle signals properly
+ENTRYPOINT ["dumb-init", "--"]
 
-# Stage 3: Production stage
-FROM node:20-alpine AS production
-
-# Set working directory
-WORKDIR /app
-
-# Install curl for health checks and su-exec for user switching
-RUN apk add --no-cache curl su-exec
-
-# Create non-root user for security
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nuxt -u 1001
-
-# Copy built application from builder stage
-COPY --from=builder --chown=nuxt:nodejs /app/.output /app/.output
-
-# Copy package.json and package-lock.json for potential rebuild scenarios
-COPY --from=builder --chown=nuxt:nodejs /app/package.json /app/package.json
-COPY --from=builder --chown=nuxt:nodejs /app/package-lock.json /app/package-lock.json
-
-# Copy node_modules for fallback rebuild capability
-COPY --from=builder --chown=nuxt:nodejs /app/node_modules /app/node_modules
-
-# Copy entrypoint script
-COPY --chown=nuxt:nodejs docker-entrypoint.sh /docker-entrypoint.sh
-RUN chmod +x /docker-entrypoint.sh
-
-# Create necessary directories with proper ownership - split for debugging
-RUN mkdir -p /app/logs /app/uploads /app/.nuxt
-
-# Debug: Check what we have before ownership change
-RUN echo "[DEBUG] Contents before ownership change:" && \
-    ls -la /app/ && \
-    echo "[DEBUG] node_modules size:" && \
-    du -sh /app/node_modules 2>/dev/null || echo "No node_modules found"
-
-# Skip recursive ownership change to avoid hanging - run as root if needed
-# Production containers often run as root anyway for simplicity
-RUN echo "[INFO] Skipping ownership change to avoid build hang" && \
-    chmod 755 /app /app/logs /app/uploads /app/.nuxt 2>/dev/null || true
-
-# Verify build output exists (debugging step)
-RUN ls -la /app/.output/ && \
-    ls -la /app/.output/server/ && \
-    test -f /app/.output/server/index.mjs || \
-    (echo "ERROR: index.mjs not found after copy" && exit 1)
-
-# Note: We copy node_modules for fallback rebuild scenarios
-# When source is mounted, container may need to rebuild if .output is missing
-
-# Run as root to avoid permission issues during deployment
-# Entrypoint will handle user switching if needed
-
-# Expose port
-EXPOSE 3000
-
-# Set production environment variables
-ENV NODE_ENV=production
-ENV NUXT_HOST=0.0.0.0
-ENV NUXT_PORT=3000
-
-# Start the application using our entrypoint script
-ENTRYPOINT ["/docker-entrypoint.sh"]
+# Start the application
+CMD ["node", ".output/server/index.mjs"]
