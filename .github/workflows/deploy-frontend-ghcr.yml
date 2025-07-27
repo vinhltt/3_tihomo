@@ -216,86 +216,27 @@ jobs:
           EOF
         shell: bash
 
-      - name: "[5/9] Sync GHCR deployment files"
+      - name: "[5/9] Verify GHCR deployment configuration"
         run: |
-          echo "[SYNC] Starting GHCR deployment files sync to TrueNAS..."
-          DEPLOY_DIR="${{ env.TRUENAS_DEPLOY_DIR }}"
-          
-          # Sync GHCR-specific docker-compose file and config files
-          rsync -rltvz --safe-links \
-            --chmod=Du=rwx,Dgo=rx,Fu=rw,Fgo=r \
-            --no-perms --no-owner --no-group \
-            --progress \
-            -e "ssh -F $HOME/.ssh/config -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=30" \
-            $GITHUB_WORKSPACE/docker-compose.ghcr.yml \
-            truenas-cf-tunnel:"$DEPLOY_DIR/docker-compose.yml"
-            
-          # Then sync frontend source files
-          rsync -rltvz --safe-links \
-            --chmod=Du=rwx,Dgo=rx,Fu=rw,Fgo=r \
-            --no-perms --no-owner --no-group \
-          
-          # Check if rsync succeeded
-          if [ $? -ne 0 ]; then
-            RSYNC_EXIT_CODE=$?
-            echo "[ERROR] GHCR deployment files rsync failed with exit code: $RSYNC_EXIT_CODE"
-            
-            case $RSYNC_EXIT_CODE in
-              1)  echo "[ERROR] Syntax or usage error" ;;
-              2)  echo "[ERROR] Protocol incompatibility" ;;
-              3)  echo "[ERROR] Errors selecting input/output files, dirs" ;;
-              11) echo "[ERROR] Error in file I/O" ;;
-              12) echo "[ERROR] Error in rsync protocol data stream" ;;
-              13) echo "[ERROR] Errors with program diagnostics" ;;
-              23) echo "[WARNING] Partial transfer due to error - some files may not have transferred correctly" ;;
-              24) echo "[ERROR] Partial transfer due to vanished source files" ;;
-              *)  echo "[ERROR] Unknown rsync error code: $RSYNC_EXIT_CODE" ;;
-            esac
-            
-            # Handle common non-critical errors that shouldn't stop deployment
-            if [ $RSYNC_EXIT_CODE -eq 23 ]; then
-              echo "[WARNING] Continuing deployment despite rsync warnings (exit code $RSYNC_EXIT_CODE)"
-              echo "[INFO] This usually indicates file permission/attribute warnings that don't affect functionality"
-            else
-              echo "[ERROR] Critical rsync error, stopping deployment"
-              exit $RSYNC_EXIT_CODE
-            fi
-          fi
-          
-          echo "[OK] GHCR deployment files synced successfully"
-          
-          # Fix permissions after rsync
-          echo "[FIX] Fixing permissions after rsync..."
-          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel /bin/bash << 'PERMS_EOF'
-            DEPLOY_DIR="${{ env.TRUENAS_DEPLOY_DIR }}"
-            cd "$DEPLOY_DIR"
-            
-            # Fix ownership and permissions
-            if command -v sudo >/dev/null 2>&1; then
-              sudo chown -R $(whoami):$(whoami) . 2>/dev/null || true
-              sudo chmod -R 755 . 2>/dev/null || true
-              sudo find . -type f -exec chmod 644 {} \; 2>/dev/null || true
-            else
-              chown -R $(whoami):$(whoami) . 2>/dev/null || true
-              chmod -R 755 . 2>/dev/null || true
-              find . -type f -exec chmod 644 {} \; 2>/dev/null || true
-            fi
-            
-            echo "[OK] Permissions fixed"
-          PERMS_EOF
-          
-          # Verify the synced GHCR deployment files
-          echo "[DEBUG] Verifying GHCR deployment files structure..."
+          echo "[VERIFY] Checking GHCR deployment configuration on TrueNAS..."
           DEPLOY_DIR="${{ env.TRUENAS_DEPLOY_DIR }}"
           
           ssh -F "$HOME/.ssh/config" truenas-cf-tunnel /bin/bash << 'EOF'
             DEPLOY_DIR="${{ env.TRUENAS_DEPLOY_DIR }}"
-            cd $DEPLOY_DIR
-            echo "[DEBUG] Current directory: $(pwd)"
-            echo "[DEBUG] Directory structure after rsync:"
-            ls -la
-            echo "[DEBUG] docker-compose.yml exists: $(test -f docker-compose.yml && echo 'YES' || echo 'NO')"
+            cd "$DEPLOY_DIR"
+            
+            echo "[INFO] Verifying GHCR compose file exists..."
+            if [ ! -f docker-compose.ghcr.yml ]; then
+              echo "[ERROR] docker-compose.ghcr.yml not found on TrueNAS"
+              echo "[INFO] Please ensure docker-compose.ghcr.yml exists in deployment directory"
+              echo "[DEBUG] Current directory structure:"
+              ls -la
+              exit 1
+            fi
+            
+            echo "[OK] docker-compose.ghcr.yml found"
             echo "[INFO] GHCR deployment ready - using pre-built images from registry"
+            echo "[DEBUG] Using compose file: docker-compose.ghcr.yml"
           EOF
         shell: bash
 
@@ -531,15 +472,15 @@ jobs:
             
             # Step 1: Stop and remove existing frontend containers
             echo "[CLEANUP] Stopping and removing existing frontend containers..."
-            if $USE_SUDO docker compose ps frontend-nuxt | grep -q "Up"; then
+            if $USE_SUDO docker compose -f docker-compose.ghcr.yml ps frontend-nuxt | grep -q "Up"; then
               echo "[INFO] Frontend is currently running, performing graceful shutdown..."
-              $USE_SUDO docker compose stop frontend-nuxt
+              $USE_SUDO docker compose -f docker-compose.ghcr.yml stop frontend-nuxt
               sleep 3
             fi
             
             # Remove containers
             echo "[CLEANUP] Removing frontend containers..."
-            $USE_SUDO docker compose rm -f frontend-nuxt 2>/dev/null || true
+            $USE_SUDO docker compose -f docker-compose.ghcr.yml rm -f frontend-nuxt 2>/dev/null || true
             
             # Step 2: Clean up Docker images and system
             echo "[CLEANUP] Cleaning up Docker images and system..."
@@ -599,8 +540,8 @@ jobs:
             echo "[PULL] Frontend image pulled successfully from GHCR"
             
             # Step 4: Deploy frontend with enhanced monitoring
-            echo "[DEPLOY] Starting frontend service with enhanced monitoring..."
-            $USE_SUDO docker compose up -d --no-deps --force-recreate frontend-nuxt
+            echo "[DEPLOY] Starting frontend service with GHCR images..."
+            $USE_SUDO docker compose -f docker-compose.ghcr.yml up -d --no-deps --force-recreate frontend-nuxt
             
             # Step 5: Enhanced health check with better error reporting
             echo "[HEALTH] Starting enhanced health check process..."
@@ -611,7 +552,7 @@ jobs:
               echo "[HEALTH] Health check attempt $attempt/$max_attempts..."
               
               # Check if container is running
-              if $USE_SUDO docker compose ps frontend-nuxt | grep -q "Up"; then
+              if $USE_SUDO docker compose -f docker-compose.ghcr.yml ps frontend-nuxt | grep -q "Up"; then
                 echo "[OK] Frontend container is running"
                 
                 # Wait for Nuxt to initialize properly
@@ -619,10 +560,10 @@ jobs:
                 sleep 60
                 
                 # Test HTTP response
-                if $USE_SUDO docker compose exec -T frontend-nuxt curl -f http://localhost:3000/ >/dev/null 2>&1; then
+                if $USE_SUDO docker compose -f docker-compose.ghcr.yml exec -T frontend-nuxt curl -f http://localhost:3000/ >/dev/null 2>&1; then
                   echo "[SUCCESS] ✅ Frontend is responding to HTTP requests!"
                   break
-                elif $USE_SUDO docker compose exec -T frontend-nuxt curl -s http://localhost:3000/ | grep -q "html\|HTML"; then
+                elif $USE_SUDO docker compose -f docker-compose.ghcr.yml exec -T frontend-nuxt curl -s http://localhost:3000/ | grep -q "html\|HTML"; then
                   echo "[SUCCESS] ✅ Frontend is serving content (HTTP 200)!"
                   break
                 else
@@ -631,9 +572,9 @@ jobs:
                   # Show logs every 5 attempts for debugging
                   if [ $(($attempt % 5)) -eq 0 ]; then
                     echo "[DEBUG] Recent frontend logs (attempt $attempt):"
-                    $USE_SUDO docker compose logs --tail=15 frontend-nuxt
+                    $USE_SUDO docker compose -f docker-compose.ghcr.yml logs --tail=15 frontend-nuxt
                     echo "[DEBUG] Container status:"
-                    $USE_SUDO docker compose ps frontend-nuxt
+                    $USE_SUDO docker compose -f docker-compose.ghcr.yml ps frontend-nuxt
                   fi
                   
                   sleep 10
@@ -644,9 +585,9 @@ jobs:
                 
                 # Show container status and logs for debugging
                 echo "[DEBUG] Container status:"
-                $USE_SUDO docker compose ps frontend-nuxt
+                $USE_SUDO docker compose -f docker-compose.ghcr.yml ps frontend-nuxt
                 echo "[DEBUG] Recent logs:"
-                $USE_SUDO docker compose logs --tail=10 frontend-nuxt
+                $USE_SUDO docker compose -f docker-compose.ghcr.yml logs --tail=10 frontend-nuxt
                 
                 sleep 5
                 ((attempt++))
@@ -659,10 +600,10 @@ jobs:
               echo "[DEBUG] Complete troubleshooting information:"
               echo "=============================================="
               echo "[DEBUG] Container status:"
-              $USE_SUDO docker compose ps frontend-nuxt
+              $USE_SUDO docker compose -f docker-compose.ghcr.yml ps frontend-nuxt
               echo "=============================================="
               echo "[DEBUG] Last 50 lines of frontend logs:"
-              $USE_SUDO docker compose logs --tail=50 frontend-nuxt
+              $USE_SUDO docker compose -f docker-compose.ghcr.yml logs --tail=50 frontend-nuxt
               echo "=============================================="
               echo "[DEBUG] Docker system info:"
               $USE_SUDO docker system df
@@ -677,11 +618,11 @@ jobs:
             
             # Show final status
             echo "[STATUS] Frontend service status:"
-            $USE_SUDO docker compose ps frontend-nuxt
+            $USE_SUDO docker compose -f docker-compose.ghcr.yml ps frontend-nuxt
             
             # Show recent logs for verification
             echo "[LOGS] Recent frontend logs:"
-            $USE_SUDO docker compose logs --tail=10 frontend-nuxt
+            $USE_SUDO docker compose -f docker-compose.ghcr.yml logs --tail=10 frontend-nuxt
           EOF
         shell: bash
 
@@ -707,15 +648,15 @@ jobs:
             echo "[HEALTH] Final frontend health check..."
             
             # Check container status
-            if $USE_SUDO docker compose ps frontend-nuxt | grep -q "Up"; then
+            if $USE_SUDO docker compose -f docker-compose.ghcr.yml ps frontend-nuxt | grep -q "Up"; then
               echo "[OK] Frontend container is running"
               
               # Check HTTP response
-              if $USE_SUDO docker compose exec -T frontend-nuxt curl -f http://localhost:3000/ >/dev/null 2>&1; then
+              if $USE_SUDO docker compose -f docker-compose.ghcr.yml exec -T frontend-nuxt curl -f http://localhost:3000/ >/dev/null 2>&1; then
                 echo "[OK] Frontend is serving HTTP requests"
                 
                 # Check API connectivity from frontend
-                if $USE_SUDO docker compose exec -T frontend-nuxt curl -f http://ocelot-gateway:8080/health >/dev/null 2>&1; then
+                if $USE_SUDO docker compose -f docker-compose.ghcr.yml exec -T frontend-nuxt curl -f http://ocelot-gateway:8080/health >/dev/null 2>&1; then
                   echo "[OK] Frontend can connect to backend gateway"
                 else
                   echo "[WARNING] Frontend cannot connect to backend gateway"
@@ -725,16 +666,16 @@ jobs:
               else
                 echo "[WARNING] Frontend HTTP check failed, but container is running"
                 echo "[DEBUG] Recent frontend logs:"
-                $USE_SUDO docker compose logs --tail=20 frontend-nuxt
+                $USE_SUDO docker compose -f docker-compose.ghcr.yml logs --tail=20 frontend-nuxt
               fi
             else
               echo "[ERROR] Frontend container is not running"
-              $USE_SUDO docker compose ps frontend-nuxt
+              $USE_SUDO docker compose -f docker-compose.ghcr.yml ps frontend-nuxt
               exit 1
             fi
             
             echo "[INFO] Full system status:"
-            $USE_SUDO docker compose ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}"
+            $USE_SUDO docker compose -f docker-compose.ghcr.yml ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}"
           REMOTE_EOF
           
           # Send Discord notification
