@@ -34,7 +34,12 @@
       "Bash(ssh:*)",
       "Bash(git add:*)",
       "mcp__mem0__search_coding_preferences",
-      "mcp__mem0__add_coding_preference"
+      "mcp__mem0__add_coding_preference",
+      "Bash(docker-compose restart:*)",
+      "Bash(docker exec:*)",
+      "Bash(docker-compose up:*)",
+      "Bash(dotnet build)",
+      "Bash(docker-compose logs:*)"
     ],
     "deny": []
   },

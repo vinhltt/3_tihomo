@@ -23,17 +23,17 @@ public class ApiKeyAuthenticationHandler(
     {
         try
         {
-            // Check if API key header exists
+            // Check if API key header exists - if not, let other authentication schemes handle it
             if (!Request.Headers.ContainsKey(_apiKeySettings.HeaderName))
             {
-                _logger.LogWarning("API key header '{HeaderName}' not found in request", _apiKeySettings.HeaderName);
-                return Task.FromResult(AuthenticateResult.Fail("API key header not found"));
+                _logger.LogDebug("API key header '{HeaderName}' not found - skipping API key authentication", _apiKeySettings.HeaderName);
+                return Task.FromResult(AuthenticateResult.NoResult());
             }
 
             var apiKey = Request.Headers[_apiKeySettings.HeaderName].FirstOrDefault();
             if (string.IsNullOrEmpty(apiKey))
             {
-                _logger.LogWarning("API key value is empty");
+                _logger.LogWarning("API key header '{HeaderName}' found but value is empty", _apiKeySettings.HeaderName);
                 return Task.FromResult(AuthenticateResult.Fail("API key value is empty"));
             }
 

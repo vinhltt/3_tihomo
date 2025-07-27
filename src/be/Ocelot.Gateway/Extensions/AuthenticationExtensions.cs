@@ -24,6 +24,7 @@ public static class AuthenticationExtensions
 
         services.AddAuthentication(options =>
             {
+                // Set JWT Bearer as default - it will be tried first
                 options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
                 options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
             })
@@ -45,6 +46,17 @@ public static class AuthenticationExtensions
 
                 options.Events = new JwtBearerEvents
                 {
+                    OnMessageReceived = context =>
+                    {
+                        // If no Authorization header or doesn't start with Bearer, let other schemes handle
+                        var authHeader = context.Request.Headers.Authorization.FirstOrDefault();
+                        if (string.IsNullOrEmpty(authHeader) || !authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+                        {
+                            context.NoResult();
+                            return Task.CompletedTask;
+                        }
+                        return Task.CompletedTask;
+                    },
                     OnAuthenticationFailed = context =>
                     {
                         var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<JwtBearerEvents>>();
@@ -61,7 +73,14 @@ public static class AuthenticationExtensions
                     OnChallenge = context =>
                     {
                         var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<JwtBearerEvents>>();
-                        logger.LogWarning("JWT authentication challenge triggered: {Error}", context.Error);
+                        logger.LogDebug("JWT authentication challenge triggered: {Error}", context.Error);
+                        
+                        // Don't handle challenge if no Bearer token was present - let other schemes handle
+                        var authHeader = context.Request.Headers.Authorization.FirstOrDefault();
+                        if (string.IsNullOrEmpty(authHeader) || !authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+                        {
+                            context.HandleResponse();
+                        }
                         return Task.CompletedTask;
                     }
                 };

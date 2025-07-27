@@ -25,8 +25,6 @@ export const useApi = () => {
       // Add authentication headers if user is authenticated
       if (authStore.isAuthenticated && authStore.token) {
         headers['Authorization'] = `Bearer ${authStore.token}`
-        // Also add API key header for Ocelot Gateway
-        headers['X-API-Key'] = authStore.token
       }
 
       let body = options.body
@@ -61,8 +59,7 @@ export const useApi = () => {
             'Accept': 'application/json',
             // Add authentication headers for FormData requests too
             ...(authStore.isAuthenticated && authStore.token ? {
-              'Authorization': `Bearer ${authStore.token}`,
-              'X-API-Key': authStore.token
+              'Authorization': `Bearer ${authStore.token}`
             } : {})
             // Don't set Content-Type for FormData
           }
