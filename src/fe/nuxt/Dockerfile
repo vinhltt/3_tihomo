@@ -22,10 +22,10 @@ RUN apk add --no-cache \
 # Copy package files
 COPY package*.json ./
 
-# Install production dependencies with cache mount
+# Install production dependencies with cache mount, ignore postinstall để tránh lỗi nuxt not found
 RUN --mount=type=cache,target=/root/.npm \
     --mount=type=cache,target=/tmp/npm-cache-prod \
-    npm ci --omit=dev --legacy-peer-deps
+    npm ci --omit=dev --legacy-peer-deps --ignore-scripts
 
 # Stage 2: Build
 FROM node:20-alpine AS build

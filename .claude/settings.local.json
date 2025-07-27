@@ -1,0 +1,46 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(rm:*)",
+      "Bash(mcp list:*)",
+      "Bash(docker compose:*)",
+      "Bash(export NODE_ENV=production)",
+      "Bash(echo:*)",
+      "Bash(env)",
+      "Bash(ls:*)",
+      "Bash(chmod:*)",
+      "Bash(mv:*)",
+      "Bash(gh workflow:*)",
+      "Bash(npm install:*)",
+      "Bash(npm run build:*)",
+      "Bash(docker stop:*)",
+      "Bash(docker rm:*)",
+      "Bash(make:*)",
+      "Bash(docker logs:*)",
+      "Bash(docker restart:*)",
+      "Bash(mkdir:*)",
+      "Bash(export NODE_ENV=development)",
+      "Bash(export NUXT_BUILD_TARGET=development)",
+      "Bash(curl:*)",
+      "Bash(docker volume:*)",
+      "Bash(NODE_ENV=development docker compose -f docker-compose.yml up -d frontend-nuxt)",
+      "mcp__MCP_DOCKER__list_directory",
+      "mcp__MCP_DOCKER__read_file",
+      "mcp__MCP_DOCKER__search_files",
+      "Bash(find:*)",
+      "mcp__MCP_DOCKER__sequentialthinking",
+      "Bash(yaml-lint:*)",
+      "Bash(gh pr:*)",
+      "Bash(ssh:*)",
+      "Bash(git add:*)",
+      "mcp__mem0__search_coding_preferences",
+      "mcp__mem0__add_coding_preference"
+    ],
+    "deny": []
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "mem0",
+    "MCP_DOCKER"
+  ]
+}

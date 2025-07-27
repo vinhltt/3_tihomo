@@ -10,20 +10,44 @@
 echo "GHCR is automatically available for your repository"
 ```
 
-### ✅ Step 2: Test Build Workflow
+### ✅ Step 2: Test Build Workflow ✅ COMPLETED ✅ FIXED ✅ DEBUGGING
 ```bash
-# 1. Create the new build workflow (already done)
-# 2. Test build manually
-gh workflow run build-frontend.yml -f force_rebuild=true
-
-# 3. Verify image in GHCR
-gh api repos/:owner/:repo/packages/container/frontend-nuxt/versions
+# ✅ Build workflow has been created and triggered
+# ✅ Initial test with commit 5af11cd (failed due to YAML boolean error)
+# ✅ Fixed YAML boolean error with commit ef456f3
+# ✅ Updated Dockerfile to optimized version
+# ✅ Fixed Docker cache conflicts with commit 85653b2
+# ✅ Fixed Discord notification syntax with commit 1494321
+# ✅ Temporarily disabled Discord to focus on Docker build
+# ✅ Fixed deprecated npm flag --only=production → --omit=dev
+# 
+# Current Status: Build workflow running successfully (ID: 16547058353)
+# 
+# Check results at:
+# - GitHub Actions: https://github.com/vinhltt/3_tihomo/actions
+# - GHCR Packages: https://github.com/vinhltt/3_tihomo/pkgs/container/frontend-nuxt
+#
+# Issues Resolved:
+# 1. YAML boolean error: no-cache: ${{ inputs.force_rebuild == true }}
+# 2. Docker cache conflicts: separate cache targets /tmp/npm-cache*
+# 3. Discord notification syntax errors: temporarily disabled
+# 4. Deprecated npm flag: --omit=dev instead of --only=production
+#
+# Manual trigger next time:
+# git commit --allow-empty -m "trigger: rebuild frontend image"
+# git push origin develop
 ```
 
-### ✅ Step 3: Update Dockerfile
+### ✅ Step 3: Update Dockerfile ✅ COMPLETED
 ```bash
-# Replace current Dockerfile with optimized version
-cp src/fe/nuxt/Dockerfile.optimized src/fe/nuxt/Dockerfile
+# ✅ Dockerfile has been replaced with optimized version
+# ✅ Commit ef456f3 applied the optimized multi-stage Dockerfile
+# 
+# Optimized Dockerfile features:
+# - Multi-stage build (dependencies -> build -> runtime)
+# - Security hardening with non-root user
+# - Health checks and proper labels
+# - Build arguments for metadata injection
 ```
 
 ### ✅ Step 4: Test GHCR Access from TrueNAS
