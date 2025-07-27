@@ -1,0 +1,118 @@
+# TiHoMo Local GHCR Test Docker Compose
+# For local testing of GHCR setup with build fallback
+
+services:
+  # ================================
+  # MINIMAL SERVICES FOR FRONTEND TEST
+  # ================================
+  
+  # Redis for Caching
+  redis:
+    image: redis:7-alpine
+    container_name: tihomo-redis-test
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_test_data:/data
+    command: redis-server --requirepass ${REDIS_PASSWORD:-test_password}
+    networks:
+      - tihomo-test-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-test_password}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # Minimal Gateway Mock (for frontend testing)
+  gateway-mock:
+    image: nginx:alpine
+    container_name: tihomo-gateway-mock
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    volumes:
+      - ./config/nginx/mock-gateway.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - tihomo-test-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # Nuxt Frontend Application - GHCR with Local Build Fallback
+  frontend-nuxt:
+    # Try GHCR first, fallback to local build if authentication fails
+    image: ghcr.io/thevinh19/3_tihomo/frontend-nuxt:${FRONTEND_IMAGE_TAG:-latest}
+    build:
+      context: ./src/fe/nuxt
+      dockerfile: Dockerfile
+      # Remove target since Dockerfile is single-stage
+    container_name: tihomo-frontend-test
+    restart: unless-stopped
+    environment:
+      # Core Nuxt Configuration - Test optimized
+      - NODE_ENV=production
+      - NUXT_HOST=0.0.0.0
+      - NUXT_PORT=3000
+      - NUXT_DEV_SSR=false
+      
+      # Mock API Configuration
+      - API_BASE_URL=http://gateway-mock:80
+      - IDENTITY_SERVICE_URL=http://gateway-mock:80
+      - COREFINANCE_SERVICE_URL=http://gateway-mock:80
+      - EXCEL_SERVICE_URL=http://gateway-mock:80
+      
+      # Test Authentication
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-test_jwt_secret_key_123456789}
+      - OAUTH_GOOGLE_CLIENT_ID=${APP_PUBLIC_GOOGLE_CLIENT_ID:-}
+      - OAUTH_REDIRECT_URI=${FRONTEND_BASE_URL:-http://localhost:3500}/auth/callback
+      
+      # Production settings for testing
+      - NUXT_DEBUG=false
+      - NUXT_DEV_TOOLS=false
+      - NUXT_TELEMETRY_DISABLED=1
+      
+      # Logging
+      - LOG_LEVEL=info
+      - LOG_FORMAT=json
+      
+      # Performance
+      - NITRO_PRESET=node-server
+      - NITRO_PORT=3000
+    ports:
+      - "${FRONTEND_PORT:-3500}:3000"
+    volumes:
+      # Only mount logs for testing
+      - ./logs/frontend-test:/app/logs
+    networks:
+      - tihomo-test-network
+    depends_on:
+      redis:
+        condition: service_healthy
+      gateway-mock:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/api/health || curl -f http://localhost:3000/ || exit 1"]
+      interval: 30s
+      timeout: 15s
+      start_period: 60s
+      retries: 5
+
+# ================================
+# NETWORKS
+# ================================
+networks:
+  tihomo-test-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.21.0.0/16
+
+# ================================
+# VOLUMES
+# ================================
+volumes:
+  redis_test_data:
+    driver: local
