@@ -302,9 +302,6 @@ services:
       
       # API Configuration
       - API_BASE_URL=http://ocelot-gateway:8080
-      - IDENTITY_SERVICE_URL=http://identity-api:8080
-      - COREFINANCE_SERVICE_URL=http://corefinance-api:8080
-      - EXCEL_SERVICE_URL=http://excel-api:8080
       
       # Authentication & Security
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
