@@ -119,18 +119,11 @@ jobs:
           echo "**📝 Labels:**" >> $GITHUB_STEP_SUMMARY
           echo '${{ steps.meta.outputs.labels }}' | sed 's/^/- `/' | sed 's/$/`/' >> $GITHUB_STEP_SUMMARY
 
-      - name: Send Discord notification
-        if: always() && secrets.DISCORD_WEBHOOK_URL
-        uses: appleboy/discord-action@v1.2.0
-        with:
-          webhook_url: ${{ secrets.DISCORD_WEBHOOK_URL }}
-          message: |
-            ${{ job.status == 'success' && '✅' || '❌' }} **Frontend Build ${{ job.status }}**
-            
-            **📊 Info:**
-            • **Branch:** `${{ github.ref_name }}`
-            • **Commit:** `${{ github.sha }}`
-            • **Image:** `${{ fromJSON(steps.meta.outputs.json).tags[0] }}`
-            • **Platforms:** `linux/amd64,linux/arm64`
-            
-            ${{ job.status == 'success' && '🚀 Ready for deployment!' || '🚨 Build failed - check logs' }}
+      # TODO: Add Discord notification back when webhook is configured
+      # - name: Send Discord notification
+      #   if: always() && secrets.DISCORD_WEBHOOK_URL
+      #   uses: appleboy/discord-action@v1.2.0
+      #   with:
+      #     webhook_url: ${{ secrets.DISCORD_WEBHOOK_URL }}
+      #     message: |
+      #       ${{ job.status == 'success' && '✅' || '❌' }} **Frontend Build ${{ job.status }}**
