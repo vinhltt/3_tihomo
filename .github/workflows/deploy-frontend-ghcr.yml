@@ -308,12 +308,12 @@ jobs:
             if [ "${{ inputs.force_recreate_env }}" = "true" ]; then
               echo "[FORCE] Force recreate .env requested, removing existing file..."
               rm -f .env
-              echo "[INFO] Creating new .env file..."
+              echo "[INFO] Creating new comprehensive .env file..."
             elif [ -f .env ]; then
-              echo "[CHECK] .env file exists, validating..."
+              echo "[CHECK] .env file exists, validating comprehensive variables..."
               
-              # Check if .env file has minimum required variables
-              required_vars="COMPOSE_PROJECT_NAME NODE_ENV"
+              # Check if .env file has comprehensive variables including Nuxt config
+              required_vars="COMPOSE_PROJECT_NAME NODE_ENV API_BASE_URL NUXT_HOST NUXT_PORT"
               missing_vars=""
               
               for var in $required_vars; do
@@ -323,18 +323,19 @@ jobs:
               done
               
               if [ -z "$missing_vars" ]; then
-                echo "[OK] Existing .env file is valid and complete"
-                echo "[INFO] Skipping .env creation - using existing file"
+                echo "[OK] Existing .env file has comprehensive configuration"
+                echo "[INFO] Skipping .env creation - using existing comprehensive file"
                 echo "[DEBUG] .env file content (first 10 lines):"
                 head -10 .env
+                echo "[INFO] Frontend environment setup completed"
                 exit 0
               else
-                echo "[WARNING] .env file exists but missing required variables: $missing_vars"
-                echo "[ACTION] Recreating .env file..."
+                echo "[WARNING] .env file exists but missing comprehensive variables: $missing_vars"
+                echo "[ACTION] Recreating comprehensive .env file..."
                 rm -f .env
               fi
             else
-              echo "[INFO] No .env file found, creating new one..."
+              echo "[INFO] No .env file found, creating new comprehensive one..."
             fi
             
             echo "[CREATE] Creating comprehensive .env file for frontend deployment..."
@@ -478,33 +479,16 @@ jobs:
             DEPLOY_DIR="${{ env.TRUENAS_DEPLOY_DIR }}"
             cd $DEPLOY_DIR
             
-            # Clean up any corrupted .env file from previous failed deployments
-            echo "[CLEANUP] Removing any existing .env file to prevent parsing errors..."
-            rm -f .env
-            echo "[INFO] .env file cleanup completed"
-            
-            # Create basic .env file if it doesn't exist (step 6 should have created it)
+            # Verify that comprehensive .env file exists from step 6
             if [ ! -f .env ]; then
-              echo "[WARNING] .env file not found, creating basic one..."
-              echo "COMPOSE_PROJECT_NAME=${{ env.COMPOSE_PROJECT_NAME }}" > .env
-              echo "DOCKER_USER=1001:1001" >> .env
-              echo "NODE_ENV=production" >> .env
-              echo "NUXT_BUILD_TARGET=production" >> .env
-              echo "DOCKER_NETWORK_SUBNET=${{ vars.DOCKER_NETWORK_SUBNET || '172.20.0.0/16' }}" >> .env
-              echo "REPORTING_DB_USERNAME=${{ vars.REPORTING_DB_USERNAME || 'reporting_user' }}" >> .env
-              echo "REPORTING_DB_PASSWORD=${{ secrets.REPORTING_DB_PASSWORD || 'temp_password' }}" >> .env
-              echo "REPORTING_DB_PORT=${{ vars.REPORTING_DB_PORT || '5435' }}" >> .env
-              echo "RABBITMQ_MANAGEMENT_PORT=${{ vars.RABBITMQ_MANAGEMENT_PORT || '15672' }}" >> .env
-              
-              # Set frontend image tag based on branch
-              if [ "${{ github.ref_name }}" = "main" ]; then
-                echo "FRONTEND_IMAGE_TAG=latest" >> .env
-              else
-                echo "FRONTEND_IMAGE_TAG=${{ github.ref_name }}" >> .env
-              fi
-              
-              echo "[INFO] Basic .env file created with frontend image tag"
+              echo "[ERROR] No .env file found - step 6 should have created comprehensive .env"
+              echo "[DEBUG] Current directory contents:"
+              ls -la
+              exit 1
             fi
+            
+            echo "[INFO] Using comprehensive .env file created in step 6"
+            echo "[DEBUG] .env file size: $(wc -l < .env) lines"
             
             # Check Docker permissions and set USE_SUDO appropriately
             if docker ps >/dev/null 2>&1; then
