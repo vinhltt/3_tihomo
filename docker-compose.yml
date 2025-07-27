@@ -408,7 +408,7 @@ services:
       - JWT__SecretKey=${JWT_SECRET_KEY}
       - JWT__Issuer=${JWT_ISSUER}
       - JWT__Audience=${JWT_AUDIENCE_IDENTITY_API}
-      - OAuth__Google__ClientId=${APP_PUBLIC_GOOGLE_CLIENT_ID}
+      - GoogleAuth__ClientId=${APP_PUBLIC_GOOGLE_CLIENT_ID}
       - RabbitMQ__Host=rabbitmq
       - RabbitMQ__Username=tihomo
       - RabbitMQ__Password=${RABBITMQ_PASSWORD}
