@@ -1,0 +1,574 @@
+# TiHoMo GHCR Deployment Docker Compose
+# Dành riêng cho GitHub Actions deployment sử dụng GHCR images
+
+services:
+  # ================================
+  # DATABASES
+  # ================================
+  
+  # PostgreSQL for Identity Service
+  identity-postgres:
+    image: postgres:16
+    container_name: tihomo-identity-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${IDENTITY_DB_USERNAME}
+      POSTGRES_PASSWORD: ${IDENTITY_DB_PASSWORD}
+      POSTGRES_DB: identity
+    ports:
+      - "${IDENTITY_DB_PORT}:5432"
+    volumes:
+      - identity_pgdata:/var/lib/postgresql/data
+      - ./scripts/init-identity-db.sql:/docker-entrypoint-initdb.d
+    networks:
+      - tihomo-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${IDENTITY_DB_USERNAME} -d identity"]
+      interval: 15s
+      timeout: 10s
+      retries: 8
+
+  # PostgreSQL for CoreFinance Service  
+  corefinance-postgres:
+    image: postgres:16
+    container_name: tihomo-corefinance-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${COREFINANCE_DB_USERNAME}
+      POSTGRES_PASSWORD: ${COREFINANCE_DB_PASSWORD}
+      POSTGRES_DB: corefinance
+    ports:
+      - "${COREFINANCE_DB_PORT}:5432"
+    volumes:
+      - corefinance_pgdata:/var/lib/postgresql/data
+      - ./scripts/init-corefinance-db.sql:/docker-entrypoint-initdb.d
+    networks:
+      - tihomo-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${COREFINANCE_DB_USERNAME} -d corefinance"]
+      interval: 15s
+      timeout: 10s
+      retries: 8
+
+  # PostgreSQL for MoneyManagement Service
+  moneymanagement-postgres:
+    image: postgres:16
+    container_name: tihomo-moneymanagement-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${MONEYMANAGEMENT_DB_USERNAME}
+      POSTGRES_PASSWORD: ${MONEYMANAGEMENT_DB_PASSWORD}
+      POSTGRES_DB: db_money
+    ports:
+      - "${MONEYMANAGEMENT_DB_PORT}:5432"
+    volumes:
+      - moneymanagement_pgdata:/var/lib/postgresql/data
+      - ./scripts/init-moneymanagement-db.sql:/docker-entrypoint-initdb.d
+    networks:
+      - tihomo-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${MONEYMANAGEMENT_DB_USERNAME} -d db_money"]
+      interval: 15s
+      timeout: 10s
+      retries: 8
+
+  # PostgreSQL for PlanningInvestment Service
+  planninginvestment-postgres:
+    image: postgres:16
+    container_name: tihomo-planninginvestment-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${PLANNINGINVESTMENT_DB_USERNAME}
+      POSTGRES_PASSWORD: ${PLANNINGINVESTMENT_DB_PASSWORD}
+      POSTGRES_DB: db_planning
+    ports:
+      - "${PLANNINGINVESTMENT_DB_PORT}:5432"
+    volumes:
+      - planninginvestment_pgdata:/var/lib/postgresql/data
+      - ./scripts/init-planninginvestment-db.sql:/docker-entrypoint-initdb.d
+    networks:
+      - tihomo-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${PLANNINGINVESTMENT_DB_USERNAME} -d db_planning"]
+      interval: 15s
+      timeout: 10s
+      retries: 8
+
+  # PostgreSQL for Reporting Service
+  reporting-postgres:
+    image: postgres:16
+    container_name: tihomo-reporting-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${REPORTING_DB_USERNAME}
+      POSTGRES_PASSWORD: ${REPORTING_DB_PASSWORD}
+      POSTGRES_DB: db_reporting
+    ports:
+      - "${REPORTING_DB_PORT}:5432"
+    volumes:
+      - reporting_pgdata:/var/lib/postgresql/data
+      - ./scripts/init-reporting-db.sql:/docker-entrypoint-initdb.d
+    networks:
+      - tihomo-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${REPORTING_DB_USERNAME} -d db_reporting"]
+      interval: 15s
+      timeout: 10s
+      retries: 8
+
+  # Redis for Caching and Session Storage
+  redis:
+    image: redis:7-alpine
+    container_name: tihomo-redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT}:6379"
+    volumes:
+      - redis_data:/data
+      - ./config/redis.conf:/usr/local/etc/redis/redis.conf
+    command: redis-server /usr/local/etc/redis/redis.conf --requirepass ${REDIS_PASSWORD} ${REDIS_PERSISTENCE_CONFIG:-}
+    networks:
+      - tihomo-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ================================
+  # MESSAGE QUEUE & EVENT STREAMING
+  # ================================
+
+  # RabbitMQ for Message Queue
+  rabbitmq:
+    image: rabbitmq:3.12-management
+    container_name: tihomo-rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: tihomo
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+      RABBITMQ_DEFAULT_VHOST: /
+    ports:
+      - "${RABBITMQ_PORT}:5672"   # AMQP port
+      - "${RABBITMQ_MANAGEMENT_PORT}:15672" # Management UI
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+      - ./config/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
+    networks:
+      - tihomo-network
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 30s
+      timeout: 30s
+      retries: 3
+
+  # ================================
+  # MONITORING & OBSERVABILITY
+  # ================================
+
+  # Prometheus for Metrics Collection
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: tihomo-prometheus
+    restart: unless-stopped
+    ports:
+      - "${PROMETHEUS_PORT}:9090"
+    volumes:
+      - ./config/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=${PROMETHEUS_RETENTION:-200h}'
+      - '--web.enable-lifecycle'
+    networks:
+      - tihomo-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Grafana for Dashboards and Visualization
+  grafana:
+    image: grafana/grafana:latest
+    container_name: tihomo-grafana
+    restart: unless-stopped
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_ANALYTICS_REPORTING_ENABLED=${GRAFANA_ANALYTICS_ENABLED:-true}
+      - GF_ANALYTICS_CHECK_FOR_UPDATES=${GRAFANA_CHECK_UPDATES:-true}
+    ports:
+      - "${GRAFANA_PORT}:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./config/grafana/provisioning:/etc/grafana/provisioning
+      - ./config/grafana/dashboards:/var/lib/grafana/dashboards
+    networks:
+      - tihomo-network
+    depends_on:
+      - prometheus
+      - loki
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Loki for Log Aggregation
+  loki:
+    image: grafana/loki:latest
+    container_name: tihomo-loki
+    restart: unless-stopped
+    ports:
+      - "${LOKI_PORT}:3100"
+    volumes:
+      - ./config/loki.yml:/etc/loki/local-config.yaml
+      - loki_data:/loki
+    command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - tihomo-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3100/ready"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ================================
+  # DEVELOPMENT TOOLS
+  # ================================
+
+  # pgAdmin for Database Management
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: tihomo-pgadmin
+    restart: unless-stopped
+    profiles:
+      - ${ENABLE_DEV_TOOLS:-production}
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@tihomo.com
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD}
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - "${PGADMIN_PORT}:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+      - ./config/pgadmin/servers.json:/pgadmin4/servers.json
+    networks:
+      - tihomo-network
+    depends_on:
+      - identity-postgres
+      - corefinance-postgres
+      - moneymanagement-postgres
+      - planninginvestment-postgres
+      - reporting-postgres
+
+  # Mailhog for Email Testing
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: tihomo-mailhog
+    restart: unless-stopped
+    profiles:
+      - ${ENABLE_DEV_TOOLS:-production}
+    ports:
+      - "${MAILHOG_SMTP_PORT}:1025" # SMTP
+      - "${MAILHOG_UI_PORT}:8025" # Web UI
+    networks:
+      - tihomo-network
+
+  # ================================
+  # APPLICATION SERVICES
+  # ================================
+
+  # Nuxt Frontend Application - GHCR Image with Local Build Fallback
+  frontend-nuxt:
+    image: ghcr.io/thevinh19/3_tihomo/frontend-nuxt:${FRONTEND_IMAGE_TAG:-latest}
+    pull_policy: always
+    build:
+      context: ./src/fe/nuxt
+      dockerfile: Dockerfile
+      # Remove target since Dockerfile is single-stage
+    container_name: tihomo-frontend-nuxt
+    restart: unless-stopped
+    environment:
+      # Core Nuxt Configuration - Production optimized
+      - NODE_ENV=production
+      - NUXT_HOST=0.0.0.0
+      - NUXT_PORT=3000
+      - NUXT_DEV_SSR=false
+      
+      # API Configuration
+      - API_BASE_URL=http://ocelot-gateway:8080
+      - IDENTITY_SERVICE_URL=http://identity-api:8080
+      - COREFINANCE_SERVICE_URL=http://corefinance-api:8080
+      - EXCEL_SERVICE_URL=http://excel-api:8080
+      
+      # Authentication & Security
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - OAUTH_GOOGLE_CLIENT_ID=${APP_PUBLIC_GOOGLE_CLIENT_ID}
+      - OAUTH_REDIRECT_URI=${FRONTEND_BASE_URL}/auth/callback
+      
+      # Production settings
+      - NUXT_DEBUG=false
+      - NUXT_DEV_TOOLS=false
+      - NUXT_TELEMETRY_DISABLED=1
+      
+      # Logging Configuration - Production
+      - LOG_LEVEL=info
+      - LOG_FORMAT=json
+      
+      # Feature Toggles
+      - ENABLE_PWA=${ENABLE_PWA:-false}
+      - ENABLE_ANALYTICS=${ENABLE_ANALYTICS:-true}
+      
+      # Performance
+      - NITRO_PRESET=node-server
+      - NITRO_PORT=3000
+    ports:
+      - "${FRONTEND_PORT:-3500}:3000"
+    volumes:
+      # Only mount persistent data directories (no source code)
+      - ./uploads:/app/uploads
+      - ./logs/frontend:/app/logs
+    networks:
+      - tihomo-network
+    depends_on:
+      ocelot-gateway:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      identity-api:
+        condition: service_healthy
+      corefinance-api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/api/health || curl -f http://localhost:3000/ || exit 1"]
+      interval: 30s
+      timeout: 15s
+      start_period: 120s  # Faster startup for pre-built images
+      retries: 10
+
+  # Ocelot API Gateway
+  ocelot-gateway:
+    build:
+      context: ./src/be/Ocelot.Gateway
+      dockerfile: Dockerfile
+    container_name: tihomo-ocelot-gateway
+    restart: unless-stopped
+    environment:
+      - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Production}
+      - ASPNETCORE_URLS=http://+:8080
+      - IsDocker=true
+      - ConnectionStrings__Redis=redis:6379
+      - Redis__Password=${REDIS_PASSWORD}
+      - JWT__SecretKey=${JWT_SECRET_KEY}
+      - JWT__Issuer=${JWT_ISSUER}
+      - JWT__Audience=${JWT_AUDIENCE_OCELOT_GATEWAY}
+      - Logging__LogLevel__Default=${API_LOG_LEVEL:-Information}
+    ports:
+      - "${GATEWAY_PORT}:8080"
+    volumes:
+      - ./src/be/Ocelot.Gateway/ocelot.Docker.json:/app/ocelot.json
+      - ./logs/ocelot:/app/logs
+    networks:
+      - tihomo-network
+    depends_on:
+      - redis
+      - identity-api
+      - corefinance-api
+      - excel-api
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Identity API Service
+  identity-api:
+    build:
+      context: ./src/be
+      dockerfile: Identity/Dockerfile
+    container_name: tihomo-identity-api
+    restart: unless-stopped
+    environment:
+      - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Production}
+      - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__DefaultConnection=Host=identity-postgres;Port=5432;Database=identity;Username=${IDENTITY_DB_USERNAME};Password=${IDENTITY_DB_PASSWORD}
+      - Redis__ConnectionString=redis:6379
+      - Redis__Password=${REDIS_PASSWORD}
+      - JWT__SecretKey=${JWT_SECRET_KEY}
+      - JWT__Issuer=${JWT_ISSUER}
+      - JWT__Audience=${JWT_AUDIENCE_IDENTITY_API}
+      - OAuth__Google__ClientId=${APP_PUBLIC_GOOGLE_CLIENT_ID}
+      - RabbitMQ__Host=rabbitmq
+      - RabbitMQ__Username=tihomo
+      - RabbitMQ__Password=${RABBITMQ_PASSWORD}
+      - Logging__LogLevel__Default=${API_LOG_LEVEL:-Information}
+    volumes:
+      - ./logs/identity:/app/logs
+    networks:
+      - tihomo-network
+    depends_on:
+      identity-postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # CoreFinance API Service
+  corefinance-api:
+    build:
+      context: ./src/be
+      dockerfile: CoreFinance/Dockerfile
+    container_name: tihomo-corefinance-api
+    restart: unless-stopped
+    environment:
+      - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Production}
+      - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__CoreFinanceDb=Host=corefinance-postgres;Port=5432;Database=corefinance;Username=${COREFINANCE_DB_USERNAME};Password=${COREFINANCE_DB_PASSWORD}
+      - ConnectionStrings__Redis=redis:6379
+      - Redis__Password=${REDIS_PASSWORD}
+      - JWT__SecretKey=${JWT_SECRET_KEY}
+      - JWT__Issuer=${JWT_ISSUER}
+      - JWT__Audience=${JWT_AUDIENCE_COREFINANCE_API}
+      - RabbitMQ__Host=rabbitmq
+      - RabbitMQ__Username=tihomo
+      - RabbitMQ__Password=${RABBITMQ_PASSWORD}
+      - IdentityService__BaseUrl=http://identity-api:8080
+      - Logging__LogLevel__Default=${API_LOG_LEVEL:-Information}
+      # CORS Configuration
+      - CorsOptions__PolicyName=${CORS_POLICY_NAME:-DefaultCorsPolicy}
+      - CorsOptions__AllowedOrigins__0=${CORS_ALLOWED_ORIGINS:-*}
+      - CorsOptions__AllowedMethods__0=${CORS_ALLOWED_METHODS:-*}
+      - CorsOptions__AllowedHeaders__0=${CORS_ALLOWED_HEADERS:-*}
+      - CorsOptions__ExposedHeaders__0=${CORS_EXPOSED_HEADERS:-Token-Expired}
+      - CorsOptions__PreflightMaxAgeInMinutes=${CORS_PREFLIGHT_MAX_AGE:-10}
+    volumes:
+      - ./logs/corefinance:/app/logs
+    networks:
+      - tihomo-network
+    depends_on:
+      corefinance-postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      identity-api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Excel API Service
+  excel-api:
+    build:
+      context: ./src/be
+      dockerfile: ExcelApi/Dockerfile
+    container_name: tihomo-excel-api
+    restart: unless-stopped
+    environment:
+      - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Production}
+      - ASPNETCORE_URLS=http://+:8080
+      - RabbitMQ__Host=rabbitmq
+      - RabbitMQ__Username=tihomo
+      - RabbitMQ__Password=${RABBITMQ_PASSWORD}
+      - Redis__ConnectionString=redis:6379
+      - Redis__Password=${REDIS_PASSWORD}
+      - UploadPath=/app/uploads
+      - Logging__LogLevel__Default=${API_LOG_LEVEL:-Information}
+    volumes:
+      - ./uploads:/app/uploads
+      - ./logs/excel:/app/logs
+    networks:
+      - tihomo-network
+    depends_on:
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ================================
+  # REVERSE PROXY & LOAD BALANCER
+  # ================================
+
+  # Nginx for Production Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: tihomo-nginx
+    restart: unless-stopped
+    ports:
+      - "${NGINX_HTTP_PORT}:80"
+      - "${NGINX_HTTPS_PORT}:443"
+    volumes:
+      - ./config/nginx/nginx.production.conf:/etc/nginx/nginx.conf
+      - ./config/nginx/conf.d:/etc/nginx/conf.d
+      - ./config/ssl:/etc/nginx/ssl
+    networks:
+      - tihomo-network
+    depends_on:
+      - frontend-nuxt
+      - ocelot-gateway
+      - grafana
+      - rabbitmq
+
+# ================================
+# NETWORKS
+# ================================
+networks:
+  tihomo-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: ${DOCKER_NETWORK_SUBNET}
+
+# ================================
+# VOLUMES
+# ================================
+volumes:
+  # Database volumes
+  identity_pgdata:
+    driver: local
+  corefinance_pgdata:
+    driver: local
+  moneymanagement_pgdata:
+    driver: local
+  planninginvestment_pgdata:
+    driver: local
+  reporting_pgdata:
+    driver: local
+  
+  # Cache and message queue volumes
+  redis_data:
+    driver: local
+  rabbitmq_data:
+    driver: local
+  
+  # Monitoring volumes
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+  loki_data:
+    driver: local
+  
+  # Development tools volumes
+  pgadmin_data:
+    driver: local
