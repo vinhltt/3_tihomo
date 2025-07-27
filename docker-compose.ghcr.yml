@@ -310,6 +310,7 @@ services:
       # Authentication & Security
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
       - OAUTH_GOOGLE_CLIENT_ID=${APP_PUBLIC_GOOGLE_CLIENT_ID}
+      - APP_PUBLIC_GOOGLE_CLIENT_ID=${APP_PUBLIC_GOOGLE_CLIENT_ID}
       - OAUTH_REDIRECT_URI=${FRONTEND_BASE_URL}/auth/callback
       
       # Production settings
