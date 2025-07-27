@@ -1,0 +1,266 @@
+name: Deploy Frontend Service
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: false
+        default: 'development'
+        type: choice
+        options:
+          - development
+          - staging
+          - production
+      image_tag:
+        description: 'Docker image tag to deploy (default: latest for main branch)'
+        required: false
+        default: ''
+      skip_backend_check:
+        description: 'Skip backend dependency check'
+        required: false
+        default: false
+        type: boolean
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+      image_tag:
+        required: false
+        type: string
+        default: ''
+      skip_backend_check:
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: deploy-frontend-${{ inputs.environment }}
+  cancel-in-progress: true
+
+jobs:
+  check-image:
+    runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.determine-tag.outputs.tag }}
+      image_exists: ${{ steps.check-image.outputs.exists }}
+    steps:
+      - name: Determine image tag
+        id: determine-tag
+        run: |
+          if [[ -n "${{ inputs.image_tag }}" ]]; then
+            TAG="${{ inputs.image_tag }}"
+          elif [[ "${{ github.ref_name }}" == "main" || "${{ github.ref_name }}" == "master" ]]; then
+            TAG="latest"
+          else
+            TAG="${{ github.ref_name }}"
+          fi
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+          echo "Selected image tag: ${TAG}"
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check if image exists
+        id: check-image
+        run: |
+          IMAGE="ghcr.io/${{ github.repository }}/frontend-nuxt:${{ steps.determine-tag.outputs.tag }}"
+          echo "Checking image: ${IMAGE}"
+          
+          if docker manifest inspect "${IMAGE}" >/dev/null 2>&1; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "✅ Image exists: ${IMAGE}"
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "❌ Image not found: ${IMAGE}"
+            exit 1
+          fi
+
+  check-backend:
+    if: ${{ !inputs.skip_backend_check }}
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    timeout-minutes: 5
+    
+    steps:
+      - name: Setup SSH and check backend
+        run: |
+          sudo wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -O /usr/local/bin/cloudflared
+          sudo chmod +x /usr/local/bin/cloudflared
+          
+          mkdir -p "$HOME/.ssh"
+          echo "Host truenas-cf-tunnel
+            HostName ${{ secrets.TRUENAS_SSH_HOSTNAME_THROUGH_CLOUDFLARED }}
+            ProxyCommand cloudflared access ssh --hostname %h
+            User ${{ secrets.TRUENAS_USER }}
+            StrictHostKeyChecking accept-new" > "$HOME/.ssh/config"
+          chmod 600 "$HOME/.ssh/config"
+
+      - name: Add SSH key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.TRUENAS_SSH_PRIVATE_KEY }}
+
+      - name: Check backend readiness
+        run: |
+          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel /bin/bash << 'EOF'
+            DEPLOY_DIR="${{ vars.DEPLOY_PATH_ON_TRUENAS }}/deploy_${{ github.ref_name }}"
+            cd "$DEPLOY_DIR" || exit 1
+            
+            if docker ps >/dev/null 2>&1; then
+              USE_SUDO=""
+            else
+              USE_SUDO="sudo"
+            fi
+            
+            echo "[CHECK] Verifying backend services..."
+            REQUIRED_SERVICES=("ocelot-gateway")
+            MISSING_SERVICES=()
+            
+            for service in "${REQUIRED_SERVICES[@]}"; do
+              if ! $USE_SUDO docker compose ps $service 2>/dev/null | grep -q "Up"; then
+                MISSING_SERVICES+=("$service")
+              fi
+            done
+            
+            if [ ${#MISSING_SERVICES[@]} -gt 0 ]; then
+              echo "Error: Missing backend services: ${MISSING_SERVICES[*]}"
+              exit 1
+            fi
+            
+            echo "[OK] Backend services are ready"
+          EOF
+
+  deploy-frontend:
+    runs-on: ubuntu-latest
+    needs: [check-image, check-backend]
+    if: always() && needs.check-image.outputs.image_exists == 'true' && (needs.check-backend.result == 'success' || inputs.skip_backend_check)
+    environment: ${{ inputs.environment }}
+    timeout-minutes: 15
+    
+    steps:
+      - name: Setup SSH
+        run: |
+          sudo wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -O /usr/local/bin/cloudflared
+          sudo chmod +x /usr/local/bin/cloudflared
+          
+          mkdir -p "$HOME/.ssh"
+          echo "Host truenas-cf-tunnel
+            HostName ${{ secrets.TRUENAS_SSH_HOSTNAME_THROUGH_CLOUDFLARED }}
+            ProxyCommand cloudflared access ssh --hostname %h
+            User ${{ secrets.TRUENAS_USER }}
+            StrictHostKeyChecking accept-new" > "$HOME/.ssh/config"
+          chmod 600 "$HOME/.ssh/config"
+
+      - name: Add SSH key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.TRUENAS_SSH_PRIVATE_KEY }}
+
+      - name: Deploy frontend
+        run: |
+          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel /bin/bash << 'EOF'
+            set -e
+            DEPLOY_DIR="${{ vars.DEPLOY_PATH_ON_TRUENAS }}/deploy_${{ github.ref_name }}"
+            cd "$DEPLOY_DIR"
+            
+            # Set Docker command
+            if docker ps >/dev/null 2>&1; then
+              DOCKER_CMD="docker"
+              COMPOSE_CMD="docker compose"
+            else
+              DOCKER_CMD="sudo docker"
+              COMPOSE_CMD="sudo docker compose"
+            fi
+            
+            echo "[DEPLOY] Deploying frontend with image tag: ${{ needs.check-image.outputs.image_tag }}"
+            
+            # Authenticate with GHCR
+            echo "${{ secrets.GITHUB_TOKEN }}" | $DOCKER_CMD login ghcr.io -u ${{ github.actor }} --password-stdin
+            
+            # Update environment variables
+            echo "FRONTEND_IMAGE_TAG=${{ needs.check-image.outputs.image_tag }}" >> .env
+            echo "COMPOSE_PROJECT_NAME=tihomo_${{ inputs.environment }}" >> .env
+            
+            # Pull new image
+            IMAGE="ghcr.io/${{ github.repository }}/frontend-nuxt:${{ needs.check-image.outputs.image_tag }}"
+            echo "[PULL] Pulling image: ${IMAGE}"
+            $DOCKER_CMD pull "${IMAGE}"
+            
+            # Stop existing frontend service
+            echo "[STOP] Stopping frontend service..."
+            $COMPOSE_CMD stop frontend-nuxt || true
+            $COMPOSE_CMD rm -f frontend-nuxt || true
+            
+            # Start new frontend service
+            echo "[START] Starting frontend service..."
+            $COMPOSE_CMD up -d frontend-nuxt
+            
+            # Wait for service to be healthy
+            echo "[HEALTH] Waiting for frontend to be healthy..."
+            max_attempts=12
+            attempt=1
+            
+            while [ $attempt -le $max_attempts ]; do
+              if $COMPOSE_CMD ps frontend-nuxt | grep -q "Up"; then
+                if $COMPOSE_CMD exec -T frontend-nuxt curl -f http://localhost:3000/health >/dev/null 2>&1; then
+                  echo "[SUCCESS] ✅ Frontend is healthy!"
+                  break
+                fi
+              fi
+              
+              echo "[WAIT] Attempt $attempt/$max_attempts - Frontend not ready yet..."
+              sleep 10
+              ((attempt++))
+            done
+            
+            if [ $attempt -gt $max_attempts ]; then
+              echo "[ERROR] ❌ Frontend failed health check"
+              $COMPOSE_CMD logs --tail=20 frontend-nuxt
+              exit 1
+            fi
+            
+            # Show final status
+            echo "[STATUS] Deployment successful!"
+            $COMPOSE_CMD ps frontend-nuxt
+            
+            # Cleanup old images (keep last 3)
+            echo "[CLEANUP] Cleaning up old images..."
+            $DOCKER_CMD images "ghcr.io/${{ github.repository }}/frontend-nuxt" --format "table {{.Repository}}:{{.Tag}}\t{{.CreatedAt}}" | tail -n +2 | sort -k2 -r | tail -n +4 | awk '{print $1}' | xargs -r $DOCKER_CMD rmi || true
+          EOF
+
+      - name: Send success notification
+        if: success()
+        uses: appleboy/discord-action@v1.2.0
+        with:
+          webhook_url: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          message: |
+            ✅ **Frontend Deployment SUCCESS**
+            
+            📊 **Info:**
+            • **Environment:** `${{ inputs.environment }}`
+            • **Image:** `ghcr.io/${{ github.repository }}/frontend-nuxt:${{ needs.check-image.outputs.image_tag }}`
+            • **Branch:** `${{ github.ref_name }}`
+            
+            🚀 **Frontend is ready and serving requests**
+
+      - name: Send failure notification
+        if: failure()
+        uses: appleboy/discord-action@v1.2.0
+        with:
+          webhook_url: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          message: |
+            ❌ **Frontend Deployment FAILED**
+            
+            📊 **Info:**
+            • **Environment:** `${{ inputs.environment }}`
+            • **Image Tag:** `${{ needs.check-image.outputs.image_tag }}`
+            • **Branch:** `${{ github.ref_name }}`
+            
+            🚨 **Check logs for details**
+            [📋 View Logs](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
