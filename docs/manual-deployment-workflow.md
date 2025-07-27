@@ -53,7 +53,7 @@ gh workflow run deploy-backend-services.yml \
 
 #### C. Frontend Only
 ```bash
-gh workflow run deploy-frontend.yml \
+gh workflow run deploy-frontend-ghcr.yml \
   -f environment=production \
   -f force_rebuild=false
 ```
@@ -242,7 +242,7 @@ gh workflow run deploy-orchestrator.yml \
 **Issue: Frontend can't connect to backend**
 ```bash
 # Solution: Verify backend health, then redeploy frontend
-gh workflow run deploy-frontend.yml \
+gh workflow run deploy-frontend-ghcr.yml \
   -f environment=production \
   -f skip_backend_check=false
 ```

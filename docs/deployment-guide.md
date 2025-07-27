@@ -51,7 +51,7 @@ graph TD
 
 1. **`deploy-infrastructure.yml`** - Deploy databases, Redis, RabbitMQ
 2. **`deploy-backend-services.yml`** - Deploy APIs và Gateway  
-3. **`deploy-frontend.yml`** - Deploy Nuxt frontend
+3. **`deploy-frontend-ghcr.yml`** - Deploy Nuxt frontend
 4. **`deploy-orchestrator.yml`** - Master workflow điều phối tất cả
 
 ## 🚀 Cách sử dụng
@@ -100,7 +100,7 @@ Options:
 
 **Deploy Frontend:**
 ```yaml
-Workflow: deploy-frontend.yml
+Workflow: deploy-frontend-ghcr.yml
 Options:
   environment: development|staging|production
   force_rebuild: true|false
@@ -166,7 +166,7 @@ gh workflow run deploy-backend-services.yml \
 
 ```bash
 # Chỉ deploy frontend
-gh workflow run deploy-frontend.yml \
+gh workflow run deploy-frontend-ghcr.yml \
   -f environment=production \
   -f force_rebuild=true
 ```

@@ -149,7 +149,7 @@ jobs:
   deploy-frontend:
     if: always() && needs.plan-deployment.outputs.deploy-frontend == 'true' && (needs.deploy-backend.result == 'success' || needs.deploy-backend.result == 'skipped')
     needs: [plan-deployment, deploy-backend]
-    uses: ./.github/workflows/deploy-frontend.yml
+    uses: ./.github/workflows/deploy-frontend-ghcr.yml
     with:
       environment: ${{ inputs.environment }}
       force_rebuild: ${{ inputs.force_rebuild }}

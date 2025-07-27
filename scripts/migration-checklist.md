@@ -11,7 +11,7 @@
 ### 2. **Verify new workflows**
 - [ ] Test `deploy-infrastructure.yml` trên development
 - [ ] Test `deploy-backend-services.yml` trên development  
-- [ ] Test `deploy-frontend.yml` trên development
+- [ ] Test `deploy-frontend-ghcr.yml` trên development
 - [ ] Test `deploy-orchestrator.yml` full-system trên development
 
 ### 3. **Environment variables check**
@@ -98,7 +98,7 @@ gh workflow run deploy-to-truenas.yml \
 mv deploy-orchestrator.yml deploy-orchestrator.yml.temp
 mv deploy-infrastructure.yml deploy-infrastructure.yml.temp
 mv deploy-backend-services.yml deploy-backend-services.yml.temp  
-mv deploy-frontend.yml deploy-frontend.yml.temp
+mv deploy-frontend-ghcr.yml deploy-frontend-ghcr.yml.temp
 ```
 
 ## 📊 Comparison: Old vs New
