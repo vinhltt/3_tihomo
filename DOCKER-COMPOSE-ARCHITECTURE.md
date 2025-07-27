@@ -50,7 +50,7 @@ GitHub Actions Pipeline:
 - **Purpose**: Production deployment via GitHub Actions
 - **Frontend**: Pull pre-built image from GHCR
 - **Features**:
-  - GHCR image: `ghcr.io/thevinh19/3_tihomo/frontend-nuxt:${FRONTEND_IMAGE_TAG}`
+  - GHCR image: `ghcr.io/vinhltt/3_tihomo/frontend-nuxt:${FRONTEND_IMAGE_TAG}`
   - Production environment variables
   - Optimized settings (NODE_ENV=production, NUXT_DEV_SSR=false)
   - No source code dependencies
