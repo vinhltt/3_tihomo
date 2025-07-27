@@ -186,6 +186,16 @@ jobs:
           # Set deployment directory outside SSH session to ensure proper expansion
           DEPLOY_DIR="${{ env.TRUENAS_DEPLOY_DIR }}"
           
+          # First, sync docker-compose.ghcr.yml to TrueNAS if needed
+          echo "[SYNC] Ensuring docker-compose.ghcr.yml exists on TrueNAS..."
+          rsync -rltvz --safe-links \
+            --chmod=Du=rwx,Dgo=rx,Fu=rw,Fgo=r \
+            --no-perms --no-owner --no-group \
+            --progress \
+            -e "ssh -F $HOME/.ssh/config -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=30" \
+            $GITHUB_WORKSPACE/docker-compose.ghcr.yml \
+            truenas-cf-tunnel:"$DEPLOY_DIR/docker-compose.ghcr.yml"
+          
           ssh -F "$HOME/.ssh/config" truenas-cf-tunnel /bin/bash << 'EOF'
             echo "[PREP] Preparing deployment directory for GHCR deployment..."
             
@@ -213,6 +223,14 @@ jobs:
             fi
             
             echo "[OK] GHCR deployment directory prepared with proper permissions"
+            
+            # Verify docker-compose.ghcr.yml exists
+            if [ -f docker-compose.ghcr.yml ]; then
+              echo "[OK] docker-compose.ghcr.yml confirmed on TrueNAS"
+            else
+              echo "[ERROR] docker-compose.ghcr.yml still missing after sync"
+              exit 1
+            fi
           EOF
         shell: bash
 
