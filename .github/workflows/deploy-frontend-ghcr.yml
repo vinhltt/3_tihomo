@@ -550,28 +550,53 @@ jobs:
             
             echo "[PULL] Using image tag: $IMAGE_TAG"
             
-            # Pull latest image from GHCR with retry
+            # Pull latest image from GHCR with retry and authentication fallback
             pull_attempts=0
             max_pull_attempts=3
             
             while [ $pull_attempts -lt $max_pull_attempts ]; do
               echo "[PULL] Pull attempt $((pull_attempts + 1))/$max_pull_attempts..."
               
-              if $USE_SUDO docker pull ghcr.io/thevinh19/3_tihomo/frontend-nuxt:$IMAGE_TAG; then
-                echo "[PULL] Image pulled successfully on attempt $((pull_attempts + 1))"
+              # Try pulling with different strategies
+              if [ $pull_attempts -eq 0 ]; then
+                # First attempt: Direct pull
+                echo "[PULL] Attempting direct pull from GHCR..."
+                PULL_CMD="$USE_SUDO docker pull ghcr.io/thevinh19/3_tihomo/frontend-nuxt:$IMAGE_TAG"
+              elif [ $pull_attempts -eq 1 ]; then
+                # Second attempt: Try with --platform to avoid manifest issues
+                echo "[PULL] Attempting pull with platform specification..."
+                PULL_CMD="$USE_SUDO docker pull --platform linux/amd64 ghcr.io/thevinh19/3_tihomo/frontend-nuxt:$IMAGE_TAG"
+              else
+                # Third attempt: Fallback to local build if available
+                echo "[PULL] GHCR authentication failed, attempting local build fallback..."
+                if [ -f docker-compose.ghcr.yml ]; then
+                  PULL_CMD="$USE_SUDO docker compose -f docker-compose.ghcr.yml build frontend-nuxt"
+                else
+                  echo "[ERROR] No fallback build option available"
+                  break
+                fi
+              fi
+              
+              if eval "$PULL_CMD"; then
+                echo "[PULL] Image pull/build successful on attempt $((pull_attempts + 1))"
                 break
               else
                 pull_attempts=$((pull_attempts + 1))
                 if [ $pull_attempts -lt $max_pull_attempts ]; then
                   echo "[PULL] Pull failed, retrying in 30 seconds..."
+                  echo "[DEBUG] Error was likely GHCR authentication or manifest issue"
                   sleep 30
                   # Clean up any partial images
                   $USE_SUDO docker system prune -f 2>/dev/null || true
                 else
-                  echo "[PULL] Pull failed after $max_pull_attempts attempts"
-                  echo "[ERROR] Cannot pull frontend image from GHCR"
+                  echo "[PULL] All pull attempts failed after $max_pull_attempts tries"
+                  echo "[ERROR] Cannot pull/build frontend image"
                   echo "[INFO] Available images:"
                   $USE_SUDO docker images | grep -E "(frontend|nuxt)" || echo "No frontend images found"
+                  echo "[SOLUTION] Either:"
+                  echo "  1. Make GHCR package public at: https://github.com/thevinh19/3_tihomo/pkgs/container/3_tihomo%2Ffrontend-nuxt"
+                  echo "  2. Setup GHCR authentication on TrueNAS with GitHub token"
+                  echo "  3. Use local build fallback with build context"
                   exit 1
                 fi
               fi
