@@ -181,42 +181,29 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.TRUENAS_SSH_PRIVATE_KEY }}
 
-      - name: "[4.5/9] Prepare deployment directory"
+      - name: "[4.5/9] Prepare deployment directory for GHCR"
         run: |
           # Set deployment directory outside SSH session to ensure proper expansion
           DEPLOY_DIR="${{ env.TRUENAS_DEPLOY_DIR }}"
           
           ssh -F "$HOME/.ssh/config" truenas-cf-tunnel /bin/bash << 'EOF'
-            echo "[PREP] Preparing frontend deployment directory..."
+            echo "[PREP] Preparing deployment directory for GHCR deployment..."
             
             # Use deployment directory passed from GitHub Actions
             DEPLOY_DIR="${{ env.TRUENAS_DEPLOY_DIR }}"
             
             # Create required directories with proper ownership
-            mkdir -p "$DEPLOY_DIR/src/fe/nuxt"
+            mkdir -p "$DEPLOY_DIR"
             mkdir -p "$DEPLOY_DIR/.rsync-partial"
             
             # Set proper permissions and ownership
             chmod 755 "$DEPLOY_DIR"
-            chmod -R 755 "$DEPLOY_DIR/src" 2>/dev/null || true
             chmod -R 755 "$DEPLOY_DIR/.rsync-partial" 2>/dev/null || true
             
             # Fix ownership to current user to avoid permission issues
             chown -R $(whoami):$(whoami) "$DEPLOY_DIR" 2>/dev/null || true
             
-            # Cleanup any problematic files from previous deployments
-            if [ -d "$DEPLOY_DIR/src/fe" ]; then
-              echo "[CLEANUP] Cleaning previous frontend deployment files..."
-              
-              # Remove the entire frontend directory to avoid permission conflicts
-              rm -rf "$DEPLOY_DIR/src/fe" 2>/dev/null || true
-              echo "[CLEANUP] Previous frontend directory removed completely"
-            fi
-            
-            # Recreate clean frontend directory structure with proper ownership
-            mkdir -p "$DEPLOY_DIR/src/fe/nuxt"
-            
-            # Fix ownership of entire deployment directory first
+            # Fix ownership of entire deployment directory
             if command -v sudo >/dev/null 2>&1; then
               sudo chown -R $(whoami):$(whoami) "$DEPLOY_DIR" 2>/dev/null || true
               sudo chmod -R 755 "$DEPLOY_DIR" 2>/dev/null || true
@@ -225,43 +212,33 @@ jobs:
               chmod -R 755 "$DEPLOY_DIR" 2>/dev/null || true
             fi
             
-            echo "[OK] Frontend deployment directory prepared with proper permissions"
+            echo "[OK] GHCR deployment directory prepared with proper permissions"
           EOF
         shell: bash
 
-      - name: "[5/9] Sync frontend files"
+      - name: "[5/9] Sync GHCR deployment files"
         run: |
-          echo "[SYNC] Starting frontend files sync to TrueNAS..."
+          echo "[SYNC] Starting GHCR deployment files sync to TrueNAS..."
           DEPLOY_DIR="${{ env.TRUENAS_DEPLOY_DIR }}"
           
-          # Sync specific files needed for frontend deployment
-          # First sync docker-compose.yml
+          # Sync GHCR-specific docker-compose file and config files
           rsync -rltvz --safe-links \
             --chmod=Du=rwx,Dgo=rx,Fu=rw,Fgo=r \
             --no-perms --no-owner --no-group \
             --progress \
             -e "ssh -F $HOME/.ssh/config -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=30" \
-            $GITHUB_WORKSPACE/docker-compose.yml \
-            truenas-cf-tunnel:"$DEPLOY_DIR/"
+            $GITHUB_WORKSPACE/docker-compose.ghcr.yml \
+            truenas-cf-tunnel:"$DEPLOY_DIR/docker-compose.yml"
             
           # Then sync frontend source files
           rsync -rltvz --safe-links \
             --chmod=Du=rwx,Dgo=rx,Fu=rw,Fgo=r \
             --no-perms --no-owner --no-group \
-            --exclude="node_modules/" \
-            --exclude=".nuxt/" \
-            --exclude=".output/" \
-            --exclude="dist/" \
-            --exclude="logs/" \
-            --progress \
-            -e "ssh -F $HOME/.ssh/config -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=30" \
-            $GITHUB_WORKSPACE/src/fe/ \
-            truenas-cf-tunnel:"$DEPLOY_DIR/src/fe/"
           
           # Check if rsync succeeded
           if [ $? -ne 0 ]; then
             RSYNC_EXIT_CODE=$?
-            echo "[ERROR] Frontend files rsync failed with exit code: $RSYNC_EXIT_CODE"
+            echo "[ERROR] GHCR deployment files rsync failed with exit code: $RSYNC_EXIT_CODE"
             
             case $RSYNC_EXIT_CODE in
               1)  echo "[ERROR] Syntax or usage error" ;;
@@ -285,7 +262,7 @@ jobs:
             fi
           fi
           
-          echo "[OK] Frontend files synced successfully"
+          echo "[OK] GHCR deployment files synced successfully"
           
           # Fix permissions after rsync
           echo "[FIX] Fixing permissions after rsync..."
@@ -307,30 +284,18 @@ jobs:
             echo "[OK] Permissions fixed"
           PERMS_EOF
           
-          # Verify the synced files structure
-          echo "[DEBUG] Verifying synced frontend files structure..."
-          # Set deployment directory outside SSH session to ensure proper expansion
+          # Verify the synced GHCR deployment files
+          echo "[DEBUG] Verifying GHCR deployment files structure..."
           DEPLOY_DIR="${{ env.TRUENAS_DEPLOY_DIR }}"
           
           ssh -F "$HOME/.ssh/config" truenas-cf-tunnel /bin/bash << 'EOF'
-            # Use deployment directory passed from GitHub Actions
             DEPLOY_DIR="${{ env.TRUENAS_DEPLOY_DIR }}"
             cd $DEPLOY_DIR
             echo "[DEBUG] Current directory: $(pwd)"
             echo "[DEBUG] Directory structure after rsync:"
             ls -la
-            echo "[DEBUG] Frontend directory structure:"
-            if [ -d "src/fe/nuxt" ]; then
-              ls -la src/fe/nuxt/
-              echo "[DEBUG] Dockerfile exists: $(test -f src/fe/nuxt/Dockerfile && echo 'YES' || echo 'NO')"
-              echo "[DEBUG] package.json exists: $(test -f src/fe/nuxt/package.json && echo 'YES' || echo 'NO')"
-              echo "[DEBUG] nuxt.config.ts exists: $(test -f src/fe/nuxt/nuxt.config.ts && echo 'YES' || echo 'NO')"
-            else
-              echo "[ERROR] src/fe/nuxt directory not found!"
-              echo "[DEBUG] Available directories:"
-              find . -type d -name "*nuxt*" 2>/dev/null || echo "No nuxt directories found"
-            fi
             echo "[DEBUG] docker-compose.yml exists: $(test -f docker-compose.yml && echo 'YES' || echo 'NO')"
+            echo "[INFO] GHCR deployment ready - using pre-built images from registry"
           EOF
         shell: bash
 
@@ -479,6 +444,13 @@ jobs:
             echo "# Frontend Configuration" >> .env
             echo "FRONTEND_BASE_URL='${{ vars.FRONTEND_BASE_URL || 'http://localhost:3500' }}'" >> .env
             echo "APP_PUBLIC_GOOGLE_CLIENT_ID='${{ vars.APP_PUBLIC_GOOGLE_CLIENT_ID || '' }}'" >> .env
+            
+            # Set frontend image tag based on branch
+            if [ "${{ github.ref_name }}" = "main" ]; then
+              echo "FRONTEND_IMAGE_TAG=latest" >> .env
+            else
+              echo "FRONTEND_IMAGE_TAG=${{ github.ref_name }}" >> .env
+            fi
 
             # Add infrastructure configuration
             echo "" >> .env
@@ -535,7 +507,15 @@ jobs:
               echo "REPORTING_DB_PASSWORD=${{ secrets.REPORTING_DB_PASSWORD || 'temp_password' }}" >> .env
               echo "REPORTING_DB_PORT=${{ vars.REPORTING_DB_PORT || '5435' }}" >> .env
               echo "RABBITMQ_MANAGEMENT_PORT=${{ vars.RABBITMQ_MANAGEMENT_PORT || '15672' }}" >> .env
-              echo "[INFO] Basic .env file created"
+              
+              # Set frontend image tag based on branch
+              if [ "${{ github.ref_name }}" = "main" ]; then
+                echo "FRONTEND_IMAGE_TAG=latest" >> .env
+              else
+                echo "FRONTEND_IMAGE_TAG=${{ github.ref_name }}" >> .env
+              fi
+              
+              echo "[INFO] Basic .env file created with frontend image tag"
             fi
             
             # Check Docker permissions and set USE_SUDO appropriately
@@ -577,54 +557,46 @@ jobs:
             $USE_SUDO docker image prune -f 2>/dev/null || true
             $USE_SUDO docker volume prune -f 2>/dev/null || true
             
-            # Step 3: Force rebuild frontend image
-            # Verify required files before building
-            echo "[VERIFY] Checking required files for build..."
-            if [ ! -f "src/fe/nuxt/Dockerfile" ]; then
-              echo "[ERROR] Dockerfile not found at src/fe/nuxt/Dockerfile"
-              echo "[DEBUG] Current directory: $(pwd)"
-              echo "[DEBUG] Contents of src/fe/nuxt/:"
-              ls -la src/fe/nuxt/ 2>/dev/null || echo "Directory src/fe/nuxt/ does not exist"
-              echo "[DEBUG] Searching for Dockerfile..."
-              find . -name "Dockerfile" -type f 2>/dev/null || echo "No Dockerfile found"
-              exit 1
+            # Step 3: Pull latest frontend image from GHCR
+            echo "[PULL] Pulling latest frontend image from GHCR for ${{ inputs.environment }} environment..."
+            
+            # Set image tag based on branch
+            if [ "${{ github.ref_name }}" = "main" ]; then
+              IMAGE_TAG="latest"
+            else
+              IMAGE_TAG="${{ github.ref_name }}"
             fi
             
-            if [ ! -f "src/fe/nuxt/package.json" ]; then
-              echo "[ERROR] package.json not found at src/fe/nuxt/package.json"
-              exit 1
-            fi
+            echo "[PULL] Using image tag: $IMAGE_TAG"
             
-            echo "[OK] Required files verified"
+            # Pull latest image from GHCR with retry
+            pull_attempts=0
+            max_pull_attempts=3
             
-            echo "[BUILD] Force rebuilding frontend image for ${{ inputs.environment }} environment..."
-            echo "[BUILD] This will always use --no-cache for clean build..."
-            
-            # Always use no-cache for deployment to ensure latest code with retry
-            build_attempts=0
-            max_build_attempts=3
-            
-            while [ $build_attempts -lt $max_build_attempts ]; do
-              echo "[BUILD] Build attempt $((build_attempts + 1))/$max_build_attempts..."
+            while [ $pull_attempts -lt $max_pull_attempts ]; do
+              echo "[PULL] Pull attempt $((pull_attempts + 1))/$max_pull_attempts..."
               
-              if $USE_SUDO docker compose build --no-cache --pull frontend-nuxt; then
-                echo "[BUILD] Build succeeded on attempt $((build_attempts + 1))"
+              if $USE_SUDO docker pull ghcr.io/thevinh19/3_tihomo/frontend-nuxt:$IMAGE_TAG; then
+                echo "[PULL] Image pulled successfully on attempt $((pull_attempts + 1))"
                 break
               else
-                build_attempts=$((build_attempts + 1))
-                if [ $build_attempts -lt $max_build_attempts ]; then
-                  echo "[BUILD] Build failed, retrying in 30 seconds..."
+                pull_attempts=$((pull_attempts + 1))
+                if [ $pull_attempts -lt $max_pull_attempts ]; then
+                  echo "[PULL] Pull failed, retrying in 30 seconds..."
                   sleep 30
                   # Clean up any partial images
                   $USE_SUDO docker system prune -f 2>/dev/null || true
                 else
-                  echo "[BUILD] Build failed after $max_build_attempts attempts"
+                  echo "[PULL] Pull failed after $max_pull_attempts attempts"
+                  echo "[ERROR] Cannot pull frontend image from GHCR"
+                  echo "[INFO] Available images:"
+                  $USE_SUDO docker images | grep -E "(frontend|nuxt)" || echo "No frontend images found"
                   exit 1
                 fi
               fi
             done
             
-            echo "[BUILD] Frontend image built successfully"
+            echo "[PULL] Frontend image pulled successfully from GHCR"
             
             # Step 4: Deploy frontend with enhanced monitoring
             echo "[DEPLOY] Starting frontend service with enhanced monitoring..."

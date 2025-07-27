@@ -136,9 +136,30 @@ elif command -v npx >/dev/null 2>&1; then
     echo "✅ Found @nuxt/cli"
     exec node node_modules/@nuxt/cli/bin/nuxt.mjs "$@"
   else
+    # Extended search for nuxt executables
+    echo "🔍 Extended search for nuxt executables..."
+    
+    # Check all possible locations
+    echo "📁 Checking node_modules/nuxt/ contents:"
+    ls -la node_modules/nuxt/ 2>/dev/null || echo "No nuxt directory"
+    
+    echo "📁 Checking node_modules/@nuxt/cli/ contents:"  
+    ls -la node_modules/@nuxt/cli/ 2>/dev/null || echo "No @nuxt/cli directory"
+    
+    # Try to find any nuxt executable
+    nuxt_exec=$(find node_modules -name "nuxt.mjs" -type f 2>/dev/null | head -1)
+    if [ -n "$nuxt_exec" ]; then
+      echo "✅ Found nuxt executable at: $nuxt_exec"
+      exec node "$nuxt_exec" "$@"
+    fi
+    
+    # Try package.json script approach
+    if [ -f "package.json" ]; then
+      echo "🔧 Fallback to npm script approach"
+      exec npm run "$@"
+    fi
+    
     echo "❌ No nuxt executable found in any location"
-    echo "🔍 Available packages:"
-    ls -la node_modules/ | grep nuxt || echo "No nuxt packages found"
     exit 1
   fi
 else
@@ -296,9 +317,30 @@ elif command -v npx >/dev/null 2>&1; then
     echo "✅ Found @nuxt/cli"
     exec node node_modules/@nuxt/cli/bin/nuxt.mjs "$@"
   else
+    # Extended search for nuxt executables
+    echo "🔍 Extended search for nuxt executables..."
+    
+    # Check all possible locations
+    echo "📁 Checking node_modules/nuxt/ contents:"
+    ls -la node_modules/nuxt/ 2>/dev/null || echo "No nuxt directory"
+    
+    echo "📁 Checking node_modules/@nuxt/cli/ contents:"  
+    ls -la node_modules/@nuxt/cli/ 2>/dev/null || echo "No @nuxt/cli directory"
+    
+    # Try to find any nuxt executable
+    nuxt_exec=$(find node_modules -name "nuxt.mjs" -type f 2>/dev/null | head -1)
+    if [ -n "$nuxt_exec" ]; then
+      echo "✅ Found nuxt executable at: $nuxt_exec"
+      exec node "$nuxt_exec" "$@"
+    fi
+    
+    # Try package.json script approach
+    if [ -f "package.json" ]; then
+      echo "🔧 Fallback to npm script approach"
+      exec npm run "$@"
+    fi
+    
     echo "❌ No nuxt executable found in any location"
-    echo "🔍 Available packages:"
-    ls -la node_modules/ | grep nuxt || echo "No nuxt packages found"
     exit 1
   fi
 else
