@@ -426,6 +426,13 @@ jobs:
             echo "FRONTEND_BASE_URL='${{ vars.FRONTEND_BASE_URL || 'http://localhost:3500' }}'" >> .env
             echo "APP_PUBLIC_GOOGLE_CLIENT_ID='${{ vars.APP_PUBLIC_GOOGLE_CLIENT_ID || '' }}'" >> .env
             
+            # Frontend Authentication & OAuth Configuration
+            echo "" >> .env
+            echo "# Frontend Authentication Configuration" >> .env
+            echo "JWT_SECRET_KEY='${{ secrets.JWT_SECRET_KEY || 'temp_jwt_secret_key_123456789' }}'" >> .env
+            echo "OAUTH_GOOGLE_CLIENT_ID='${{ vars.APP_PUBLIC_GOOGLE_CLIENT_ID || '' }}'" >> .env
+            echo "OAUTH_REDIRECT_URI='${{ vars.FRONTEND_BASE_URL || 'http://localhost:3500' }}/auth/callback'" >> .env
+            
             # Set frontend image tag based on branch
             if [ "${{ github.ref_name }}" = "main" ]; then
               echo "FRONTEND_IMAGE_TAG=latest" >> .env
@@ -561,11 +568,11 @@ jobs:
               if [ $pull_attempts -eq 0 ]; then
                 # First attempt: Direct pull
                 echo "[PULL] Attempting direct pull from GHCR..."
-                PULL_CMD="$USE_SUDO docker pull ghcr.io/thevinh19/3_tihomo/frontend-nuxt:$IMAGE_TAG"
+                PULL_CMD="$USE_SUDO docker pull ghcr.io/${{ github.repository }}/frontend-nuxt:$IMAGE_TAG"
               elif [ $pull_attempts -eq 1 ]; then
                 # Second attempt: Try with --platform to avoid manifest issues
                 echo "[PULL] Attempting pull with platform specification..."
-                PULL_CMD="$USE_SUDO docker pull --platform linux/amd64 ghcr.io/thevinh19/3_tihomo/frontend-nuxt:$IMAGE_TAG"
+                PULL_CMD="$USE_SUDO docker pull --platform linux/amd64 ghcr.io/${{ github.repository }}/frontend-nuxt:$IMAGE_TAG"
               else
                 # Third attempt: Fallback to local build if available
                 echo "[PULL] GHCR authentication failed, attempting local build fallback..."
@@ -594,7 +601,7 @@ jobs:
                   echo "[INFO] Available images:"
                   $USE_SUDO docker images | grep -E "(frontend|nuxt)" || echo "No frontend images found"
                   echo "[SOLUTION] Either:"
-                  echo "  1. Make GHCR package public at: https://github.com/thevinh19/3_tihomo/pkgs/container/3_tihomo%2Ffrontend-nuxt"
+                  echo "  1. Make GHCR package public at: https://github.com/${{ github.repository }}/pkgs/container/3_tihomo%2Ffrontend-nuxt"
                   echo "  2. Setup GHCR authentication on TrueNAS with GitHub token"
                   echo "  3. Use local build fallback with build context"
                   exit 1

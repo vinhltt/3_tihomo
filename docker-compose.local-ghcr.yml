@@ -44,7 +44,7 @@ services:
   # Nuxt Frontend Application - GHCR with Local Build Fallback
   frontend-nuxt:
     # Try GHCR first, fallback to local build if authentication fails
-    image: ghcr.io/thevinh19/3_tihomo/frontend-nuxt:${FRONTEND_IMAGE_TAG:-latest}
+    image: ghcr.io/vinhltt/3_tihomo/frontend-nuxt:${FRONTEND_IMAGE_TAG:-latest}
     build:
       context: ./src/fe/nuxt
       dockerfile: Dockerfile
