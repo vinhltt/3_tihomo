@@ -196,15 +196,31 @@ jobs:
             $GITHUB_WORKSPACE/docker-compose.ghcr.yml \
             truenas-cf-tunnel:"$DEPLOY_DIR/docker-compose.ghcr.yml"
           
+          echo "[SYNC] Rsync completed, waiting for filesystem sync..."
+          sleep 3
+          
           ssh -F "$HOME/.ssh/config" truenas-cf-tunnel /bin/bash << 'EOF'
             echo "[PREP] Preparing deployment directory for GHCR deployment..."
             
             # Use deployment directory passed from GitHub Actions
             DEPLOY_DIR="${{ env.TRUENAS_DEPLOY_DIR }}"
             
+            echo "[DEBUG] Target deployment directory: $DEPLOY_DIR"
+            echo "[DEBUG] Current working directory: $(pwd)"
+            
             # Create required directories with proper ownership
             mkdir -p "$DEPLOY_DIR"
             mkdir -p "$DEPLOY_DIR/.rsync-partial"
+            
+            # Navigate to deployment directory
+            cd "$DEPLOY_DIR" || {
+              echo "[ERROR] Cannot navigate to deployment directory: $DEPLOY_DIR"
+              exit 1
+            }
+            
+            echo "[DEBUG] Now in directory: $(pwd)"
+            echo "[DEBUG] Directory contents before verification:"
+            ls -la
             
             # Set proper permissions and ownership
             chmod 755 "$DEPLOY_DIR"
@@ -225,10 +241,16 @@ jobs:
             echo "[OK] GHCR deployment directory prepared with proper permissions"
             
             # Verify docker-compose.ghcr.yml exists
+            echo "[DEBUG] Checking for docker-compose.ghcr.yml in: $(pwd)"
             if [ -f docker-compose.ghcr.yml ]; then
               echo "[OK] docker-compose.ghcr.yml confirmed on TrueNAS"
+              echo "[DEBUG] File size: $(ls -lh docker-compose.ghcr.yml | awk '{print $5}')"
             else
               echo "[ERROR] docker-compose.ghcr.yml still missing after sync"
+              echo "[DEBUG] Files in current directory:"
+              ls -la
+              echo "[DEBUG] Searching for docker-compose files:"
+              find . -name "*docker-compose*" -type f 2>/dev/null || echo "No docker-compose files found"
               exit 1
             fi
           EOF
