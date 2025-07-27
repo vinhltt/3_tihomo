@@ -25,7 +25,7 @@ COPY package*.json ./
 # Install production dependencies with cache mount
 RUN --mount=type=cache,target=/root/.npm \
     --mount=type=cache,target=/tmp/npm-cache-prod \
-    npm ci --only=production --legacy-peer-deps
+    npm ci --omit=dev --legacy-peer-deps
 
 # Stage 2: Build
 FROM node:20-alpine AS build
