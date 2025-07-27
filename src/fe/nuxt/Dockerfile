@@ -88,8 +88,8 @@ FROM base AS production
 COPY --from=build /app/.output /app/.output
 COPY --from=build /app/package*.json /app/
 
-# Install only production dependencies
-RUN npm ci --omit=dev --legacy-peer-deps && \
+# Install only production dependencies and skip postinstall scripts
+RUN npm ci --omit=dev --legacy-peer-deps --ignore-scripts && \
     npm cache clean --force
 
 # Set ownership
