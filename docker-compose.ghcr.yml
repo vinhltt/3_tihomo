@@ -398,15 +398,22 @@ services:
     container_name: tihomo-identity-api
     restart: unless-stopped
     environment:
-      - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Production}
+      - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Development}
       - ASPNETCORE_URLS=http://+:8080
-      - ConnectionStrings__DefaultConnection=Host=identity-postgres;Port=5432;Database=identity;Username=${IDENTITY_DB_USERNAME};Password=${IDENTITY_DB_PASSWORD}
-      - Redis__ConnectionString=redis:6379
-      - Redis__Password=${REDIS_PASSWORD}
+      - GOOGLE_CLIENT_ID=${APP_PUBLIC_GOOGLE_CLIENT_ID}
+      - GoogleAuth__ClientId=${APP_PUBLIC_GOOGLE_CLIENT_ID}
+      - FACEBOOK_APP_ID=${FACEBOOK_APP_ID}
+      - FACEBOOK_APP_SECRET=${FACEBOOK_APP_SECRET}
+      - FacebookAuth__AppId=${FACEBOOK_APP_ID}
+      - FacebookAuth__AppSecret=${FACEBOOK_APP_SECRET}
       - JWT__SecretKey=${JWT_SECRET_KEY}
       - JWT__Issuer=${JWT_ISSUER}
       - JWT__Audience=${JWT_AUDIENCE_IDENTITY_API}
-      - GoogleAuth__ClientId=${APP_PUBLIC_GOOGLE_CLIENT_ID}
+      - JWT__AccessTokenExpirationMinutes=${JWT_ACCESS_TOKEN_EXPIRATION_MINUTES:-60}
+      - JWT__RefreshTokenExpirationDays=${JWT_REFRESH_TOKEN_EXPIRATION_DAYS:-30}
+      - ConnectionStrings__DefaultConnection=Host=identity-postgres;Port=5432;Database=identity;Username=${IDENTITY_DB_USERNAME};Password=${IDENTITY_DB_PASSWORD}
+      - Redis__ConnectionString=redis:6379
+      - Redis__Password=${REDIS_PASSWORD}
       - RabbitMQ__Host=rabbitmq
       - RabbitMQ__Username=tihomo
       - RabbitMQ__Password=${RABBITMQ_PASSWORD}

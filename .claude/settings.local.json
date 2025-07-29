@@ -39,7 +39,10 @@
       "Bash(docker exec:*)",
       "Bash(docker-compose up:*)",
       "Bash(dotnet build)",
-      "Bash(docker-compose logs:*)"
+      "Bash(docker-compose logs:*)",
+      "mcp__serena__get_current_config",
+      "mcp__serena__activate_project",
+      "mcp__serena__check_onboarding_performed"
     ],
     "deny": []
   },

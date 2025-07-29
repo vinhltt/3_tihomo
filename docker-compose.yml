@@ -376,8 +376,8 @@ services:
       - JwtSettings__SecretKey=${JWT_SECRET_KEY}
       - JwtSettings__Issuer=${JWT_ISSUER}
       - JwtSettings__Audience=${JWT_AUDIENCE_OCELOT_GATEWAY}
-      - JwtSettings__AccessTokenExpirationMinutes=${JWT_ACCESS_TOKEN_EXPIRATION_MINUTES}
-      - JwtSettings__RefreshTokenExpirationDays=${JWT_REFRESH_TOKEN_EXPIRATION_DAYS}
+      - JwtSettings__AccessTokenExpirationMinutes=${JWT_ACCESS_TOKEN_EXPIRATION_MINUTES:-60}
+      - JwtSettings__RefreshTokenExpirationDays=${JWT_REFRESH_TOKEN_EXPIRATION_DAYS:-30}
       - Logging__LogLevel__Default=${API_LOG_LEVEL:-Information}
     ports:
       - "${GATEWAY_PORT}:8080"  # API Gateway port - Docker Dev environment
@@ -407,17 +407,17 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Development}
       - ASPNETCORE_URLS=http://+:8080
-      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
-      - GoogleAuth__ClientId=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_ID=${APP_PUBLIC_GOOGLE_CLIENT_ID}
+      - GoogleAuth__ClientId=${APP_PUBLIC_GOOGLE_CLIENT_ID}
       - FACEBOOK_APP_ID=${FACEBOOK_APP_ID}
       - FACEBOOK_APP_SECRET=${FACEBOOK_APP_SECRET}
       - FacebookAuth__AppId=${FACEBOOK_APP_ID}
       - FacebookAuth__AppSecret=${FACEBOOK_APP_SECRET}
       - JWT__SecretKey=${JWT_SECRET_KEY}
       - JWT__Issuer=${JWT_ISSUER}
-      - JWT__Audience=${JWT_AUDIENCE_IDENTITY}
-      - JWT__AccessTokenExpirationMinutes=${JWT_ACCESS_TOKEN_EXPIRATION_MINUTES}
-      - JWT__RefreshTokenExpirationDays=${JWT_REFRESH_TOKEN_EXPIRATION_DAYS}
+      - JWT__Audience=${JWT_AUDIENCE_IDENTITY_API}
+      - JWT__AccessTokenExpirationMinutes=${JWT_ACCESS_TOKEN_EXPIRATION_MINUTES:-60}
+      - JWT__RefreshTokenExpirationDays=${JWT_REFRESH_TOKEN_EXPIRATION_DAYS:-30}
       - ConnectionStrings__DefaultConnection=Host=identity-postgres;Port=5432;Database=identity;Username=${IDENTITY_DB_USERNAME};Password=${IDENTITY_DB_PASSWORD}
       - Redis__ConnectionString=redis:6379
       - Redis__Password=${REDIS_PASSWORD}
