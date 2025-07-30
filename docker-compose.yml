@@ -465,11 +465,18 @@ services:
       - RabbitMQ__Password=${RABBITMQ_PASSWORD}
       - IdentityService__BaseUrl=http://identity-api:8080
       - Logging__LogLevel__Default=${API_LOG_LEVEL:-Information}
-      # CORS Configuration
+      # CORS Configuration with multiple origins support
       - CorsOptions__PolicyName=${CORS_POLICY_NAME:-DefaultCorsPolicy}
-      - CorsOptions__AllowedOrigins__0=${CORS_ALLOWED_ORIGINS:-*}
-      - CorsOptions__AllowedMethods__0=${CORS_ALLOWED_METHODS:-*}
-      - CorsOptions__AllowedHeaders__0=${CORS_ALLOWED_HEADERS:-*}
+      - CorsOptions__AllowedOrigins__0=${CORS_ALLOWED_ORIGIN_0:-*}
+      - CorsOptions__AllowedOrigins__1=${CORS_ALLOWED_ORIGIN_1:-}
+      - CorsOptions__AllowedOrigins__2=${CORS_ALLOWED_ORIGIN_2:-}
+      - CorsOptions__AllowedOrigins__3=${CORS_ALLOWED_ORIGIN_3:-}
+      - CorsOptions__AllowedMethods__0=GET
+      - CorsOptions__AllowedMethods__1=POST
+      - CorsOptions__AllowedMethods__2=PUT
+      - CorsOptions__AllowedMethods__3=DELETE
+      - CorsOptions__AllowedMethods__4=OPTIONS
+      - CorsOptions__AllowedHeaders__0=*
       - CorsOptions__ExposedHeaders__0=${CORS_EXPOSED_HEADERS:-Token-Expired}
       - CorsOptions__PreflightMaxAgeInMinutes=${CORS_PREFLIGHT_MAX_AGE:-10}
     # ports:
