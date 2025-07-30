@@ -309,7 +309,7 @@ services:
       
       # Authentication & Security
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
-      - NUXT_PUBLIC_API_BASE=http://ocelot-gateway:8080
+      - NUXT_PUBLIC_API_BASE=${PUBLIC_API_BASE_URL:-http://ocelot-gateway:8080}
       - NUXT_PUBLIC_APP_BASE=${FRONTEND_BASE_URL}
       - NUXT_PUBLIC_GOOGLE_CLIENT_ID=${APP_PUBLIC_GOOGLE_CLIENT_ID}
       - NUXT_PUBLIC_FACEBOOK_APP_ID=${NUXT_PUBLIC_FACEBOOK_APP_ID}
