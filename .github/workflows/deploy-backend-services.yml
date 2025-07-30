@@ -446,6 +446,7 @@ jobs:
             echo "# Frontend Configuration" >> .env
             echo "# ================================" >> .env
             echo "FRONTEND_BASE_URL=${{ vars.FRONTEND_BASE_URL || 'http://localhost:3500' }}" >> .env
+            echo "FRONTEND_BASE_URL=${{ vars.FRONTEND_BASE_URL || 'http://localhost:3500' }}" >> .env
             echo "APP_PUBLIC_GOOGLE_CLIENT_ID=${{ vars.APP_PUBLIC_GOOGLE_CLIENT_ID }}" >> .env
             echo "" >> .env
             

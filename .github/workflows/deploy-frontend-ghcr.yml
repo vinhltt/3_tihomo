@@ -424,6 +424,7 @@ jobs:
             echo "NUXT_DEBUG=false" >> .env
             echo "" >> .env
             echo "# Frontend Configuration" >> .env
+            echo "PUBLIC_API_BASE_URL='${{ vars.PUBLIC_API_BASE_URL || 'http://ocelot-gateway:8080}' }}'" >> .env
             echo "FRONTEND_BASE_URL='${{ vars.FRONTEND_BASE_URL || 'http://localhost:3500' }}'" >> .env
             echo "APP_PUBLIC_GOOGLE_CLIENT_ID='${{ vars.APP_PUBLIC_GOOGLE_CLIENT_ID || '' }}'" >> .env
             
