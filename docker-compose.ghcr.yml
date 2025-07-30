@@ -368,10 +368,20 @@ services:
       - IsDocker=true
       - ConnectionStrings__Redis=redis:6379
       - Redis__Password=${REDIS_PASSWORD}
-      - JWT__SecretKey=${JWT_SECRET_KEY}
-      - JWT__Issuer=${JWT_ISSUER}
-      - JWT__Audience=${JWT_AUDIENCE_OCELOT_GATEWAY}
+      - JwtSettings__SecretKey=${JWT_SECRET_KEY}
+      - JwtSettings__Issuer=${JWT_ISSUER}
+      - JwtSettings__Audience=${JWT_AUDIENCE_OCELOT_GATEWAY}
       - Logging__LogLevel__Default=${API_LOG_LEVEL:-Information}
+      - CorsSettings__AllowedOrigins__0=${CORS_ALLOWED_ORIGINS_0:-*}
+      - CorsSettings__AllowedOrigins__1=${CORS_ALLOWED_ORIGINS_1:-}
+      - CorsSettings__AllowedOrigins__2=${CORS_ALLOWED_ORIGINS_2:-}
+      - CorsSettings__AllowedOrigins__3=${CORS_ALLOWED_ORIGINS_3:-}
+      - CorsSettings__AllowedMethods__0=GET
+      - CorsSettings__AllowedMethods__1=POST
+      - CorsSettings__AllowedMethods__2=PUT
+      - CorsSettings__AllowedMethods__3=DELETE
+      - CorsSettings__AllowedMethods__4=OPTIONS
+      - CorsSettings__AllowedHeaders__0=*
     ports:
       - "${GATEWAY_PORT}:8080"
     volumes:
@@ -458,10 +468,10 @@ services:
       - Logging__LogLevel__Default=${API_LOG_LEVEL:-Information}
       # CORS Configuration with multiple origins support
       - CorsOptions__PolicyName=${CORS_POLICY_NAME:-DefaultCorsPolicy}
-      - CorsOptions__AllowedOrigins__0=${CORS_ALLOWED_ORIGIN_0:-*}
-      - CorsOptions__AllowedOrigins__1=${CORS_ALLOWED_ORIGIN_1:-}
-      - CorsOptions__AllowedOrigins__2=${CORS_ALLOWED_ORIGIN_2:-}
-      - CorsOptions__AllowedOrigins__3=${CORS_ALLOWED_ORIGIN_3:-}
+      - CorsOptions__AllowedOrigins__0=${CORS_ALLOWED_ORIGINS_0:-*}
+      - CorsOptions__AllowedOrigins__1=${CORS_ALLOWED_ORIGINS_1:-}
+      - CorsOptions__AllowedOrigins__2=${CORS_ALLOWED_ORIGINS_2:-}
+      - CorsOptions__AllowedOrigins__3=${CORS_ALLOWED_ORIGINS_3:-}
       - CorsOptions__AllowedMethods__0=GET
       - CorsOptions__AllowedMethods__1=POST
       - CorsOptions__AllowedMethods__2=PUT

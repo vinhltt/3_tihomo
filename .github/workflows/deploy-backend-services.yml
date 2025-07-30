@@ -335,11 +335,24 @@ jobs:
             echo "# CORS Configuration" >> .env
             echo "# ================================" >> .env
             echo "CORS_POLICY_NAME=DefaultCorsPolicy" >> .env
-            echo "CORS_ALLOWED_ORIGINS=*" >> .env
-            echo "CORS_ALLOWED_METHODS=*" >> .env
+            # Set CORS origins based on environment
+            echo "CORS_ALLOWED_ORIGINS_0=${{ vars.CORS_ALLOWED_ORIGINS_0 || '*' }}" >> .env
+            echo "CORS_ALLOWED_ORIGINS_1=${{ vars.CORS_ALLOWED_ORIGINS_1 }}" >> .env
+            echo "CORS_ALLOWED_ORIGINS_2=${{ vars.CORS_ALLOWED_ORIGINS_2 }}" >> .env
+            echo "CORS_ALLOWED_ORIGINS_3=${{ vars.CORS_ALLOWED_ORIGINS_3 }}" >> .env
+            echo "CORS_ALLOWED_METHODS_0=${{ vars.CORS_ALLOWED_METHODS_0 || 'GET' }}" >> .env
+            echo "CORS_ALLOWED_METHODS_1=${{ vars.CORS_ALLOWED_METHODS_1 || 'POST' }}" >> .env
+            echo "CORS_ALLOWED_METHODS_2=${{ vars.CORS_ALLOWED_METHODS_2 || 'PUT' }}" >> .env
+            echo "CORS_ALLOWED_METHODS_3=${{ vars.CORS_ALLOWED_METHODS_3 || 'DELETE' }}" >> .env
+            echo "CORS_ALLOWED_METHODS_4=${{ vars.CORS_ALLOWED_METHODS_4 || 'OPTIONS' }}" >> .env
+            echo "CORS_ALLOWED_HEADERS=*" >> .env
+            echo "CORS_EXPOSED_HEADERS=${{ vars.CORS_EXPOSED_HEADERS || 'Token-Expired'}}" >> .env
+            echo "CORS_PREFLIGHT_MAX_AGE=10" >> .env
+            echo "CORS_ALLOW_CREDENTIALS=true" >> .env
             echo "CORS_ALLOWED_HEADERS=*" >> .env
             echo "CORS_EXPOSED_HEADERS=Token-Expired" >> .env
             echo "CORS_PREFLIGHT_MAX_AGE=10" >> .env
+            echo "CORS_ALLOW_CREDENTIALS=true" >> .env
             echo "" >> .env
             
             # Environment Configuration
@@ -355,27 +368,27 @@ jobs:
             echo "# ================================" >> .env
             echo "# Identity Database" >> .env
             echo "IDENTITY_DB_USERNAME=${{ vars.IDENTITY_DB_USERNAME || 'identity_user' }}" >> .env
-            echo "IDENTITY_DB_PASSWORD='${{ secrets.IDENTITY_DB_PASSWORD }}'" >> .env
+            echo "IDENTITY_DB_PASSWORD=${{ secrets.IDENTITY_DB_PASSWORD }}" >> .env
             echo "IDENTITY_DB_PORT=${{ vars.IDENTITY_DB_PORT || '5431' }}" >> .env
             echo "" >> .env
             echo "# CoreFinance Database" >> .env
             echo "COREFINANCE_DB_USERNAME=${{ vars.COREFINANCE_DB_USERNAME || 'corefinance_user' }}" >> .env
-            echo "COREFINANCE_DB_PASSWORD='${{ secrets.COREFINANCE_DB_PASSWORD }}'" >> .env
+            echo "COREFINANCE_DB_PASSWORD=${{ secrets.COREFINANCE_DB_PASSWORD }}" >> .env
             echo "COREFINANCE_DB_PORT=${{ vars.COREFINANCE_DB_PORT || '5432' }}" >> .env
             echo "" >> .env
             echo "# MoneyManagement Database" >> .env
             echo "MONEYMANAGEMENT_DB_USERNAME=${{ vars.MONEYMANAGEMENT_DB_USERNAME || 'money_user' }}" >> .env
-            echo "MONEYMANAGEMENT_DB_PASSWORD='${{ secrets.MONEYMANAGEMENT_DB_PASSWORD }}'" >> .env
+            echo "MONEYMANAGEMENT_DB_PASSWORD=${{ secrets.MONEYMANAGEMENT_DB_PASSWORD }}" >> .env
             echo "MONEYMANAGEMENT_DB_PORT=${{ vars.MONEYMANAGEMENT_DB_PORT || '5433' }}" >> .env
             echo "" >> .env
             echo "# PlanningInvestment Database" >> .env
             echo "PLANNINGINVESTMENT_DB_USERNAME=${{ vars.PLANNINGINVESTMENT_DB_USERNAME || 'planning_user' }}" >> .env
-            echo "PLANNINGINVESTMENT_DB_PASSWORD='${{ secrets.PLANNINGINVESTMENT_DB_PASSWORD }}'" >> .env
+            echo "PLANNINGINVESTMENT_DB_PASSWORD=${{ secrets.PLANNINGINVESTMENT_DB_PASSWORD }}" >> .env
             echo "PLANNINGINVESTMENT_DB_PORT=${{ vars.PLANNINGINVESTMENT_DB_PORT || '5434' }}" >> .env
             echo "" >> .env
             echo "# Reporting Database" >> .env
             echo "REPORTING_DB_USERNAME=${{ vars.REPORTING_DB_USERNAME || 'reporting_user' }}" >> .env
-            echo "REPORTING_DB_PASSWORD='${{ secrets.REPORTING_DB_PASSWORD }}'" >> .env
+            echo "REPORTING_DB_PASSWORD=${{ secrets.REPORTING_DB_PASSWORD }}" >> .env
             echo "REPORTING_DB_PORT=${{ vars.REPORTING_DB_PORT || '5435' }}" >> .env
             echo "" >> .env
             
@@ -383,7 +396,7 @@ jobs:
             echo "# ================================" >> .env
             echo "# Authentication Configuration" >> .env
             echo "# ================================" >> .env
-            echo "JWT_SECRET_KEY='${{ secrets.JWT_SECRET_KEY }}'" >> .env
+            echo "JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}" >> .env
             echo "JWT_ISSUER=${{ vars.JWT_ISSUER || 'TiHoMo' }}" >> .env
             echo "JWT_AUDIENCE_IDENTITY_API=${{ vars.JWT_AUDIENCE_IDENTITY_API || 'TiHoMo.Identity.Api' }}" >> .env
             echo "JWT_AUDIENCE_COREFINANCE_API=${{ vars.JWT_AUDIENCE_COREFINANCE_API || 'TiHoMo.CoreFinance.Api' }}" >> .env
@@ -397,18 +410,18 @@ jobs:
             echo "# External Services Configuration" >> .env
             echo "# ================================" >> .env
             echo "# Redis" >> .env
-            echo "REDIS_PASSWORD='${{ secrets.REDIS_PASSWORD }}'" >> .env
+            echo "REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}" >> .env
             echo "REDIS_PORT=${{ vars.REDIS_PORT || '6379' }}" >> .env
             echo "" >> .env
             echo "# RabbitMQ" >> .env
-            echo "RABBITMQ_PASSWORD='${{ secrets.RABBITMQ_PASSWORD }}'" >> .env
+            echo "RABBITMQ_PASSWORD=${{ secrets.RABBITMQ_PASSWORD }}" >> .env
             echo "RABBITMQ_PORT=${{ vars.RABBITMQ_PORT || '5672' }}" >> .env
             echo "RABBITMQ_MANAGEMENT_PORT=${{ vars.RABBITMQ_MANAGEMENT_PORT || '15672' }}" >> .env
             echo "" >> .env
             echo "# Monitoring" >> .env
             echo "PROMETHEUS_PORT=${{ vars.PROMETHEUS_PORT || '9090' }}" >> .env
             echo "GRAFANA_PORT=${{ vars.GRAFANA_PORT || '3000' }}" >> .env
-            echo "GRAFANA_ADMIN_PASSWORD='${{ secrets.GRAFANA_ADMIN_PASSWORD }}'" >> .env
+            echo "GRAFANA_ADMIN_PASSWORD=${{ secrets.GRAFANA_ADMIN_PASSWORD }}" >> .env
             echo "" >> .env
             echo "# Development Tools" >> .env
             echo "MAILHOG_SMTP_PORT=${{ vars.MAILHOG_SMTP_PORT || '1025' }}" >> .env
@@ -454,7 +467,7 @@ jobs:
             echo "# ================================" >> .env
             echo "# Infrastructure Configuration" >> .env
             echo "# ================================" >> .env
-            echo "PGADMIN_PASSWORD='${{ secrets.PGADMIN_PASSWORD }}'" >> .env
+            echo "PGADMIN_PASSWORD=${{ secrets.PGADMIN_PASSWORD }}" >> .env
             echo "PGADMIN_PORT=${{ vars.PGADMIN_PORT || '8080' }}" >> .env
             echo "LOKI_PORT=${{ vars.LOKI_PORT || '3100' }}" >> .env
             echo "NGINX_HTTP_PORT=${{ vars.NGINX_HTTP_PORT || '80' }}" >> .env
