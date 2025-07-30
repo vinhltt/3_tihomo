@@ -493,7 +493,7 @@ jobs:
             
             # Display first few lines for verification (without sensitive data)
             echo "[VERIFY] .env file content (first 20 lines):"
-            head -20 .env
+            head -30 .env
             
             echo "[INFO] Backend environment setup completed"
           EOF
