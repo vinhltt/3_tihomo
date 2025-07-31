@@ -66,9 +66,21 @@ export const useApi = () => {
         })
 
         if (!response.ok) {
+          // Check for 401 Unauthorized - token expired
+          if (response.status === 401) {
+            console.log('🔐 401 Unauthorized detected (FormData) - clearing auth and redirecting to login')
+            
+            // Clear authentication state
+            const authStore = useAuthStore()
+            await authStore.clearAuthState()
+            
+            // Redirect to login page
+            await navigateTo('/auth/login')
+          }
+          
           const errorData = await response.json().catch(() => ({}))
           throw {
-            message: errorData.message || 'An error occurred',
+            message: response.status === 401 ? 'Your session has expired. Please login again.' : (errorData.message || 'An error occurred'),
             statusCode: response.status,
             errors: errorData.errors
           } as ApiError
@@ -87,7 +99,27 @@ export const useApi = () => {
     } catch (error: any) {
       // Handle different types of errors
       if (error.response) {
-        // Server responded with error status
+        // Check for 401 Unauthorized - token expired
+        if (error.response.status === 401) {
+          console.log('🔐 401 Unauthorized detected - clearing auth and redirecting to login')
+          
+          // Clear authentication state
+          const authStore = useAuthStore()
+          await authStore.clearAuthState()
+          
+          // Redirect to login page
+          await navigateTo('/auth/login')
+          
+          // Still throw the error for the calling component to handle if needed
+          const apiError: ApiError = {
+            message: 'Your session has expired. Please login again.',
+            statusCode: 401,
+            errors: error.response._data?.errors
+          }
+          throw apiError
+        }
+        
+        // Server responded with other error status
         const apiError: ApiError = {
           message: error.response._data?.message || 'An error occurred',
           statusCode: error.response.status,

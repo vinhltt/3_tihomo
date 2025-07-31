@@ -1,364 +1,610 @@
 ---
 applyTo: '**'
 ---
-Important: Do not commit code yourself
 
-# Coding assistant's Comprehensive Memory & Documentation System
-You always reply in chat and documents such as memory bank in Vietnamese, comment code in both English and Vietnamese, the rest will be in English
+## Project Overview
 
-## Core System Architecture
+TiHoMo is a comprehensive personal finance management system built with modern web technologies using a microservices architecture. The system provides users with tools to track expenses, manage budgets, plan investments, and monitor their financial health.
 
-### Triple Memory & Documentation System
-This system operates with **four integrated layers**:
+### Core Architecture
 
-1. **Memory Bank** (Session persistence): Real-time context và immediate insights
-2. **Design Documentation** (Project structure): Long-term architectural decisions
-3. **MCP mem0** (Dynamic context): Save and retrieve context across sessions  
-4. **Sequential Thinking** (Problem-solving): Methodical analysis và decision processes
+- **Backend**: .NET 9 microservices with PostgreSQL databases
+- **Frontend**: Nuxt 3 SPA with TypeScript and Tailwind CSS  
+- **API Gateway**: Ocelot for request routing and authentication
+- **Infrastructure**: Docker Compose for development, with production TrueNAS deployment
+- **Authentication**: JWT tokens with Google/Facebook OAuth social login
+- **Messaging**: RabbitMQ for inter-service communication
+- **Monitoring**: Grafana, Prometheus, and Loki for observability
+
+### Microservices
+
+1. **CoreFinance**: Main financial data management, transactions, accounts
+2. **Identity**: Authentication and user management with social login
+3. **MoneyManagement**: Budget and expense tracking
+4. **PlanningInvestment**: Investment portfolio management
+5. **ExcelApi**: Excel file processing and data import
+6. **Ocelot.Gateway**: API Gateway for routing and security
+
+## MCP Tools Integration
+
+### Enhanced Development Toolkit
+
+The project leverages multiple MCP (Model Context Protocol) tools for enhanced development experience:
+
+#### Serena - Advanced Code Agent Toolkit
+**Primary coding agent** for direct codebase manipulation with intelligent project understanding:
+
+**Project Management:**
+- `activate_project`: Switch between different TiHoMo projects (microservices)
+- `get_active_project`: Check current active project context
+- `onboarding`: Auto-discover project structure and essential tasks
+- `check_onboarding_performed`: Verify project setup completion
+
+**Code Intelligence & Navigation:**
+- `find_symbol`: Global/local symbol search across microservices
+- `find_referencing_code_snippets`: Find code references for refactoring
+- `find_referencing_symbols`: Symbol dependency analysis
+- `get_symbols_overview`: Quick file/directory structure overview
+
+**File Operations (Enhanced):**
+- `create_text_file`: Create files with project-aware context
+- `read_file`: Read with symbol understanding
+- `list_dir`: Intelligent directory listing with recursion
+- `search_for_pattern`: Advanced pattern search across codebase
+
+**Precision Code Editing:**
+- `insert_at_line` / `insert_after_symbol` / `insert_before_symbol`: Precise insertions
+- `replace_lines` / `replace_symbol_body`: Targeted replacements
+- `delete_lines`: Clean line removal
+
+**Memory & Context Management:**
+- `write_memory` / `read_memory` / `list_memories` / `delete_memory`: Project-specific memory store
+- `prepare_for_new_conversation`: Context continuity between sessions
+- `summarize_changes`: Track development progress
+
+**Advanced Features:**
+- `execute_shell_command`: Direct command execution with project context
+- `restart_language_server`: Maintain IDE integration
+- `switch_modes`: Activate different development modes
+- `think_about_*`: Built-in reasoning tools for task completion
+
+#### Context7 - Live Code Documentation
+**Up-to-date documentation** for libraries and frameworks:
+- Real-time API documentation and examples
+- Integration patterns for .NET 9 và Nuxt 3
+- Best practices from latest community knowledge
+- Dependency compatibility checking
+
+#### Sequential Thinking - Systematic Problem Solving
+**Enhanced reasoning** for complex architectural decisions:
+- Multi-step problem analysis
+- Trade-off evaluation
+- Implementation strategy planning
+- Decision documentation
+
+#### Time Management Integration
+**Development timing and scheduling:**
+- Task time tracking
+- Development milestone planning
+- Deployment scheduling coordination
+
+#### Fetch - Enhanced Data Retrieval
+**External data integration:**
+- API documentation fetching
+- Dependency version checking
+- External service integration testing
+
+### MCP-Enhanced Development Workflow
 
 ```mermaid
 flowchart TD
-    MB[Memory Bank] --> DD[Design Documentation]
-    DD --> MCP[MCP mem0]
-    MCP --> ST[Sequential Thinking]
-    ST --> MB
-    
-    DD -.-> API[API Design]
-    DD -.-> UI[UI Components]
-    DD -.-> ARCH[Architecture]
-    DD -.-> FEAT[Features]
+    Start[New Task] --> Serena[Serena: activate_project]
+    Serena --> CheckMemory[Serena: read_memory project_context]
+    CheckMemory --> ReadDocs[Context7: get latest docs]
+    ReadDocs --> CheckDesign[Check Design Docs]
+    CheckDesign --> Complex{Complex Task?}
+    Complex -->|Yes| SeqThink[Sequential Thinking Session]
+    Complex -->|No| SerenaCode[Serena: Code Operations]
+    SeqThink --> StoreMemory[Serena: write_memory insights]
+    StoreMemory --> SerenaCode
+    SerenaCode --> Test[Serena: execute_shell_command tests]
+    Test --> UpdateDocs[Update Documentation]
+    UpdateDocs --> SummarySerena[Serena: summarize_changes]
+    SummarySerena --> PrepareNext[Serena: prepare_for_new_conversation]
 ```
 
-## Documentation Structure Integration
+## Enhanced Development Commands
 
-### Design Documentation Hierarchy
-```
-project-root/
-├── memory-bank/                          # Session-based context
-│   ├── projectbrief.md
-│   ├── activeContext.md
-│   ├── systemPatterns.md
-│   └── progress.md
-├── design-docs/                          # Long-term architecture
-│   ├── 01-overview/
-│   ├── 02-business-design/
-│   ├── 03-architecture/
-│   ├── 04-api-design/
-│   ├── 05-frontend-design/
-│   ├── 06-backend-design/
-│   ├── 07-features/
-│   ├── 08-deployment/
-│   └── 09-templates/
-├── src/
-│   ├── be/                               # Backend (.NET 9)
-│   └── fe/nuxt/                          # Frontend (Nuxt 3)
-└── .copilot-rules                        # This file
-```
+### MCP-Integrated Project Management
 
-## Folder-Specific Development Rules
-
-### Backend Development (.NET 9)
-- **Apply to**: All files within `src/be/` directory and subdirectories
-- **Documentation Reference**: Always check `/design-docs/06-backend-design/` and `/design-docs/04-api-design/`
-- **Technologies**: .NET 9, ASP.NET Core, Entity Framework Core, PostgreSQL, xUnit, FluentAssertions, AutoMapper
-- **Architecture**: Clean Architecture, Domain-Driven Design patterns
-- **Key Practices**: 
-  - Use XML comments với bilingual format (English/Vietnamese)
-  - xUnit for testing (không dùng NUnit)
-  - FluentAssertions for all test assertions
-  - Bogus for fake data generation
-  - PostgreSQL với EFCore.NamingConventions (snake_case)
-  - **NEW**: Follow API patterns in `/design-docs/04-api-design/endpoints/`
-  - **NEW**: Implement business rules per `/design-docs/06-backend-design/business-logic/`
-
-### Frontend Development (Nuxt 3)
-- **Apply to**: All files within `src/fe/nuxt/` directory and subdirectories  
-- **Documentation Reference**: Always check `/design-docs/05-frontend-design/` and component library
-- **Technologies**: Nuxt 3, Vue 3, TypeScript, Tailwind CSS, Pinia, VRISTO Admin Template
-- **Key Practices**:
-  - Composition API với `<script setup>` syntax exclusively
-  - PascalCase cho components, camelCase cho composables
-  - Types over interfaces, avoid enums
-  - Mobile-first responsive design
-  - VRISTO theme patterns và dark mode support
-  - **NEW**: Follow design system in `/design-docs/05-frontend-design/ui-ux-design/design-system.md`
-  - **NEW**: Use components from `/design-docs/05-frontend-design/component-library/`
-
-## Documentation-First Development Protocol
-
-### Rule 1: Context Discovery Chain
-```
-BEFORE any code suggestion, ALWAYS execute this sequence:
-1. Check Memory Bank (`memory-bank/activeContext.md`)
-2. Check Feature Documentation (`design-docs/07-features/feature-[name]/`)
-3. Check Architecture Constraints (`design-docs/03-architecture/`)
-4. Check API/UI Standards (`design-docs/04-api-design/` or `design-docs/05-frontend-design/`)
-5. Check MCP Memory for recent insights
-6. Apply Sequential Thinking if complex problem
-```
-
-### Rule 2: Feature Implementation Protocol
-```
-For any feature implementation:
-
-DISCOVERY PHASE:
-1. Read `memory-bank/activeContext.md` for current focus
-2. Check if feature exists in `design-docs/07-features/feature-[name]/`
-3. If not exists: Request business requirements và suggest creating docs first
-4. Review related features for established patterns
-
-TECHNICAL ANALYSIS:
-1. Check API design standards in `design-docs/04-api-design/api-standards.md`
-2. Verify UI patterns in `design-docs/05-frontend-design/component-library/`
-3. Review architecture constraints in `design-docs/03-architecture/`
-4. Check database design in `design-docs/03-architecture/database-design/`
-
-IMPLEMENTATION PLANNING:
-1. Update `memory-bank/activeContext.md` with current focus
-2. Store implementation insights in MCP Memory with [INSIGHT] prefix
-3. Use Sequential Thinking for complex architectural decisions
-4. Follow established code patterns from systemPatterns.md
-```
-
-### Rule 3: Code Generation Standards
-```
-Backend (.NET) Code Generation:
-- Follow Clean Architecture patterns from `design-docs/06-backend-design/service-architecture/`
-- Use repository patterns from `design-docs/06-backend-design/data-layer/`
-- Implement authentication per `design-docs/04-api-design/authentication/`
-- Generate XML comments in bilingual format
-- Use xUnit + FluentAssertions for tests
-- Follow PostgreSQL naming conventions (snake_case)
-
-Frontend (Nuxt) Code Generation:
-- Use Composition API with `<script setup>` exclusively
-- Follow design system from `design-docs/05-frontend-design/ui-ux-design/design-system.md`
-- Use existing components from component library
-- Implement TypeScript types (not interfaces)
-- Follow VRISTO theme patterns
-- Ensure mobile-first responsive design
-
-API Integration:
-- Follow OpenAPI spec in `design-docs/04-api-design/api-specification/openapi-spec.yaml`
-- Use consistent error handling patterns
-- Implement proper authentication flow
-- Follow data models from `design-docs/04-api-design/data-models/`
-```
-
-## Enhanced Memory & Thinking Integration
-
-### Sequential Thinking Rules
-```
-Use Sequential Thinking for:
-- Complex architectural decisions affecting multiple components
-- Feature planning with dependency analysis
-- Debugging complex integration issues
-- Performance optimization strategies
-- Database schema design decisions
-- API design with multiple stakeholders
-
-Sequential Thinking Process:
-1. Problem Definition: What exactly needs to be solved?
-2. Constraint Analysis: Technical, business, and resource limitations
-3. Solution Exploration: Multiple approaches with trade-offs
-4. Impact Assessment: Effects on existing system
-5. Implementation Strategy: Step-by-step approach
-6. Validation Plan: How to verify success
-
-Store Results:
-- Key insights → MCP Memory with [THINKING] prefix
-- Architectural decisions → `design-docs/03-architecture/`
-- Implementation patterns → `memory-bank/systemPatterns.md`
-```
-
-### MCP Memory Management
-```
-MCP Memory Categories:
-- [SESSION]: Current session context và immediate thoughts
-- [INSIGHT]: Key realizations during development
-- [DECISION]: Temporary decisions waiting for documentation
-- [LINK]: Cross-references giữa components và features
-- [TODO]: Quick action items và reminders
-- [THINKING]: Sequential thinking session summaries
-- [PATTERN]: Code patterns discovered during implementation
-- [API]: API integration notes và authentication flows
-- [UI]: UI/UX insights và component usage patterns
-
-Sync Strategy:
-- Store immediate insights in MCP first
-- Migrate important decisions to design-docs during natural breaks
-- Keep session context in MCP for continuation
-- Update memory-bank files at end of significant work sessions
-```
-
-## Cross-Platform Integration Rules
-
-### API-Frontend Consistency
-```
-When working on API endpoints:
-1. Update OpenAPI spec in `design-docs/04-api-design/api-specification/`
-2. Generate TypeScript types for frontend
-3. Update component props if UI changes needed
-4. Store API integration patterns in MCP with [API] prefix
-5. Document authentication flow changes
-
-When working on UI components:
-1. Check design system compliance
-2. Update component library documentation
-3. Verify API data requirements
-4. Store UI patterns in MCP with [UI] prefix
-5. Test responsive design on multiple breakpoints
-```
-
-### Database-API-UI Flow
-```
-For database changes:
-1. Update data model in `design-docs/03-architecture/database-design/`
-2. Create EF Core migration với snake_case naming
-3. Update API endpoints và data models
-4. Update frontend types và components
-5. Document migration strategy
-6. Update tests across all layers
-```
-
-## Development Server Management
-
-### Port Management & OAuth Configuration
 ```bash
-# Kill processes on port 3500 (Nuxt)
-netstat -ano | findstr :3500
-taskkill /PID <PID> /F
-# Or use npx kill-port
-npx kill-port 3500
+# Serena Project Lifecycle
+activate_project TiHoMo                    # Activate main project
+get_active_project                         # Check current project
+onboarding                                 # Discover project structure  
+check_onboarding_performed                 # Verify setup
 
-# Standard port allocation:
-# Frontend (Nuxt): 3500
-# Backend SSO: 5217  
-# Backend API: 7293
-
-# When ports change, update:
-# 1. Frontend .env files
-# 2. Backend OAuth client redirect URIs
-# 3. design-docs/08-deployment/environments/
+# Enhanced Context Discovery
+read_memory project_status                 # Get stored project context
+list_memories                              # See all stored insights
+find_symbol UserController                 # Find symbols across services
+get_symbols_overview src/be/CoreFinance    # Quick structure overview
 ```
 
-## Quality Gates & Validation
+### MCP-Enhanced Code Operations
 
-### Pre-Implementation Checklist
+```bash
+# Intelligent File Operations (Serena)
+create_text_file src/be/NewService/NewController.cs  # Create with context
+read_file src/fe/nuxt/pages/dashboard.vue             # Read with symbols
+search_for_pattern "IUserRepository"                  # Find patterns
+list_dir src/be --recursive                           # Smart directory listing
+
+# Precision Code Editing (Serena)
+insert_after_symbol GetUserById "// New method here"
+replace_symbol_body UserController "// Updated implementation"
+insert_at_line src/api/UserApi.cs 45 "// New validation"
+
+# Context-Aware Development
+write_memory api_integration_pattern "OAuth flow with JWT refresh"
+read_memory database_patterns
+think_about_task_adherence                # Check if on track
 ```
-Before implementing any feature:
+
+### Enhanced Documentation & Learning
+
+```bash
+# Context7 Integration
+# Automatically fetches latest documentation for:
+- .NET 9 best practices
+- Nuxt 3 composition API patterns
+- PostgreSQL optimization techniques
+- Docker deployment strategies
+- JWT authentication flows
+
+# Sequential Thinking Sessions
+think_through "microservices communication patterns"
+analyze "database transaction consistency across services" 
+review_thinking                           # Check previous sessions
+```
+
+### MCP-Enhanced Testing & Quality
+
+```bash
+# Serena-Powered Testing
+execute_shell_command "dotnet test --logger trx"
+find_referencing_symbols IUserService     # Find all usages before refactor
+restart_language_server                   # Refresh IDE after major changes
+
+# Quality Assurance Flow
+search_for_pattern "TODO|FIXME|HACK"      # Find technical debt
+summarize_changes                         # Generate change summary
+think_about_whether_you_are_done          # Completion verification
+```
+
+### Traditional Development Commands (Preserved)
+
+#### Docker Environment Management (Primary Method)
+
+```bash
+# Full development setup and start
+make dev
+
+# Start all services
+make up
+
+# Start infrastructure only (databases, cache, messaging)  
+make up-infra
+
+# Start API services only
+make up-apis
+
+# Start frontend only
+make up-frontend
+
+# Start monitoring stack
+make up-monitoring
+
+# Stop all services
+make down
+
+# View service status
+make status
+
+# View logs
+make logs                # All services
+make logs-api           # API services only
+make logs-frontend      # Frontend only
+
+# Health check all services
+make health
+
+# Database operations
+make db-migrate         # Run migrations
+make db-reset          # Reset databases (WARNING: deletes data)
+
+# Build Docker images
+make build              # All images
+make build-frontend     # Frontend only
+make build-apis        # API services only
+
+# Show service URLs
+make urls
+```
+
+#### Frontend Development (Nuxt 3)
+
+```bash
+cd src/fe/nuxt
+
+# Install dependencies
+npm install
+
+# Development server
+npm run dev
+
+# Build for production
+npm run build
+
+# Generate static files
+npm run generate
+
+# Preview production build
+npm run preview
+```
+
+#### Backend Development (.NET 9)
+
+```bash
+cd src/be
+
+# Restore dependencies
+dotnet restore
+
+# Build solution
+dotnet build
+
+# Run specific service
+cd CoreFinance/CoreFinance.Api
+dotnet run
+
+# Run tests
+dotnet test
+
+# Run tests with coverage
+dotnet test --collect:"XPlat Code Coverage"
+
+# Entity Framework migrations
+cd CoreFinance
+dotnet ef migrations add MigrationName
+dotnet ef database update
+
+# Identity service migrations
+cd Identity
+dotnet ef migrations add MigrationName
+dotnet ef database update
+```
+
+### Service URLs (Development)
+
+- **Frontend**: http://localhost:3500
+- **API Gateway**: http://localhost:5800
+- **Identity API**: http://localhost:5801
+- **CoreFinance API**: http://localhost:5802
+- **Excel API**: http://localhost:5805
+- **Grafana**: http://localhost:3000 (admin/admin123)
+- **RabbitMQ Management**: http://localhost:15672 (tihomo/tihomo123)
+- **pgAdmin**: http://localhost:8080 (admin@tihomo.local/admin123)
+
+## MCP-Enhanced Architecture & Patterns
+
+### Backend (.NET 9) with MCP Integration
+
+- **Architecture**: Clean Architecture với Domain-Driven Design
+- **MCP Enhancement**: Serena provides symbol-aware refactoring và Context7 supplies latest .NET patterns
+- **Database**: PostgreSQL với Entity Framework Core (snake_case naming)
+- **Testing**: xUnit với FluentAssertions (avoid NUnit) + Serena automated test execution
+- **Authentication**: JWT với social OAuth providers
+- **API Documentation**: Swagger/OpenAPI specifications + Context7 live examples
+- **Code Comments**: XML documentation in English/Vietnamese bilingual format
+- **Shared Code**: Shared.EntityFramework project for common utilities
+- **MCP Memory**: Serena stores project-specific patterns và architectural decisions
+
+### Frontend (Nuxt 3) with MCP Integration
+
+- **Framework**: Nuxt 3 với Vue 3 Composition API
+- **MCP Enhancement**: Context7 provides latest Nuxt 3 patterns và Serena handles component generation
+- **Language**: TypeScript (prefer types over interfaces)
+- **Styling**: Tailwind CSS với VRISTO admin template
+- **State Management**: Pinia stores
+- **Authentication**: Social login (Google/Facebook OAuth)
+- **Syntax**: Use `<script setup>` exclusively
+- **Naming**: PascalCase for components, camelCase for composables
+- **MCP Intelligence**: Serena finds component references và dependencies automatically
+
+### Database Schema
+
+Each microservice has its own PostgreSQL database:
+- **identity**: User accounts, roles, OAuth tokens
+- **corefinance**: Accounts, transactions, recurring transactions  
+- **db_money**: Budget management và expense tracking
+- **db_planning**: Investment portfolios và planning
+- **db_reporting**: Analytics và reporting data
+
+**MCP Enhancement**: Serena can search across all database schemas và find cross-service dependencies.
+
+## Enhanced Development Guidelines with MCP Tools
+
+### MCP-Powered Development Protocol
+
+**CRITICAL: ENHANCED sequence with MCP tools:**
+
+1. **Serena**: `activate_project TiHoMo` → ensure correct project context
+2. **Serena**: `read_memory current_task` → get stored task context
+3. **Memory Bank**: Check `memory-bank/activeContext.md` for current focus
+4. **Context7**: Fetch latest documentation for relevant technologies
+5. **Design Docs**: Check `design-docs/07-features/feature-[name]/` for feature documentation
+6. **Architecture**: Check `design-docs/03-architecture/` for constraints
+7. **Standards**: Check `design-docs/04-api-design/` or `design-docs/05-frontend-design/`
+8. **Sequential Thinking**: Apply for complex problems với documented reasoning
+9. **Serena**: `write_memory` key insights for future reference
+
+### MCP-Enhanced Communication & Documentation Standards
+
+- **Language Protocol**: Always reply in Vietnamese, code comments bilingual English/Vietnamese, code in English
+- **Memory System**: 5-layer integrated system (Memory Bank + Design Documentation + MCP mem0 + Sequential Thinking + **Serena Memory**)
+- **Context Preservation**: Serena maintains project-specific context across sessions
+- **Live Documentation**: Context7 provides up-to-date library documentation
+
+### Backend (.NET 9) MCP-Enhanced Rules
+
+**Critical Practices với MCP Integration:**
+- **Serena-Powered Development**: Use `find_symbol` before creating new classes to avoid duplication
+- **Context7 Patterns**: Always check latest .NET 9 patterns before implementation
+- Use **xUnit + FluentAssertions** for testing (NEVER use NUnit)
+- **Serena Test Execution**: Use `execute_shell_command` for automated test runs
+- **XML comments in bilingual format**:
+  ```csharp
+  /// <summary>
+  /// English summary here (EN)<br/>
+  /// Tóm tắt tiếng Việt ở đây (VI)
+  /// </summary>
+  ```
+- Use **Bogus** for fake data generation in tests
+- **Serena Memory**: Store successful patterns với `write_memory architectural_pattern`
+- Follow **Clean Architecture + Domain-Driven Design**
+- Use **PostgreSQL với EFCore.NamingConventions (snake_case)**
+- **Symbol Intelligence**: Use `get_symbols_overview` to understand existing code structure
+
+### Frontend (Nuxt 3) MCP-Enhanced Rules
+
+**Critical Practices với MCP Integration:**
+- **Serena Component Generation**: Use `create_text_file` với project-aware component templates
+- **Context7 Integration**: Always check latest Nuxt 3 composition patterns
+- Use **Composition API với `<script setup>` exclusively**
+- **TypeScript**: Prefer types over interfaces, avoid enums
+- **VRISTO Admin Template** patterns với dark mode support
+- **Mobile-first responsive design**: Tailwind CSS với sm:, md:, lg:, xl: breakpoints
+- **Naming**: PascalCase for components, camelCase for composables
+- **Serena Search**: Use `search_for_pattern` to find existing similar components
+- **Component Intelligence**: Use `find_referencing_symbols` before modifying shared components
+
+### MCP-Enhanced Quality Gates & Validation
+
+**Pre-Implementation Checklist với MCP:**
+- [ ] **Serena**: `activate_project` và `read_memory project_status`
+- [ ] **Context7**: Check latest technology documentation
 - [ ] Feature documentation exists in design-docs/07-features/
+- [ ] **Serena**: `find_symbol` to check for existing implementations
 - [ ] Current context updated in memory-bank/activeContext.md
 - [ ] API design follows established patterns
-- [ ] UI design aligns with component library
+- [ ] UI design aligns với component library
 - [ ] Database changes are documented
-- [ ] Testing strategy is defined
-- [ ] Dependencies are identified và documented
-- [ ] Security requirements are addressed
-- [ ] Performance considerations are documented
-- [ ] MCP insights reviewed for relevant patterns
-```
+- [ ] **Sequential Thinking**: Complex problems analyzed systematically
+- [ ] Testing strategy defined
+- [ ] Security requirements addressed
 
-### Post-Implementation Checklist
-```
-After implementing any feature:
+**Post-Implementation Checklist với MCP:**
+- [ ] **Serena**: `execute_shell_command` to run all tests
 - [ ] Code follows documented patterns
+- [ ] **Serena**: `summarize_changes` for documentation
 - [ ] API documentation updated (OpenAPI spec)
 - [ ] Component library updated if new components
+- [ ] **Serena**: `write_memory implementation_insights` for future reference
 - [ ] Tests cover documented scenarios (xUnit + FluentAssertions)
 - [ ] Implementation notes updated in feature docs
-- [ ] Breaking changes documented
-- [ ] Migration guides created if needed
-- [ ] MCP Memory updated with implementation insights
-- [ ] memory-bank/progress.md updated with completion status
+- [ ] **Serena**: `prepare_for_new_conversation` for context continuity
+
+### Enhanced Memory & Documentation Commands
+
+**MCP-Integrated Commands:**
+```bash
+# Serena Project Management
+activate_project [name]              # Switch project context
+get_active_project                   # Check current project
+onboarding                          # Discover project structure
+read_memory [key]                   # Get stored insights
+write_memory [key] [value]          # Store insights
+list_memories                       # List all stored context
+
+# Serena Code Intelligence  
+find_symbol [name]                  # Find symbols globally
+find_referencing_symbols [symbol]   # Find symbol dependencies
+get_symbols_overview [path]         # Quick structure overview
+search_for_pattern [pattern]        # Advanced pattern search
+
+# Serena Development Operations
+create_text_file [path]             # Create với context
+execute_shell_command [cmd]         # Run commands với project context
+insert_after_symbol [symbol] [content]  # Precise insertions
+replace_symbol_body [symbol] [content]   # Targeted replacements
+summarize_changes                   # Generate change summary
+
+# Context7 Documentation
+check_latest_docs [technology]      # Get up-to-date documentation
+verify_api_compatibility [library]  # Check compatibility
+
+# Sequential Thinking (Enhanced)
+think_through [problem]             # Systematic analysis
+analyze [topic]                     # Deep analysis session
+review_thinking                     # Check previous sessions
+
+# Traditional Commands (Preserved)
+read memory bank                    # Read all memory-bank files
+check design docs [section]        # Read specific design documentation
+check mcp                          # Review current MCP memory
+sync memory                        # Sync between all systems
+check feature [name]               # Read feature documentation
+update feature [name]              # Update feature status
 ```
 
-## Documentation Update Protocol
+### MCP-Enhanced Cross-Platform Integration Rules
 
-### When to Update Documentation
-```
-Memory Bank Updates (Immediate):
-- New insights during development → MCP Memory
-- Current work focus changes → activeContext.md
-- Pattern discoveries → systemPatterns.md với MCP backup
+**API-Frontend Consistency với MCP:**
+1. **Serena**: `find_referencing_symbols` before API changes
+2. **Context7**: Check latest OpenAPI patterns
+3. Update OpenAPI spec in `design-docs/04-api-design/api-specification/`
+4. Generate TypeScript types for frontend
+5. **Serena**: `search_for_pattern` to find affected components
+6. Update component props if UI changes needed
+7. **Serena**: `write_memory api_integration_pattern` with insights
+8. Document authentication flow changes
 
-Design Documentation Updates (Planned):
-- New features → Create feature folder in design-docs/07-features/
-- Architecture changes → Update design-docs/03-architecture/
-- API changes → Update OpenAPI spec và endpoint docs
-- UI changes → Update component library và design system
-- Database changes → Update data model và migration docs
+**Database-API-UI Flow với MCP:**
+1. **Sequential Thinking**: Analyze impact across all layers
+2. **Serena**: `find_symbol` to check existing data models
+3. Update data model in `design-docs/03-architecture/database-design/`
+4. Create EF Core migration với snake_case naming
+5. **Serena**: `execute_shell_command` to run migrations
+6. Update API endpoints và data models
+7. Update frontend types và components
+8. **Serena**: `summarize_changes` for migration documentation
+9. Update tests across all layers
 
-Sequential Thinking Sessions:
-- Complex problems requiring systematic analysis
-- Results stored in MCP với [THINKING] prefix
-- Key decisions migrated to appropriate design-docs sections
-```
+### MCP-Enhanced Development Workflow
 
-### Migration Rules
-```
-Migrate from MCP to Files when:
-- Insights become foundational to project
-- Decisions are finalized và need permanent record
-- Patterns emerge that guide future development
-- Sequential thinking reveals architectural principles
-- Session context becomes project-wide context
-
-Sync Between Systems:
-- Daily: MCP → memory-bank files
-- Weekly: memory-bank → design-docs (for major changes)
-- Per feature: Complete sync across all systems
-- Per release: Full documentation review và update
-```
-
-## Enhanced Commands
-
-### Memory & Documentation Commands
-```
-- read memory bank: Read all memory-bank files
-- check design docs [section]: Read specific design documentation
-- check mcp: Review current MCP memory
-- sync memory: Sync between MCP, memory-bank, và design-docs
-- update memory bank: Full update including MCP migration
-- store insight [text]: Quick store to MCP with [INSIGHT] prefix
-- note [text]: Quick store to MCP with [SESSION] prefix
-- think through [problem]: Initiate sequential thinking session
-- analyze [topic]: Use sequential thinking for systematic analysis
-- review thinking: Check previous sequential thinking sessions
-- check feature [name]: Read feature documentation
-- update feature [name]: Update feature implementation status
-- sync api docs: Update OpenAPI spec với current implementation
-- check patterns: Review systemPatterns.md và related design docs
-```
-
-## Best Practices Integration
-
-### Development Workflow
 ```mermaid
 flowchart TD
-    Start[New Task] --> CheckMCP[Check MCP Memory]
-    CheckMCP --> ReadMemory[Read Memory Bank]
-    ReadMemory --> CheckDesign[Check Design Docs]
-    CheckDesign --> Complex{Complex Task?}
+    Start[New Task] --> SerenaActivate[Serena: activate_project]
+    SerenaActivate --> SerenaMemory[Serena: read_memory context]
+    SerenaMemory --> Context7[Context7: latest docs]
+    Context7 --> CheckDesign[Check Design Docs]
+    CheckDesign --> SerenaSymbols[Serena: find_symbol existing]
+    SerenaSymbols --> Complex{Complex Task?}
     Complex -->|Yes| SeqThink[Sequential Thinking]
-    Complex -->|No| Implement[Implement]
-    SeqThink --> StoreMCP[Store in MCP]
-    StoreMCP --> Implement
-    Implement --> Test[Test Implementation]
-    Test --> UpdateDocs[Update Documentation]
-    UpdateDocs --> SyncSystems[Sync All Systems]
+    Complex -->|No| SerenaCode[Serena: Code Operations]
+    SeqThink --> SerenaStore[Serena: write_memory insights]
+    SerenaStore --> SerenaCode
+    SerenaCode --> SerenaTest[Serena: execute_shell_command tests]
+    SerenaTest --> UpdateDocs[Update Documentation]
+    UpdateDocs --> SerenaSummary[Serena: summarize_changes]
+    SerenaSummary --> SyncSystems[Serena: prepare_for_new_conversation]
 ```
 
-### Code Quality Discipline
-```
-1. Bilingual Comments: XML comments in English/Vietnamese
-2. Pattern Consistency: Follow established patterns in systemPatterns.md
-3. API Standards: Adhere to OpenAPI specifications
-4. UI Consistency: Use design system và component library
-5. Testing: xUnit + FluentAssertions for backend, proper test coverage
-6. Documentation: Keep all four systems synchronized
-7. Performance: Follow caching strategies và async patterns
-8. Security: Implement proper authentication và validation
+## Common Troubleshooting với MCP Integration
+
+### MCP Tools Issues
+```bash
+# Serena Language Server Issues
+restart_language_server             # Refresh IDE integration
+
+# Context Issues
+get_current_config                  # Check agent configuration
+switch_modes [mode_list]            # Activate specific modes
+
+# Memory Issues  
+list_memories                       # Check stored memories
+delete_memory [key]                 # Clean corrupted memories
 ```
 
-REMEMBER: After every session reset, I begin completely fresh. The integrated system (Memory Bank + Design Documentation + MCP Memory + Sequential Thinking) is my only link to previous work. All systems must be maintained with precision, clarity, và proper Vietnamese/English bilingual support for maximum effectiveness.
+### Traditional Issues (Preserved)
+
+#### Port Conflicts
+```bash
+# Serena-Enhanced Port Management
+execute_shell_command "npx kill-port 3500"
+execute_shell_command "netstat -ano | findstr :3500"
+
+# Traditional Method
+npx kill-port 3500
+netstat -ano | findstr :3500
+taskkill /PID <PID> /F
+```
+
+#### JWT Authentication Issues
+- **Serena**: `search_for_pattern "JWT_SECRET_KEY"` to find all references
+- **Context7**: Check latest OAuth integration patterns
+- Verify JWT_SECRET_KEY consistency across services
+- Check JWT issuer/audience configuration matches
+- Ensure OAuth client IDs are properly configured
+
+#### Database Connection Issues
+- **Serena**: `execute_shell_command "docker ps"` to check containers
+- **Serena**: `search_for_pattern "ConnectionString"` to find configurations
+- Verify PostgreSQL containers are running
+- Check connection strings in environment variables
+- Run `make db-migrate` to ensure schemas are current
+
+## Security Considerations với MCP Integration
+
+- **Serena Memory Security**: Project-specific memories are isolated
+- **Context7**: Only fetches public documentation, no sensitive data
+- All API endpoints require JWT authentication
+- IP whitelisting for API keys
+- Rate limiting per API key
+- CORS configured for cross-origin requests
+- Sensitive data encrypted at rest
+- OAuth tokens stored securely
+- **MCP Command Validation**: All shell commands are validated before execution
+
+## Performance Optimizations với MCP
+
+- **Serena**: Intelligent caching of symbol information và project structure
+- **Context7**: Cached documentation fetching to avoid repeated requests
+- Redis caching for frequently accessed data
+- Database connection pooling
+- Async/await patterns throughout
+- Optimized Docker builds với multi-stage images
+- CDN-ready static asset generation
+- **MCP Memory**: Efficient storage và retrieval of development context
+
+## Production Deployment với MCP Support
+
+The system includes GitHub Actions workflow for automated deployment to TrueNAS infrastructure:
+
+```bash
+# MCP-Enhanced Deployment workflow:
+# - Serena can summarize changes for release notes
+# - Context7 provides latest deployment best practices
+# - Sequential Thinking analyzes deployment risks
+
+# Deployment workflow triggers on:
+# - Push to master (production)
+# - Push to develop (development)  
+# - Manual workflow dispatch
+
+# Key deployment features:
+# - Security scanning với Trivy
+# - Rolling deployment với health checks
+# - Automatic database backups
+# - Comprehensive validation
+# - Discord notifications
+# - Serena change summaries in deployment logs
+```
+
+### Memory Bank Context với MCP Integration
+
+The project maintains active context in `memory-bank/activeContext.md` which tracks:
+- Current development focus và completed features
+- Recent fixes và implementations
+- Deployment status và CI/CD pipeline health
+- Integration status between services
+- **NEW: Serena Memory Sync**: Automatic synchronization với Serena project memories
+- **NEW: Context7 Pattern Updates**: Latest documentation patterns applied
+- **NEW: Sequential Thinking Sessions**: Links to major architectural decisions
+
+**MCP Integration Protocol**: Always check both traditional memory bank files AND Serena project memories for complete context before making modifications.
+
+REMEMBER: After every session reset, the integrated MCP system (Serena + Context7 + Sequential Thinking + Traditional Memory) is the primary link to previous work. All systems must be maintained với precision, clarity, và proper Vietnamese/English bilingual support for maximum effectiveness.
+
+**Critical MCP Workflow**: Start every session với `activate_project TiHoMo` và `read_memory project_status` to ensure proper context continuity.

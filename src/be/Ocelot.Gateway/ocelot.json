@@ -80,10 +80,6 @@
       ],
       "UpstreamPathTemplate": "/api/core-finance/{everything}",
       "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE", "OPTIONS" ],
-      "AuthenticationOptions": {
-        "AuthenticationProviderKeys": [ "Bearer", "ApiKey" ],
-        "AllowedScopes": []
-      },
       "RouteClaimsRequirement": {},
       "LoadBalancerOptions": {
         "Type": "RoundRobin"
