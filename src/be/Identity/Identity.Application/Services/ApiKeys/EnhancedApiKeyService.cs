@@ -437,14 +437,14 @@ public class EnhancedApiKeyService(
         return new VerifyApiKeyResponse { IsValid = true };
     }
 
-    private async Task<bool> ValidateIpWhitelistAsync(ApiKey apiKey, string clientIpAddress)
+    private Task<bool> ValidateIpWhitelistAsync(ApiKey apiKey, string clientIpAddress)
     {
         if (!apiKey.SecuritySettings.EnableIpValidation || !apiKey.IpWhitelist.Any())
         {
-            return true; // No IP validation enabled
+            return Task.FromResult(true); // No IP validation enabled
         }
 
-        return ipValidationService.IsIpAllowed(clientIpAddress, apiKey.IpWhitelist);
+        return Task.FromResult(ipValidationService.IsIpAllowed(clientIpAddress, apiKey.IpWhitelist));
     }
 
 

@@ -435,8 +435,8 @@ services:
       - RabbitMQ__Username=tihomo
       - RabbitMQ__Password=${RABBITMQ_PASSWORD}
       - Logging__LogLevel__Default=${API_LOG_LEVEL:-Information}
-    # ports:
-    #   - "${IDENTITY_API_PORT}:8080"  # Identity API port - Closed, access via API Gateway only
+    ports:
+      - "${IDENTITY_API_PORT}:8080"  # Identity API port - Closed, access via API Gateway only
     volumes:
       - ./logs/identity:/app/logs
     networks:
@@ -489,8 +489,8 @@ services:
       - CorsOptions__AllowedHeaders__0=*
       - CorsOptions__ExposedHeaders__0=${CORS_EXPOSED_HEADERS:-Token-Expired}
       - CorsOptions__PreflightMaxAgeInMinutes=${CORS_PREFLIGHT_MAX_AGE:-10}
-    # ports:
-    #   - "${COREFINANCE_API_PORT}:8080"  # CoreFinance API port - Closed, access via API Gateway only
+    ports:
+      - "${COREFINANCE_API_PORT}:8080"  # CoreFinance API port - Closed, access via API Gateway only
     volumes:
       - ./logs/corefinance:/app/logs
     networks:

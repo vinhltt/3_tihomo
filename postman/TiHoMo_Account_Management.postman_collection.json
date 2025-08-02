@@ -1,0 +1,1381 @@
+{
+	"info": {
+		"_postman_id": "b2c3d4e5-f6g7-8901-2345-678901bcdefg",
+		"name": "TiHoMo - Account Management with API Key",
+		"description": "Comprehensive Account management testing for TiHoMo CoreFinance service using API Key authentication.\n\n## Features Tested:\n- 🔑 API Key Authentication\n- 💰 Account CRUD Operations\n- 📊 Account Filtering & Pagination\n- 💱 Multi-Currency Support\n- 🏦 Different Account Types\n- ✅ Input Validation\n- 🛡️ Security Testing\n\n## Prerequisites:\n1. TiHoMo services running via API Gateway on localhost:5800\n2. Valid API Key from Identity service (via Gateway)\n3. Postman environment variables configured\n\n## Usage:\n1. Run \"Setup - Get API Key\" to obtain API key\n2. Execute Account operations in sequence\n3. Check test results in Test Results tab",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "12345679"
+	},
+	"item": [
+		{
+			"name": "Setup",
+			"item": [
+				{
+					"name": "Get API Key from Identity Service",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Test successful API key creation",
+									"pm.test(\"API Key obtained successfully\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"// Extract and save API key",
+									"if (pm.response.code === 200) {",
+									"    const responseJson = pm.response.json();",
+									"    ",
+									"    pm.test(\"Response contains API key\", function () {",
+									"        pm.expect(responseJson).to.have.property('apiKey');",
+									"        pm.expect(responseJson.apiKey).to.be.a('string');",
+									"        pm.expect(responseJson.apiKey).to.match(/^tihomo_/);",
+									"    });",
+									"    ",
+									"    // Save API key to environment",
+									"    pm.environment.set('api_key', responseJson.apiKey);",
+									"    pm.environment.set('api_key_id', responseJson.id);",
+									"    ",
+									"    console.log('✅ API Key obtained and saved to environment');",
+									"    console.log('🔑 API Key: ' + responseJson.apiKey.substring(0, 20) + '...');",
+									"} else {",
+									"    console.log('❌ Failed to obtain API Key: ' + pm.response.code);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Generate unique API key name",
+									"const timestamp = new Date().getTime();",
+									"const apiKeyName = `Account Test API Key ${timestamp}`;",
+									"pm.environment.set('current_api_key_name', apiKeyName);",
+									"",
+									"console.log('🔄 Creating API Key for Account testing: ' + apiKeyName);"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwt_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"{{current_api_key_name}}\",\n    \"description\": \"API Key for Account management testing\",\n    \"scopes\": [\"read\", \"write\", \"delete\"],\n    \"expiresAt\": \"{{$isoTimestamp}}\",\n    \"rateLimitPerMinute\": 1000,\n    \"dailyUsageQuota\": 50000,\n    \"allowedIpAddresses\": [\"127.0.0.1\", \"::1\"]\n}"
+						},
+						"url": {
+							"raw": "{{identity_base_url}}/api/ApiKeys",
+							"host": [
+								"{{identity_base_url}}"
+							],
+							"path": [
+								"api",
+								"ApiKeys"
+							]
+						},
+						"description": "Obtain API key from Identity service for Account operations."
+					}
+				},
+				{
+					"name": "Verify API Key Authentication",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Test API key authentication works",
+									"pm.test(\"API Key authentication successful\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"if (pm.response.code === 200) {",
+									"    const responseJson = pm.response.json();",
+									"    ",
+									"    pm.test(\"Account list retrieved\", function () {",
+									"        pm.expect(responseJson).to.have.property('items');",
+									"        pm.expect(responseJson.items).to.be.an('array');",
+									"    });",
+									"    ",
+									"    console.log('✅ API Key authentication verified');",
+									"    console.log('📊 Found ' + responseJson.items.length + ' accounts');",
+									"} else {",
+									"    console.log('❌ API Key authentication failed: ' + pm.response.code);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{api_key}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{corefinance_base_url}}/api/Account",
+							"host": [
+								"{{corefinance_base_url}}"
+							],
+							"path": [
+								"api",
+								"Account"
+							]
+						},
+						"description": "Verify that the API key works for Account service authentication."
+					}
+				}
+			],
+			"description": "Setup requests to obtain and verify API Key authentication for Account operations."
+		},
+		{
+			"name": "Account CRUD",
+			"item": [
+				{
+					"name": "Create Savings Account",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Test successful account creation",
+									"pm.test(\"Savings Account created successfully\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"// Validate response structure",
+									"if (pm.response.code === 200) {",
+									"    const responseJson = pm.response.json();",
+									"    ",
+									"    pm.test(\"Response contains required fields\", function () {",
+									"        pm.expect(responseJson).to.have.property('id');",
+									"        pm.expect(responseJson).to.have.property('name');",
+									"        pm.expect(responseJson).to.have.property('accountType');",
+									"        pm.expect(responseJson).to.have.property('currency');",
+									"        pm.expect(responseJson).to.have.property('balance');",
+									"    });",
+									"    ",
+									"    pm.test(\"Account details match request\", function () {",
+									"        pm.expect(responseJson.name).to.equal('Test Savings Account');",
+									"        pm.expect(responseJson.accountType).to.equal('Savings');",
+									"        pm.expect(responseJson.currency).to.equal('USD');",
+									"        pm.expect(responseJson.balance).to.equal(1000);",
+									"    });",
+									"    ",
+									"    // Save account details for subsequent tests",
+									"    pm.environment.set('savings_account_id', responseJson.id);",
+									"    pm.environment.set('savings_account_name', responseJson.name);",
+									"    ",
+									"    console.log('✅ Savings Account created successfully');",
+									"    console.log('🏦 Account ID: ' + responseJson.id);",
+									"    console.log('💰 Balance: $' + responseJson.balance);",
+									"} else {",
+									"    console.log('❌ Savings Account creation failed: ' + pm.response.code);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Generate test user ID if not exists",
+									"if (!pm.environment.get('test_user_id')) {",
+									"    pm.environment.set('test_user_id', pm.globals.replaceIn('{{$randomUUID}}'));",
+									"}",
+									"",
+									"console.log('🔄 Creating savings account for user: ' + pm.environment.get('test_user_id'));"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{api_key}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "multipart/form-data"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "UserId",
+									"value": "{{test_user_id}}",
+									"type": "text"
+								},
+								{
+									"key": "Name",
+									"value": "Test Savings Account",
+									"type": "text"
+								},
+								{
+									"key": "AccountType",
+									"value": "Savings",
+									"type": "text"
+								},
+								{
+									"key": "Currency",
+									"value": "USD",
+									"type": "text"
+								},
+								{
+									"key": "InitialBalance",
+									"value": "1000.00",
+									"type": "text"
+								},
+								{
+									"key": "Description",
+									"value": "Test savings account created via Postman",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{corefinance_base_url}}/api/Account",
+							"host": [
+								"{{corefinance_base_url}}"
+							],
+							"path": [
+								"api",
+								"Account"
+							]
+						},
+						"description": "Create a new savings account using API key authentication."
+					}
+				},
+				{
+					"name": "Create Checking Account",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Checking Account created successfully\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"if (pm.response.code === 200) {",
+									"    const responseJson = pm.response.json();",
+									"    ",
+									"    pm.test(\"Account type is Checking\", function () {",
+									"        pm.expect(responseJson.accountType).to.equal('Checking');",
+									"    });",
+									"    ",
+									"    pm.environment.set('checking_account_id', responseJson.id);",
+									"    console.log('✅ Checking Account created: ' + responseJson.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{api_key}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "UserId",
+									"value": "{{test_user_id}}",
+									"type": "text"
+								},
+								{
+									"key": "Name",
+									"value": "Test Checking Account",
+									"type": "text"
+								},
+								{
+									"key": "AccountType",
+									"value": "Checking",
+									"type": "text"
+								},
+								{
+									"key": "Currency",
+									"value": "USD",
+									"type": "text"
+								},
+								{
+									"key": "InitialBalance",
+									"value": "500.00",
+									"type": "text"
+								},
+								{
+									"key": "Description",
+									"value": "Test checking account for daily transactions",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{corefinance_base_url}}/api/Account",
+							"host": [
+								"{{corefinance_base_url}}"
+							],
+							"path": [
+								"api",
+								"Account"
+							]
+						},
+						"description": "Create a checking account for transaction testing."
+					}
+				},
+				{
+					"name": "Get Account by ID",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Account retrieved successfully\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"if (pm.response.code === 200) {",
+									"    const responseJson = pm.response.json();",
+									"    const expectedId = pm.environment.get('savings_account_id');",
+									"    ",
+									"    pm.test(\"Retrieved correct account\", function () {",
+									"        pm.expect(responseJson.id).to.equal(expectedId);",
+									"        pm.expect(responseJson.name).to.equal('Test Savings Account');",
+									"    });",
+									"    ",
+									"    pm.test(\"Account data is complete\", function () {",
+									"        pm.expect(responseJson).to.have.property('balance');",
+									"        pm.expect(responseJson).to.have.property('createdAt');",
+									"        pm.expect(responseJson).to.have.property('updatedAt');",
+									"        pm.expect(responseJson).to.have.property('isActive');",
+									"    });",
+									"    ",
+									"    console.log('✅ Account retrieved: ' + responseJson.name);",
+									"    console.log('💰 Current balance: $' + responseJson.balance);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{api_key}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{corefinance_base_url}}/api/Account/{{savings_account_id}}",
+							"host": [
+								"{{corefinance_base_url}}"
+							],
+							"path": [
+								"api",
+								"Account",
+								"{{savings_account_id}}"
+							]
+						},
+						"description": "Retrieve a specific account by its ID."
+					}
+				},
+				{
+					"name": "Update Account",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Account updated successfully\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"if (pm.response.code === 200) {",
+									"    const responseJson = pm.response.json();",
+									"    ",
+									"    pm.test(\"Account name updated\", function () {",
+									"        pm.expect(responseJson.name).to.equal('Updated Savings Account');",
+									"    });",
+									"    ",
+									"    pm.test(\"Description updated\", function () {",
+									"        pm.expect(responseJson.description).to.include('Updated via Postman');",
+									"    });",
+									"    ",
+									"    console.log('✅ Account updated successfully');",
+									"    console.log('📝 New name: ' + responseJson.name);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{api_key}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "Id",
+									"value": "{{savings_account_id}}",
+									"type": "text"
+								},
+								{
+									"key": "Name",
+									"value": "Updated Savings Account",
+									"type": "text"
+								},
+								{
+									"key": "AccountType",
+									"value": "Savings",
+									"type": "text"
+								},
+								{
+									"key": "Currency",
+									"value": "USD",
+									"type": "text"
+								},
+								{
+									"key": "Description",
+									"value": "Updated via Postman API testing",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{corefinance_base_url}}/api/Account/{{savings_account_id}}",
+							"host": [
+								"{{corefinance_base_url}}"
+							],
+							"path": [
+								"api",
+								"Account",
+								"{{savings_account_id}}"
+							]
+						},
+						"description": "Update account information using form data."
+					}
+				},
+				{
+					"name": "Get All Accounts",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Accounts list retrieved successfully\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"if (pm.response.code === 200) {",
+									"    const responseJson = pm.response.json();",
+									"    ",
+									"    pm.test(\"Response has pagination structure\", function () {",
+									"        pm.expect(responseJson).to.have.property('items');",
+									"        pm.expect(responseJson).to.have.property('totalCount');",
+									"        pm.expect(responseJson).to.have.property('pageIndex');",
+									"        pm.expect(responseJson).to.have.property('pageSize');",
+									"    });",
+									"    ",
+									"    pm.test(\"Created accounts exist in list\", function () {",
+									"        const savingsId = pm.environment.get('savings_account_id');",
+									"        const checkingId = pm.environment.get('checking_account_id');",
+									"        ",
+									"        const savingsFound = responseJson.items.some(account => account.id === savingsId);",
+									"        const checkingFound = responseJson.items.some(account => account.id === checkingId);",
+									"        ",
+									"        pm.expect(savingsFound).to.be.true;",
+									"        pm.expect(checkingFound).to.be.true;",
+									"    });",
+									"    ",
+									"    console.log('✅ Retrieved ' + responseJson.items.length + ' accounts');",
+									"    console.log('📊 Total accounts: ' + responseJson.totalCount);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{api_key}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{corefinance_base_url}}/api/Account",
+							"host": [
+								"{{corefinance_base_url}}"
+							],
+							"path": [
+								"api",
+								"Account"
+							]
+						},
+						"description": "Retrieve all accounts for account selection UI."
+					}
+				},
+				{
+					"name": "Filter Accounts",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Account filtering successful\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"if (pm.response.code === 200) {",
+									"    const responseJson = pm.response.json();",
+									"    ",
+									"    pm.test(\"Filtered results returned\", function () {",
+									"        pm.expect(responseJson).to.have.property('items');",
+									"        pm.expect(responseJson.items).to.be.an('array');",
+									"    });",
+									"    ",
+									"    pm.test(\"Pagination parameters applied\", function () {",
+									"        pm.expect(responseJson.pageIndex).to.equal(1);",
+									"        pm.expect(responseJson.pageSize).to.equal(10);",
+									"    });",
+									"    ",
+									"    if (responseJson.items.length > 0) {",
+									"        pm.test(\"Results are sorted by name\", function () {",
+									"            // Check if results are sorted alphabetically",
+									"            for (let i = 0; i < responseJson.items.length - 1; i++) {",
+									"                const current = responseJson.items[i].name.toLowerCase();",
+									"                const next = responseJson.items[i + 1].name.toLowerCase();",
+									"                pm.expect(current <= next).to.be.true;",
+									"            }",
+									"        });",
+									"    }",
+									"    ",
+									"    console.log('✅ Filtered ' + responseJson.items.length + ' accounts');",
+									"    console.log('📄 Page ' + responseJson.pageIndex + ' of ' + Math.ceil(responseJson.totalCount / responseJson.pageSize));",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{api_key}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"page\": 1,\n    \"pageSize\": 10,\n    \"sortBy\": \"name\",\n    \"sortDirection\": \"asc\",\n    \"searchTerm\": \"Test\"\n}"
+						},
+						"url": {
+							"raw": "{{corefinance_base_url}}/api/Account/filter",
+							"host": [
+								"{{corefinance_base_url}}"
+							],
+							"path": [
+								"api",
+								"Account",
+								"filter"
+							]
+						},
+						"description": "Filter and paginate accounts with search and sort parameters."
+					}
+				},
+				{
+					"name": "Delete Account",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Account deleted successfully\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"if (pm.response.code === 200) {",
+									"    console.log('✅ Checking account deleted successfully');",
+									"    ",
+									"    // Remove from environment since it's deleted",
+									"    pm.environment.unset('checking_account_id');",
+									"} else if (pm.response.code === 204) {",
+									"    console.log('ℹ️ Account was already deleted or not found');",
+									"} else {",
+									"    console.log('❌ Account deletion failed: ' + pm.response.code);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{api_key}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{corefinance_base_url}}/api/Account/{{checking_account_id}}",
+							"host": [
+								"{{corefinance_base_url}}"
+							],
+							"path": [
+								"api",
+								"Account",
+								"{{checking_account_id}}"
+							]
+						},
+						"description": "Soft delete an account (checking account)."
+					}
+				}
+			],
+			"description": "Complete CRUD operations for Account management using API Key authentication."
+		},
+		{
+			"name": "Multi-Currency Tests",
+			"item": [
+				{
+					"name": "Create EUR Account",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"EUR Account created successfully\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"if (pm.response.code === 200) {",
+									"    const responseJson = pm.response.json();",
+									"    ",
+									"    pm.test(\"Currency is EUR\", function () {",
+									"        pm.expect(responseJson.currency).to.equal('EUR');",
+									"    });",
+									"    ",
+									"    pm.environment.set('eur_account_id', responseJson.id);",
+									"    console.log('✅ EUR Account created: €' + responseJson.balance);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{api_key}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "UserId",
+									"value": "{{test_user_id}}",
+									"type": "text"
+								},
+								{
+									"key": "Name",
+									"value": "Euro Savings Account",
+									"type": "text"
+								},
+								{
+									"key": "AccountType",
+									"value": "Savings",
+									"type": "text"
+								},
+								{
+									"key": "Currency",
+									"value": "EUR",
+									"type": "text"
+								},
+								{
+									"key": "InitialBalance",
+									"value": "750.00",
+									"type": "text"
+								},
+								{
+									"key": "Description",
+									"value": "Euro-denominated savings account",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{corefinance_base_url}}/api/Account",
+							"host": [
+								"{{corefinance_base_url}}"
+							],
+							"path": [
+								"api",
+								"Account"
+							]
+						},
+						"description": "Create an account with EUR currency."
+					}
+				},
+				{
+					"name": "Create VND Account",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"VND Account created successfully\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"if (pm.response.code === 200) {",
+									"    const responseJson = pm.response.json();",
+									"    ",
+									"    pm.test(\"Currency is VND\", function () {",
+									"        pm.expect(responseJson.currency).to.equal('VND');",
+									"    });",
+									"    ",
+									"    pm.environment.set('vnd_account_id', responseJson.id);",
+									"    console.log('✅ VND Account created: ₫' + responseJson.balance.toLocaleString());",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{api_key}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "UserId",
+									"value": "{{test_user_id}}",
+									"type": "text"
+								},
+								{
+									"key": "Name",
+									"value": "Vietnamese Dong Account",
+									"type": "text"
+								},
+								{
+									"key": "AccountType",
+									"value": "Checking",
+									"type": "text"
+								},
+								{
+									"key": "Currency",
+									"value": "VND",
+									"type": "text"
+								},
+								{
+									"key": "InitialBalance",
+									"value": "25000000.00",
+									"type": "text"
+								},
+								{
+									"key": "Description",
+									"value": "Vietnamese Dong checking account",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{corefinance_base_url}}/api/Account",
+							"host": [
+								"{{corefinance_base_url}}"
+							],
+							"path": [
+								"api",
+								"Account"
+							]
+						},
+						"description": "Create an account with VND currency."
+					}
+				}
+			],
+			"description": "Test multi-currency account support."
+		},
+		{
+			"name": "Validation Tests",
+			"item": [
+				{
+					"name": "Create Account - Invalid Data",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Validation failed as expected\", function () {",
+									"    pm.response.to.have.status(400);",
+									"});",
+									"",
+									"console.log('✅ Invalid account data correctly rejected');"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{api_key}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "UserId",
+									"value": "00000000-0000-0000-0000-000000000000",
+									"type": "text",
+									"description": "Invalid empty GUID"
+								},
+								{
+									"key": "Name",
+									"value": "",
+									"type": "text",
+									"description": "Empty name"
+								},
+								{
+									"key": "AccountType",
+									"value": "InvalidType",
+									"type": "text",
+									"description": "Invalid account type"
+								},
+								{
+									"key": "Currency",
+									"value": "INVALID",
+									"type": "text",
+									"description": "Invalid currency"
+								},
+								{
+									"key": "InitialBalance",
+									"value": "-1000",
+									"type": "text",
+									"description": "Negative balance"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{corefinance_base_url}}/api/Account",
+							"host": [
+								"{{corefinance_base_url}}"
+							],
+							"path": [
+								"api",
+								"Account"
+							]
+						},
+						"description": "Test account creation with invalid data to ensure proper validation."
+					}
+				},
+				{
+					"name": "Access Without API Key",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Unauthorized access blocked\", function () {",
+									"    // Expect 401 Unauthorized or similar",
+									"    pm.expect([401, 403]).to.include(pm.response.code);",
+									"});",
+									"",
+									"console.log('✅ Access without API Key correctly blocked: ' + pm.response.code);"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{corefinance_base_url}}/api/Account",
+							"host": [
+								"{{corefinance_base_url}}"
+							],
+							"path": [
+								"api",
+								"Account"
+							]
+						},
+						"description": "Test access to Account endpoints without API key authentication."
+					}
+				},
+				{
+					"name": "Access With Invalid API Key",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Invalid API Key rejected\", function () {",
+									"    pm.expect([401, 403]).to.include(pm.response.code);",
+									"});",
+									"",
+									"console.log('✅ Invalid API Key correctly rejected: ' + pm.response.code);"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "invalid_api_key_12345",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{corefinance_base_url}}/api/Account",
+							"host": [
+								"{{corefinance_base_url}}"
+							],
+							"path": [
+								"api",
+								"Account"
+							]
+						},
+						"description": "Test access with an invalid API key."
+					}
+				}
+			],
+			"description": "Validation and security tests for Account operations."
+		},
+		{
+			"name": "Business Logic Tests",
+			"item": [
+				{
+					"name": "Create Investment Account",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Investment Account created\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"if (pm.response.code === 200) {",
+									"    const responseJson = pm.response.json();",
+									"    ",
+									"    pm.test(\"Account type is Investment\", function () {",
+									"        pm.expect(responseJson.accountType).to.equal('Investment');",
+									"    });",
+									"    ",
+									"    pm.environment.set('investment_account_id', responseJson.id);",
+									"    console.log('✅ Investment Account created');",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{api_key}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "UserId",
+									"value": "{{test_user_id}}",
+									"type": "text"
+								},
+								{
+									"key": "Name",
+									"value": "Investment Portfolio Account",
+									"type": "text"
+								},
+								{
+									"key": "AccountType",
+									"value": "Investment",
+									"type": "text"
+								},
+								{
+									"key": "Currency",
+									"value": "USD",
+									"type": "text"
+								},
+								{
+									"key": "InitialBalance",
+									"value": "10000.00",
+									"type": "text"
+								},
+								{
+									"key": "Description",
+									"value": "Investment account for portfolio management",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{corefinance_base_url}}/api/Account",
+							"host": [
+								"{{corefinance_base_url}}"
+							],
+							"path": [
+								"api",
+								"Account"
+							]
+						},
+						"description": "Create an investment account type."
+					}
+				},
+				{
+					"name": "Create Credit Account",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Credit Account created\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"if (pm.response.code === 200) {",
+									"    const responseJson = pm.response.json();",
+									"    ",
+									"    pm.test(\"Account type is Credit\", function () {",
+									"        pm.expect(responseJson.accountType).to.equal('Credit');",
+									"    });",
+									"    ",
+									"    pm.environment.set('credit_account_id', responseJson.id);",
+									"    console.log('✅ Credit Account created');",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{api_key}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "UserId",
+									"value": "{{test_user_id}}",
+									"type": "text"
+								},
+								{
+									"key": "Name",
+									"value": "Credit Card Account",
+									"type": "text"
+								},
+								{
+									"key": "AccountType",
+									"value": "Credit",
+									"type": "text"
+								},
+								{
+									"key": "Currency",
+									"value": "USD",
+									"type": "text"
+								},
+								{
+									"key": "InitialBalance",
+									"value": "0.00",
+									"type": "text"
+								},
+								{
+									"key": "Description",
+									"value": "Credit card account for purchases",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{corefinance_base_url}}/api/Account",
+							"host": [
+								"{{corefinance_base_url}}"
+							],
+							"path": [
+								"api",
+								"Account"
+							]
+						},
+						"description": "Create a credit account type."
+					}
+				}
+			],
+			"description": "Test different account types and business logic scenarios."
+		},
+		{
+			"name": "Cleanup",
+			"item": [
+				{
+					"name": "Delete Test Accounts",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// This will run for each account cleanup",
+									"pm.test(\"Account deleted or not found\", function () {",
+									"    pm.expect([200, 204, 404]).to.include(pm.response.code);",
+									"});",
+									"",
+									"console.log('🗑️ Cleanup completed for account');"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// List of account IDs to clean up",
+									"const accountIds = [",
+									"    pm.environment.get('savings_account_id'),",
+									"    pm.environment.get('eur_account_id'),",
+									"    pm.environment.get('vnd_account_id'),",
+									"    pm.environment.get('investment_account_id'),",
+									"    pm.environment.get('credit_account_id')",
+									"].filter(id => id); // Remove undefined values",
+									"",
+									"// Store current index for iteration",
+									"let currentIndex = pm.environment.get('cleanup_index') || 0;",
+									"",
+									"if (currentIndex < accountIds.length) {",
+									"    pm.environment.set('current_cleanup_id', accountIds[currentIndex]);",
+									"    pm.environment.set('cleanup_index', currentIndex + 1);",
+									"    console.log('🗑️ Cleaning up account: ' + accountIds[currentIndex]);",
+									"} else {",
+									"    // Cleanup complete",
+									"    pm.environment.unset('cleanup_index');",
+									"    pm.environment.unset('current_cleanup_id');",
+									"    console.log('✅ All account cleanup completed');",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{api_key}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{corefinance_base_url}}/api/Account/{{current_cleanup_id}}",
+							"host": [
+								"{{corefinance_base_url}}"
+							],
+							"path": [
+								"api",
+								"Account",
+								"{{current_cleanup_id}}"
+							]
+						},
+						"description": "Clean up test accounts created during testing."
+					}
+				},
+				{
+					"name": "Revoke Test API Key",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"API Key revoked successfully\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"if (pm.response.code === 200) {",
+									"    // Clear API key from environment",
+									"    pm.environment.unset('api_key');",
+									"    pm.environment.unset('api_key_id');",
+									"    ",
+									"    console.log('✅ Test API Key revoked and cleaned up');",
+									"} else {",
+									"    console.log('⚠️ API Key cleanup may have failed: ' + pm.response.code);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwt_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{identity_base_url}}/api/ApiKeys/{{api_key_id}}",
+							"host": [
+								"{{identity_base_url}}"
+							],
+							"path": [
+								"api",
+								"ApiKeys",
+								"{{api_key_id}}"
+							]
+						},
+						"description": "Revoke the API key used for testing to clean up."
+					}
+				}
+			],
+			"description": "Cleanup requests to remove test data and API keys."
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Global pre-request script",
+					"",
+					"// Set default URLs if not configured",
+					"if (!pm.environment.get('base_url')) {",
+					"    pm.environment.set('base_url', 'http://localhost:5800');",
+					"}",
+					"",
+					"if (!pm.environment.get('identity_base_url')) {",
+					"    pm.environment.set('identity_base_url', 'http://localhost:5800/identity');",
+					"}",
+					"",
+					"// Set test user credentials if not exists",  
+					"if (!pm.environment.get('test_user_email')) {",
+					"    pm.environment.set('test_user_email', 'testuser@tihomo.local');",
+					"}",
+					"",
+					"if (!pm.environment.get('test_user_password')) {",
+					"    pm.environment.set('test_user_password', 'TestPassword123!');",
+					"}"
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Global test script",
+					"",
+					"// Log response time for performance monitoring",
+					"console.log('⏱️ Response time: ' + pm.response.responseTime + 'ms');",
+					"",
+					"// Check for server errors",
+					"if (pm.response.code >= 500) {",
+					"    console.log('🚨 Server error detected: ' + pm.response.code);",
+					"    console.log('Response: ' + pm.response.text());",
+					"}",
+					"",
+					"// Log API key usage for tracking",
+					"if (pm.request.headers.has('X-API-Key')) {",
+					"    const apiKey = pm.request.headers.get('X-API-Key');",
+					"    console.log('🔑 Used API Key: ' + apiKey.substring(0, 15) + '...');",
+					"}"
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "collection_version",
+			"value": "1.0.0",
+			"type": "string"
+		},
+		{
+			"key": "test_run_id",
+			"value": "{{$randomUUID}}",
+			"type": "string"
+		}
+	]
+}

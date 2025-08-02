@@ -76,6 +76,36 @@ public class AuthController(
     }
 
     /// <summary>
+    /// Basic login for testing Gateway routing (EN)<br/>
+    /// Login cơ bản để test Gateway routing (VI)
+    /// </summary>
+    [HttpPost("login")]
+    public ActionResult<LoginResponse> Login([FromBody] LoginRequest request)
+    {
+        try
+        {
+            // Simple test response for Gateway routing verification
+            return Ok(new LoginResponse
+            {
+                AccessToken = "test_token_123",
+                RefreshToken = "test_refresh_123",
+                ExpiresAt = DateTime.UtcNow.AddHours(1),
+                User = new Identity.Contracts.UserInfo
+                {
+                    Id = Guid.NewGuid(),
+                    Email = request.UsernameOrEmail,
+                    Name = "Test User"
+                }
+            });
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error during basic login test");
+            return StatusCode(500, "Internal server error");
+        }
+    }
+
+    /// <summary>
     ///     Validate access token
     /// </summary>
     [HttpPost("validate-token")]
@@ -112,7 +142,7 @@ public class AuthController(
     ///     Refresh access token using refresh token
     ///     Làm mới access token bằng refresh token
     /// </summary>
-    /// [HttpPost("refresh-token")]
+    [HttpPost("refresh-token")]
     public async Task<ActionResult<RefreshTokenResponse>> RefreshToken([FromBody] RefreshTokenRequest request)
     {
         try

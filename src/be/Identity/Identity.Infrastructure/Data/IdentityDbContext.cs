@@ -14,11 +14,11 @@ public class IdentityDbContext : DbContext
     public const string DEFAULT_CONNECTION_STRING = "IdentityDb";
 
     // ReSharper disable once NotAccessedField.Local
-    private readonly IConfiguration _configuration;
+    private readonly IConfiguration? _configuration;
 
     public IdentityDbContext()
     {
-
+        _configuration = null;
     }
     public IdentityDbContext(DbContextOptions<IdentityDbContext> options,
         IConfiguration configuration) : base(options)

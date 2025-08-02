@@ -1,5 +1,7 @@
 using Identity.Application.Common.Interfaces;
 using Identity.Application.Services.Security;
+using Identity.Domain.Entities;
+using Identity.Infrastructure.Data;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -75,12 +77,18 @@ public class EnhancedApiKeyAuthenticationMiddleware
             // Add authenticated user information to context
             SetAuthenticationContext(context, verificationResult);
 
+            // Store start time for response time calculation
+            context.Items["StartTime"] = DateTime.UtcNow;
+
             // Log successful authentication
             _logger.LogInformation("API key authenticated successfully for user {UserId} from IP {ClientIp}", 
                 verificationResult.UserId, clientIpAddress);
 
             // Continue to next middleware
             await _next(context);
+            
+            // Log API key usage after request completion
+            await LogApiKeyUsageAsync(context, verificationResult);
         }
         catch (Exception ex)
         {
@@ -195,6 +203,61 @@ public class EnhancedApiKeyAuthenticationMiddleware
     }
 
     /// <summary>
+    /// Log API key usage for analytics and monitoring (EN)<br/>
+    /// Ghi log sử dụng API key cho phân tích và giám sát (VI)
+    /// </summary>
+    private async Task LogApiKeyUsageAsync(HttpContext context, dynamic verificationResult)
+    {
+        try
+        {
+            // Get required services
+            var serviceProvider = context.RequestServices;
+            var dbContext = serviceProvider.GetService<IdentityDbContext>();
+            
+            if (dbContext == null || verificationResult.ApiKeyId == null)
+                return;
+
+            var startTime = context.Items["StartTime"] as DateTime? ?? DateTime.UtcNow;
+            var responseTime = (int)(DateTime.UtcNow - startTime).TotalMilliseconds;
+
+            // Create usage log entry
+            var usageLog = new ApiKeyUsageLog
+            {
+                Id = Guid.NewGuid(),
+                ApiKeyId = (Guid)verificationResult.ApiKeyId,
+                Timestamp = DateTime.UtcNow,
+                Method = context.Request.Method,
+                Endpoint = context.Request.Path.Value ?? string.Empty,
+                StatusCode = context.Response.StatusCode,
+                ResponseTime = responseTime,
+                IpAddress = GetClientIpAddress(context),
+                UserAgent = context.Request.Headers.UserAgent.FirstOrDefault(),
+                RequestSize = context.Request.ContentLength ?? 0,
+                ResponseSize = 0, // Will be updated in response middleware if needed
+                RequestId = context.TraceIdentifier,
+                ScopesUsed = verificationResult.Scopes ?? new List<string>(),
+                CreatedAt = DateTime.UtcNow
+            };
+
+            // Add to database
+            dbContext.ApiKeyUsageLogs.Add(usageLog);
+            await dbContext.SaveChangesAsync();
+
+            // Log successful usage tracking
+            var apiKeyId = (Guid?)verificationResult.ApiKeyId;
+            _logger.LogDebug("API key usage logged for key {ApiKeyId} - {Method} {Endpoint}", 
+                apiKeyId?.ToString() ?? "unknown", usageLog.Method, usageLog.Endpoint);
+        }
+        catch (Exception ex)
+        {
+            // Don't fail the request if logging fails
+            var apiKeyId = (Guid?)verificationResult.ApiKeyId;
+            _logger.LogWarning(ex, "Failed to log API key usage for key {ApiKeyId}", 
+                apiKeyId?.ToString() ?? "unknown");
+        }
+    }
+
+    /// <summary>
     /// Check if authentication should be skipped for this request (EN)<br/>
     /// Kiểm tra có nên bỏ qua xác thực cho request này không (VI)
     /// </summary>
@@ -202,18 +265,29 @@ public class EnhancedApiKeyAuthenticationMiddleware
     {
         var path = context.Request.Path.Value?.ToLowerInvariant();
         
+        // Debug logging to understand path issues
+        _logger.LogDebug("API Key middleware checking path: {Path}", path);
+        
         // Skip authentication for public endpoints
         var publicPaths = new[]
         {
             "/health",
             "/swagger",
             "/api/auth/login",
-            "/api/auth/register",
+            "/api/auth/register", 
             "/api/auth/refresh",
-            "/api/public/"
+            "/api/public/",
+            "/metrics",
+            // Handle duplicate API path from Gateway routing
+            "/api/api/auth/login",
+            "/api/api/auth/register",
+            "/api/api/auth/refresh"
         };
 
-        return publicPaths.Any(publicPath => path?.StartsWith(publicPath) == true);
+        var shouldSkip = publicPaths.Any(publicPath => path?.StartsWith(publicPath) == true);
+        _logger.LogDebug("Should skip authentication for path {Path}: {ShouldSkip}", path, shouldSkip);
+        
+        return shouldSkip;
     }
 
     /// <summary>
