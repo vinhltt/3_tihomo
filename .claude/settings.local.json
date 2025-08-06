@@ -66,7 +66,16 @@
       "mcp__serena__list_memories",
       "mcp__serena__insert_after_symbol",
       "Bash(grep:*)",
-      "Bash(rg:*)"
+      "Bash(rg:*)",
+      "Bash(newman:*)",
+      "Bash(docker inspect:*)",
+      "Bash(cp:*)",
+      "Bash(copy:*)",
+      "Bash(docker-compose build:*)",
+      "Bash(sed:*)",
+      "Bash(winpty docker exec -it tihomo-identity-api printenv)",
+      "Bash(docker-compose down:*)",
+      "Bash(docker-compose:*)"
     ],
     "deny": []
   },
