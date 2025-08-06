@@ -421,7 +421,7 @@
 </template>
 
 <script setup lang="ts">
-import type { TransactionViewModel, TransactionCreateRequest, TransactionUpdateRequest } from '~/types/transaction'
+import type { TransactionViewModel, TransactionCreateRequest, TransactionUpdateRequest, TransactionDirectionType } from '~/types/transaction'
 import type { AccountViewModel } from '~/types/account'
 import { TransactionDirection, CategoryType } from '~/types/transaction'
 
@@ -431,13 +431,13 @@ interface Props {
   transaction?: TransactionViewModel | null
   accounts: AccountViewModel[]
   mode: 'create' | 'edit' | 'view'
-  defaultDirection?: number
+  defaultDirection?: TransactionDirectionType
   defaultAccountId?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
   transaction: null,
-  defaultDirection: TransactionDirection.Spent,
+  defaultDirection: TransactionDirection.Spent as TransactionDirectionType,
   defaultAccountId: ''
 })
 
