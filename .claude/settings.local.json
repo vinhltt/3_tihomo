@@ -81,7 +81,7 @@
   },
   "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
-    "mem0",
-    "MCP_DOCKER"
+    "MCP_DOCKER",
+    "serena"
   ]
 }

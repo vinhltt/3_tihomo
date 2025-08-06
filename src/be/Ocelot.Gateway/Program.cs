@@ -22,7 +22,8 @@ try
     builder.Configuration
         .SetBasePath(builder.Environment.ContentRootPath)
         .AddJsonFile("appsettings.json", false, true)
-        .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", true, true)        .AddEnvironmentVariables();
+        .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", true, true)
+        .AddEnvironmentVariables();
 
     // TEMPORARY: Simplified config loading for debugging
     // Just load the Development config directly
@@ -151,6 +152,7 @@ try
                    (path.StartsWith("/identity") ||
                     path.StartsWith("/sso") ||
                     path.StartsWith("/auth") ||
+                    path.StartsWith("/api/identity") ||
                     path.StartsWith("/api/users") ||
                     path.StartsWith("/api/admin") ||
                     path.StartsWith("/api/core-finance") ||

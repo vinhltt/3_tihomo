@@ -74,16 +74,17 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"email\": \"{{test_user_email}}\",\n    \"password\": \"{{test_user_password}}\"\n}"
+							"raw": "{\n    \"username\": \"{{test_user_email}}\",\n    \"password\": \"{{test_user_password}}\"\n}"
 						},
 						"url": {
-							"raw": "{{identity_base_url}}/api/identity/Auth/login",
+							"raw": "{{base_url}}/api/identity/auth/login",
 							"host": [
-								"{{identity_base_url}}"
+								"{{base_url}}"
 							],
 							"path": [
 								"api",
-								"Auth",
+								"identity",
+								"auth",
 								"login"
 							]
 						},
@@ -135,14 +136,15 @@
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{identity_base_url}}/api/Auth/profile",
+							"raw": "{{base_url}}/api/identity/users/me",
 							"host": [
-								"{{identity_base_url}}"
+								"{{base_url}}"
 							],
 							"path": [
 								"api",
-								"Auth",
-								"profile"
+								"identity", 
+								"users",
+								"me"
 							]
 						},
 						"description": "Verify that the JWT token is valid by accessing a protected endpoint."
@@ -241,13 +243,13 @@
 							"raw": "{\n    \"name\": \"{{current_api_key_name}}\",\n    \"description\": \"API Key created for Postman testing\",\n    \"scopes\": [\"read\", \"write\"],\n    \"expiresAt\": \"{{$isoTimestamp}}\",\n    \"rateLimitPerMinute\": 100,\n    \"dailyUsageQuota\": 10000,\n    \"allowedIpAddresses\": [\"127.0.0.1\", \"::1\"]\n}"
 						},
 						"url": {
-							"raw": "{{identity_base_url}}/api/ApiKeys",
+							"raw": "{{base_url}}/api/identity/apikeys",
 							"host": [
-								"{{identity_base_url}}"
+								"{{base_url}}"
 							],
 							"path": [
 								"api",
-								"ApiKeys"
+								"apikeys"
 							]
 						},
 						"description": "Create a new API key with comprehensive security settings including rate limiting and IP whitelisting."
@@ -314,13 +316,13 @@
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{identity_base_url}}/api/ApiKeys",
+							"raw": "{{base_url}}/api/identity/apikeys",
 							"host": [
-								"{{identity_base_url}}"
+								"{{base_url}}"
 							],
 							"path": [
 								"api",
-								"ApiKeys"
+								"apikeys"
 							]
 						},
 						"description": "Retrieve all API keys for the current authenticated user."
@@ -381,13 +383,13 @@
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{identity_base_url}}/api/ApiKeys/{{api_key_id}}",
+							"raw": "{{base_url}}/api/identity/apikeys/{{api_key_id}}",
 							"host": [
-								"{{identity_base_url}}"
+								"{{base_url}}"
 							],
 							"path": [
 								"api",
-								"ApiKeys",
+								"apikeys",
 								"{{api_key_id}}"
 							]
 						},
@@ -446,13 +448,13 @@
 							"raw": "\"{{api_key}}\""
 						},
 						"url": {
-							"raw": "{{identity_base_url}}/api/ApiKeys/validate",
+							"raw": "{{base_url}}/api/identity/apikeys/validate",
 							"host": [
-								"{{identity_base_url}}"
+								"{{base_url}}"
 							],
 							"path": [
 								"api",
-								"ApiKeys",
+								"apikeys",
 								"validate"
 							]
 						},
@@ -508,13 +510,13 @@
 						"method": "DELETE",
 						"header": [],
 						"url": {
-							"raw": "{{identity_base_url}}/api/ApiKeys/{{api_key_id}}",
+							"raw": "{{base_url}}/api/identity/apikeys/{{api_key_id}}",
 							"host": [
-								"{{identity_base_url}}"
+								"{{base_url}}"
 							],
 							"path": [
 								"api",
-								"ApiKeys",
+								"apikeys",
 								"{{api_key_id}}"
 							]
 						},
@@ -573,13 +575,13 @@
 							"raw": "{\n    \"name\": \"\",\n    \"description\": \"Invalid API key with empty name\",\n    \"rateLimitPerMinute\": -1,\n    \"dailyUsageQuota\": -1000\n}"
 						},
 						"url": {
-							"raw": "{{identity_base_url}}/api/ApiKeys",
+							"raw": "{{base_url}}/api/identity/apikeys",
 							"host": [
-								"{{identity_base_url}}"
+								"{{base_url}}"
 							],
 							"path": [
 								"api",
-								"ApiKeys"
+								"apikeys"
 							]
 						},
 						"description": "Test API key creation with invalid data to ensure proper validation."
@@ -616,13 +618,13 @@
 							"raw": "\"invalid_api_key_12345\""
 						},
 						"url": {
-							"raw": "{{identity_base_url}}/api/ApiKeys/validate",
+							"raw": "{{base_url}}/api/identity/apikeys/validate",
 							"host": [
-								"{{identity_base_url}}"
+								"{{base_url}}"
 							],
 							"path": [
 								"api",
-								"ApiKeys",
+								"apikeys",
 								"validate"
 							]
 						},
@@ -651,13 +653,13 @@
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{identity_base_url}}/api/ApiKeys",
+							"raw": "{{base_url}}/api/identity/apikeys",
 							"host": [
-								"{{identity_base_url}}"
+								"{{base_url}}"
 							],
 							"path": [
 								"api",
-								"ApiKeys"
+								"apikeys"
 							]
 						},
 						"description": "Test access to API Key endpoints without JWT authentication."
@@ -723,13 +725,13 @@
 							"raw": "{\n    \"name\": \"Rate Limited Test Key\",\n    \"description\": \"API Key with very low rate limit for testing\",\n    \"scopes\": [\"read\"],\n    \"rateLimitPerMinute\": 1,\n    \"dailyUsageQuota\": 100,\n    \"allowedIpAddresses\": [\"127.0.0.1\"]\n}"
 						},
 						"url": {
-							"raw": "{{identity_base_url}}/api/ApiKeys",
+							"raw": "{{base_url}}/api/identity/apikeys",
 							"host": [
-								"{{identity_base_url}}"
+								"{{base_url}}"
 							],
 							"path": [
 								"api",
-								"ApiKeys"
+								"apikeys"
 							]
 						},
 						"description": "Create an API key with very restrictive rate limits for security testing."
@@ -791,13 +793,13 @@
 							"raw": "{\n    \"name\": \"IP Restricted Test Key\",\n    \"description\": \"API Key restricted to specific IP addresses\",\n    \"scopes\": [\"read\", \"write\"],\n    \"rateLimitPerMinute\": 100,\n    \"dailyUsageQuota\": 1000,\n    \"allowedIpAddresses\": [\"192.168.1.1\", \"10.0.0.1\"]\n}"
 						},
 						"url": {
-							"raw": "{{identity_base_url}}/api/ApiKeys",
+							"raw": "{{base_url}}/api/identity/apikeys",
 							"host": [
-								"{{identity_base_url}}"
+								"{{base_url}}"
 							],
 							"path": [
 								"api",
-								"ApiKeys"
+								"apikeys"
 							]
 						},
 						"description": "Create an API key with IP address restrictions for security testing."
@@ -844,13 +846,13 @@
 						"method": "DELETE",
 						"header": [],
 						"url": {
-							"raw": "{{identity_base_url}}/api/ApiKeys/{{rate_limited_api_key_id}}",
+							"raw": "{{base_url}}/api/identity/apikeys/{{rate_limited_api_key_id}}",
 							"host": [
-								"{{identity_base_url}}"
+								"{{base_url}}"
 							],
 							"path": [
 								"api",
-								"ApiKeys",
+								"apikeys",
 								"{{rate_limited_api_key_id}}"
 							]
 						},
@@ -892,13 +894,13 @@
 						"method": "DELETE",
 						"header": [],
 						"url": {
-							"raw": "{{identity_base_url}}/api/ApiKeys/{{ip_restricted_api_key_id}}",
+							"raw": "{{base_url}}/api/identity/apikeys/{{ip_restricted_api_key_id}}",
 							"host": [
-								"{{identity_base_url}}"
+								"{{base_url}}"
 							],
 							"path": [
 								"api",
-								"ApiKeys",
+								"apikeys",
 								"{{ip_restricted_api_key_id}}"
 							]
 						},

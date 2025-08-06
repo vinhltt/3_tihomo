@@ -9,7 +9,7 @@
           "Port": "5001"
         }
       ],
-      "UpstreamPathTemplate": "/identity/{everything}",
+      "UpstreamPathTemplate": "/api/identity/{everything}",
       "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE", "OPTIONS" ],
       "RouteClaimsRequirement": {},
       "RateLimitOptions": {

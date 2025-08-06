@@ -403,7 +403,7 @@ services:
       - excel-api
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
-      interval: 30s
+      interval: 600s
       timeout: 10s
       retries: 3
 

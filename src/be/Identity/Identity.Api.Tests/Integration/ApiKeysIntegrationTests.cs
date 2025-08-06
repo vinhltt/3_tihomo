@@ -112,7 +112,7 @@ public class ApiKeysIntegrationTests : IClassFixture<WebApplicationFactory<Progr
     private async Task<string> GenerateJwtTokenAsync(Guid userId)
     {
         var loginRequest = new LoginRequest(
-            Email: _testUser.Email,
+            Username: _testUser.Email,
             Password: "TestPassword123!"
         );
 

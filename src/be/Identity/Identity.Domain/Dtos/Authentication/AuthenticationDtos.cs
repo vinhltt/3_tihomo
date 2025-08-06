@@ -1,6 +1,6 @@
 namespace Identity.Domain.Dtos.Authentication;
 
-public record LoginRequest(string UsernameOrEmail, string Password);
+public record LoginRequest(string Username, string Password);
 
 public record GoogleLoginRequest(string IdToken);
 

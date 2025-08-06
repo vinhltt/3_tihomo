@@ -76,31 +76,43 @@ public class AuthController(
     }
 
     /// <summary>
-    /// Basic login for testing Gateway routing (EN)<br/>
-    /// Login cơ bản để test Gateway routing (VI)
+    /// Basic login with real JWT token generation (EN)<br/>
+    /// Login cơ bản với tạo JWT token thật (VI)
     /// </summary>
     [HttpPost("login")]
-    public ActionResult<LoginResponse> Login([FromBody] LoginRequest request)
+    public async Task<ActionResult<LoginResponse>> Login([FromBody] LoginRequest request)
     {
         try
         {
-            // Simple test response for Gateway routing verification
+            // Create a test user for JWT generation
+            var testUser = new Identity.Domain.Entities.User
+            {
+                Id = Guid.NewGuid(),
+                Email = request.Username,
+                Username = request.Username,
+                Name = "Test User",
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            // Generate real JWT token
+            var accessToken = jwtService.GenerateAccessToken(testUser);
+            var tokenExpiration = jwtService.GetTokenExpiration();
+
+            // Map to response user info
+            var userInfo = await userService.MapToUserInfoAsync(testUser);
+
             return Ok(new LoginResponse
             {
-                AccessToken = "test_token_123",
-                RefreshToken = "test_refresh_123",
-                ExpiresAt = DateTime.UtcNow.AddHours(1),
-                User = new Identity.Contracts.UserInfo
-                {
-                    Id = Guid.NewGuid(),
-                    Email = request.UsernameOrEmail,
-                    Name = "Test User"
-                }
+                AccessToken = accessToken,
+                RefreshToken = "test_refresh_123", // TODO: Generate real refresh token
+                ExpiresAt = tokenExpiration,
+                User = userInfo
             });
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error during basic login test");
+            logger.LogError(ex, "Error during login");
             return StatusCode(500, "Internal server error");
         }
     }

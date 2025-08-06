@@ -11,8 +11,8 @@ using System.Text.Json;
 namespace Identity.Api.Middleware;
 
 /// <summary>
-/// Enhanced API Key Authentication Middleware - Middleware xác thực API key nâng cao (EN)<br/>
-/// Middleware xác thực khóa API nâng cao (VI)
+/// Enhanced Hybrid Authentication Middleware - Supports both JWT and API Key authentication (EN)<br/>
+/// Middleware xác thực Hybrid nâng cao - Hỗ trợ cả JWT và API Key authentication (VI)
 /// </summary>
 public class EnhancedApiKeyAuthenticationMiddleware
 {
@@ -34,13 +34,13 @@ public class EnhancedApiKeyAuthenticationMiddleware
     }
 
     /// <summary>
-    /// Process HTTP request with enhanced API key validation (EN)<br/>
-    /// Xử lý HTTP request với xác thực khóa API nâng cao (VI)
+    /// Process HTTP request with hybrid authentication support (JWT + API Key) (EN)<br/>
+    /// Xử lý HTTP request với hỗ trợ xác thực hybrid (JWT + API Key) (VI)
     /// </summary>
     public async Task InvokeAsync(HttpContext context)
     {
-        // Skip authentication for certain paths
-        if (ShouldSkipAuthentication(context))
+        // Skip authentication for certain paths OR if JWT token detected
+        if (ShouldSkipAuthenticationOrDelegateToJwt(context))
         {
             await _next(context);
             return;
@@ -258,6 +258,57 @@ public class EnhancedApiKeyAuthenticationMiddleware
     }
 
     /// <summary>
+    /// Check if authentication should be skipped OR delegated to JWT middleware (EN)<br/>
+    /// Kiểm tra có nên bỏ qua xác thực hoặc ủy quyền cho JWT middleware không (VI)
+    /// </summary>
+    private bool ShouldSkipAuthenticationOrDelegateToJwt(HttpContext context)
+    {
+        // First check if it's a public path that should always skip
+        if (ShouldSkipAuthentication(context))
+        {
+            return true;
+        }
+
+        // Check if this is a JWT Bearer token that should be handled by JWT middleware
+        var authHeader = context.Request.Headers.Authorization.FirstOrDefault();
+        if (!string.IsNullOrEmpty(authHeader) && authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+        {
+            var token = authHeader.Substring("Bearer ".Length).Trim();
+            if (IsJwtFormat(token))
+            {
+                _logger.LogDebug("JWT Bearer token detected, delegating to JWT middleware. Token prefix: {TokenPrefix}", 
+                    token.Substring(0, Math.Min(20, token.Length)) + "...");
+                return true; // Let JWT middleware handle this
+            }
+        }
+
+        return false; // Continue with API Key authentication
+    }
+
+    /// <summary>
+    /// Determine if a token has JWT format (EN)<br/>
+    /// Xác định xem token có định dạng JWT không (VI)
+    /// </summary>
+    private bool IsJwtFormat(string token)
+    {
+        if (string.IsNullOrWhiteSpace(token))
+            return false;
+
+        // JWT has exactly 3 parts separated by dots (header.payload.signature)
+        var parts = token.Split('.');
+        if (parts.Length != 3)
+            return false;
+
+        // API Keys typically start with our prefix, so exclude those
+        if (token.StartsWith("tihomo_", StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        // Additional validation: each part should be non-empty and Base64-like
+        return parts.All(part => !string.IsNullOrWhiteSpace(part) && 
+                                part.All(c => char.IsLetterOrDigit(c) || c == '-' || c == '_'));
+    }
+
+    /// <summary>
     /// Check if authentication should be skipped for this request (EN)<br/>
     /// Kiểm tra có nên bỏ qua xác thực cho request này không (VI)
     /// </summary>
@@ -276,12 +327,14 @@ public class EnhancedApiKeyAuthenticationMiddleware
             "/api/auth/login",
             "/api/auth/register", 
             "/api/auth/refresh",
+            "/api/auth/social-login",    // Allow social login without auth
             "/api/public/",
             "/metrics",
             // Handle duplicate API path from Gateway routing
             "/api/api/auth/login",
             "/api/api/auth/register",
-            "/api/api/auth/refresh"
+            "/api/api/auth/refresh",
+            "/api/api/auth/social-login"
         };
 
         var shouldSkip = publicPaths.Any(publicPath => path?.StartsWith(publicPath) == true);
