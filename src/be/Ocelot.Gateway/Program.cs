@@ -13,6 +13,12 @@ Log.Logger = new LoggerConfiguration()
     .WriteTo.File("logs/gateway-.txt", rollingInterval: RollingInterval.Day)
     .CreateLogger();
 
+JsonSerializerOptions options = new()
+{
+    PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+    WriteIndented = true
+};
+
 try
 {
     var builder = WebApplication.CreateBuilder(args);
@@ -30,8 +36,8 @@ try
     builder.Configuration.AddJsonFile($"ocelot.{builder.Environment.EnvironmentName}.json", false, true);
 
     // Read service ports configuration
-    // var servicePorts = builder.Configuration.GetSection("ServicePorts").Get<Dictionary<string, int>>() ??
-    //                    new Dictionary<string, int>();
+    var servicePorts = builder.Configuration.GetSection("ServicePorts").Get<Dictionary<string, int>>() ??
+                       [];
 
     // Read ocelot.json and replace environment variables with actual port values
     // var ocelotConfig = File.ReadAllText(Path.Combine(builder.Environment.ContentRootPath, "ocelot.json"));
@@ -67,7 +73,7 @@ try
         });
 
     // Add authentication and authorization
-    builder.Services.AddJwtAuthentication(jwtSettings);
+    builder.Services.AddAuthentication(jwtSettings);
     builder.Services.AddAuthorizationPolicies();
 
     // Add CORS
@@ -78,6 +84,14 @@ try
 
     // Add memory cache
     builder.Services.AddMemoryCache();
+
+    // Add HttpClient for Identity service communication
+    builder.Services.AddHttpClient("IdentityService", client =>
+    {
+        client.BaseAddress = new Uri("http://localhost:5001/"); // Identity service URL (corrected port)
+        client.Timeout = TimeSpan.FromSeconds(30);
+        client.DefaultRequestHeaders.Add("User-Agent", "TiHoMo-Gateway/1.0");
+    });
 
     // Add Ocelot
     builder.Services.AddOcelot(builder.Configuration);
@@ -133,11 +147,7 @@ try
                 }),
                 Timestamp = DateTime.UtcNow
             };
-            await context.Response.WriteAsync(JsonSerializer.Serialize(response, new JsonSerializerOptions
-            {
-                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-                WriteIndented = true
-            }));        }
+            await context.Response.WriteAsync(JsonSerializer.Serialize(response, options));        }
     }); 
     
     // Use middleware to conditionally apply Ocelot

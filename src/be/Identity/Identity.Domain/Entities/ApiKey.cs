@@ -34,8 +34,8 @@ public class ApiKey : BaseEntity<Guid>
     public string KeyHash { get; set; } = string.Empty;
     
     /// <summary>
-    /// Key Prefix - Prefix của API key (pfm_xxxxx) (EN)<br/>
-    /// Prefix của khóa API (pfm_xxxxx) (VI)
+    /// Key Prefix - Prefix của API key (tihomo_xxxxx) (EN)<br/>
+    /// Prefix của khóa API (tihomo_xxxxx) (VI)
     /// </summary>
     [Required]
     [StringLength(20)]

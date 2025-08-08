@@ -323,7 +323,7 @@ public class IdentityDbContext : DbContext
     {
         if (optionsBuilder.IsConfigured)
             return;
-        var connectionString = _configuration.GetConnectionString(DEFAULT_CONNECTION_STRING);
+        var connectionString = _configuration!.GetConnectionString(DEFAULT_CONNECTION_STRING);
         optionsBuilder.UseNpgsql(connectionString);
     }
 

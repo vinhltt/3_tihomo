@@ -3,6 +3,7 @@ using Identity.Domain.Enums;
 using Identity.Domain.Repositories;
 using Identity.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
+using System;
 
 namespace Identity.Infrastructure.Repositories;
 
@@ -18,7 +19,7 @@ public class ApiKeyRepository(IdentityDbContext context) : BaseRepository<ApiKey
     public async Task<IEnumerable<ApiKey>> GetByUserIdAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         return await DbSet
-            .Where(ak => ak.UserId == userId)
+            .Where(ak => ak.UserId == userId && ak.Status == ApiKeyStatus.Active)
             .OrderByDescending(ak => ak.CreatedAt)
             .ToListAsync(cancellationToken);
     }

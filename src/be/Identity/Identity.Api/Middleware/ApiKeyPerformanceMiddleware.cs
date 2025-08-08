@@ -8,10 +8,8 @@ namespace Identity.Api.Middleware;
 /// Middleware for monitoring API Key performance metrics - Middleware giám sát hiệu suất API Key (EN)<br/>
 /// Middleware giám sát hiệu suất API Key (VI)
 /// </summary>
-public class ApiKeyPerformanceMiddleware
+public class ApiKeyPerformanceMiddleware(RequestDelegate next, ILogger<ApiKeyPerformanceMiddleware> logger)
 {
-    private readonly RequestDelegate _next;
-    private readonly ILogger<ApiKeyPerformanceMiddleware> _logger;
 
     // Performance counters using Meter
     private static readonly Meter _meter = new("TiHoMo.Identity.ApiKey", "1.0.0");
@@ -24,18 +22,12 @@ public class ApiKeyPerformanceMiddleware
     private static readonly Counter<long> _apiKeyValidationErrorsCounter = 
         _meter.CreateCounter<long>("api_key_validation_errors_total", "errors", "Total number of API key validation errors");
 
-    public ApiKeyPerformanceMiddleware(RequestDelegate next, ILogger<ApiKeyPerformanceMiddleware> logger)
-    {
-        _next = next;
-        _logger = logger;
-    }
-
     public async Task InvokeAsync(HttpContext context)
     {
         // Skip non-API requests
         if (!context.Request.Path.StartsWithSegments("/api"))
         {
-            await _next(context);
+            await next(context);
             return;
         }
 
@@ -44,7 +36,7 @@ public class ApiKeyPerformanceMiddleware
         
         if (!hasApiKey)
         {
-            await _next(context);
+            await next(context);
             return;
         }
 
@@ -56,7 +48,7 @@ public class ApiKeyPerformanceMiddleware
             activity?.SetTag("http.path", context.Request.Path);
             activity?.SetTag("client.ip", GetClientIpAddress(context));
 
-            await _next(context);
+            await next(context);
 
             stopwatch.Stop();
 
@@ -72,17 +64,17 @@ public class ApiKeyPerformanceMiddleware
                 new KeyValuePair<string, object?>("status", "success"));
 
             // Add performance headers
-            context.Response.Headers.Add("X-API-Key-Auth-Time", authDuration.ToString("F2"));
+            context.Response.Headers.Append("X-API-Key-Auth-Time", authDuration.ToString("F2"));
             
             if (apiKeyId.HasValue)
             {
-                context.Response.Headers.Add("X-API-Key-ID", apiKeyId.Value.ToString());
+                context.Response.Headers.Append("X-API-Key-ID", apiKeyId.Value.ToString());
             }
 
             // Log slow requests
             if (authDuration > 1000) // More than 1 second
             {
-                _logger.LogWarning("Slow API key authentication detected: {Duration}ms for {Method} {Path} from {ClientIP}",
+                logger.LogWarning("Slow API key authentication detected: {Duration}ms for {Method} {Path} from {ClientIP}",
                     authDuration, context.Request.Method, context.Request.Path, GetClientIpAddress(context));
             }
 
@@ -108,7 +100,7 @@ public class ApiKeyPerformanceMiddleware
             _apiKeyAuthDuration.Record(stopwatch.Elapsed.TotalMilliseconds, 
                 new KeyValuePair<string, object?>("status", "error"));
 
-            _logger.LogError(ex, "API key authentication error after {Duration}ms: {ErrorType}",
+            logger.LogError(ex, "API key authentication error after {Duration}ms: {ErrorType}",
                 stopwatch.Elapsed.TotalMilliseconds, errorType);
 
             throw;
@@ -123,7 +115,7 @@ public class ApiKeyPerformanceMiddleware
 
         // Check Authorization header with ApiKey scheme
         var authHeader = context.Request.Headers.Authorization.FirstOrDefault();
-        if (!string.IsNullOrEmpty(authHeader) && authHeader.StartsWith("Bearer pfm_"))
+        if (!string.IsNullOrEmpty(authHeader) && authHeader.StartsWith("Bearer tihomo_"))
             return true;
 
         // Check query parameter

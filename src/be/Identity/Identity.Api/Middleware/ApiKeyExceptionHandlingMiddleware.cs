@@ -9,30 +9,27 @@ namespace Identity.Api.Middleware;
 /// Middleware for handling API Key specific exceptions - Middleware xử lý các ngoại lệ cụ thể của API Key (EN)<br/>
 /// Middleware xử lý các ngoại lệ cụ thể của API Key (VI)
 /// </summary>
-public class ApiKeyExceptionHandlingMiddleware
+public class ApiKeyExceptionHandlingMiddleware(RequestDelegate next, ILogger<ApiKeyExceptionHandlingMiddleware> logger)
 {
-    private readonly RequestDelegate _next;
-    private readonly ILogger<ApiKeyExceptionHandlingMiddleware> _logger;
-
-    public ApiKeyExceptionHandlingMiddleware(RequestDelegate next, ILogger<ApiKeyExceptionHandlingMiddleware> logger)
-    {
-        _next = next;
-        _logger = logger;
-    }
-
     public async Task InvokeAsync(HttpContext context)
     {
         try
         {
-            await _next(context);
+            await next(context);
         }
         catch (Exception ex)
         {
-            await HandleExceptionAsync(context, ex);
+            await HandleExceptionAsync(context, ex, GetOptions());
         }
     }
 
-    private async Task HandleExceptionAsync(HttpContext context, Exception exception)
+    private JsonSerializerOptions GetOptions() => new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        WriteIndented = true
+    };
+
+    private async Task HandleExceptionAsync(HttpContext context, Exception exception, JsonSerializerOptions options)
     {
         var response = context.Response;
         response.ContentType = "application/json";
@@ -143,10 +140,10 @@ public class ApiKeyExceptionHandlingMiddleware
         // Add rate limiting headers for RateLimitExceededException
         if (exception is RateLimitExceededException rateLimitEx)
         {
-            response.Headers.Add("Retry-After", rateLimitEx.RetryAfter.TotalSeconds.ToString());
-            response.Headers.Add("X-RateLimit-Limit", rateLimitEx.Limit.ToString());
-            response.Headers.Add("X-RateLimit-Remaining", Math.Max(0, rateLimitEx.Limit - rateLimitEx.CurrentUsage).ToString());
-            response.Headers.Add("X-RateLimit-Reset", DateTimeOffset.UtcNow.Add(rateLimitEx.RetryAfter).ToUnixTimeSeconds().ToString());
+            response.Headers.Append("Retry-After", rateLimitEx.RetryAfter.TotalSeconds.ToString());
+            response.Headers.Append("X-RateLimit-Limit", rateLimitEx.Limit.ToString());
+            response.Headers.Append("X-RateLimit-Remaining", Math.Max(0, rateLimitEx.Limit - rateLimitEx.CurrentUsage).ToString());
+            response.Headers.Append("X-RateLimit-Reset", DateTimeOffset.UtcNow.Add(rateLimitEx.RetryAfter).ToUnixTimeSeconds().ToString());
         }
 
         // Log the exception with appropriate level
@@ -162,14 +159,10 @@ public class ApiKeyExceptionHandlingMiddleware
             _ => LogLevel.Error
         };
 
-        _logger.Log(logLevel, exception, "API Key exception handled: {ExceptionType} - {Message}", 
+        logger.Log(logLevel, exception, "API Key exception handled: {ExceptionType} - {Message}", 
             exception.GetType().Name, exception.Message);
 
-        var jsonResponse = JsonSerializer.Serialize(problemDetails, new JsonSerializerOptions
-        {
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-            WriteIndented = true
-        });
+        var jsonResponse = JsonSerializer.Serialize(problemDetails, options);
 
         await response.WriteAsync(jsonResponse);
     }

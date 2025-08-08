@@ -62,7 +62,7 @@ public class EnhancedApiKeyServiceTests
         _mockUserRepository.Setup(x => x.GetByIdAsync(_testUserId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(user);
         _mockApiKeyRepository.Setup(x => x.GetByUserIdAsync(_testUserId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<ApiKey>());
+            .ReturnsAsync([]);
         _mockApiKeyHasher.Setup(x => x.HashApiKey(It.IsAny<string>()))
             .Returns("hashedkey");
         _mockIpValidationService.Setup(x => x.ValidateIpWhitelist(It.IsAny<List<string>>()))
@@ -75,7 +75,7 @@ public class EnhancedApiKeyServiceTests
         result.Should().NotBeNull();
         result.Name.Should().Be(request.Name);
         result.Description.Should().Be(request.Description);
-        result.ApiKey.Should().StartWith("pfm_");
+        result.ApiKey.Should().StartWith("tihomo_");
         _mockApiKeyRepository.Verify(x => x.AddAsync(It.IsAny<ApiKey>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -135,7 +135,7 @@ public class EnhancedApiKeyServiceTests
     public async Task VerifyApiKeyAsync_WhenValidKey_ShouldReturnValidResponse()
     {
         // Arrange
-        var rawApiKey = "pfm_validkey12345";
+        var rawApiKey = "tihomo_validkey12345";
         var hashedKey = "hashedkey";
         var clientIp = "192.168.1.1";
         var user = new User { Id = _testUserId, IsActive = true };
@@ -185,7 +185,7 @@ public class EnhancedApiKeyServiceTests
     public async Task VerifyApiKeyAsync_WhenKeyNotFound_ShouldReturnInvalidResponse()
     {
         // Arrange
-        var rawApiKey = "pfm_notfoundkey12345";
+        var rawApiKey = "tihomo_notfoundkey12345";
         var hashedKey = "hashedkey";
         var clientIp = "192.168.1.1";
 
@@ -206,7 +206,7 @@ public class EnhancedApiKeyServiceTests
     public async Task VerifyApiKeyAsync_WhenRateLimitExceeded_ShouldReturnInvalidResponse()
     {
         // Arrange
-        var rawApiKey = "pfm_validkey12345";
+        var rawApiKey = "tihomo_validkey12345";
         var hashedKey = "hashedkey";
         var clientIp = "192.168.1.1";
         var user = new User { Id = _testUserId, IsActive = true };
@@ -225,7 +225,7 @@ public class EnhancedApiKeyServiceTests
             .ReturnsAsync(apiKey);
         _mockUserRepository.Setup(x => x.GetByIdAsync(_testUserId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(user);
-        _mockRateLimitingService.Setup(x => x.IsRateLimitExceededAsync(_testApiKeyId, It.IsAny<int>()))
+        _mockRateLimitingService.Setup(x => x.IsRateLimitExceededAsync(_testApiKeyId, It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
         // Act
@@ -328,7 +328,7 @@ public class EnhancedApiKeyServiceTests
         var apiKey = new ApiKey
         {
             Id = _testApiKeyId,
-            KeyPrefix = "pfm_oldkey",
+            KeyPrefix = "tihomo_oldkey",
             KeyHash = "oldhash"
         };
 
@@ -343,8 +343,8 @@ public class EnhancedApiKeyServiceTests
         // Assert
         result.Should().NotBeNull();
         result.Id.Should().Be(_testApiKeyId);
-        result.NewApiKey.Should().StartWith("pfm_");
-        result.OldKeyPrefix.Should().Be("pfm_oldkey");
+        result.NewApiKey.Should().StartWith("tihomo_");
+        result.OldKeyPrefix.Should().Be("tihomo_oldkey");
         apiKey.KeyHash.Should().Be("newhash");
         _mockApiKeyRepository.Verify(x => x.UpdateAsync(apiKey, It.IsAny<CancellationToken>()), Times.Once);
     }

@@ -112,20 +112,6 @@ public class RecurringTransactionTemplateViewModel : BaseViewModel<Guid>
     public string? Notes { get; set; }
 
     /// <summary>
-    ///     The creation date and time of the template. (EN)<br />
-    ///     Ngày và giờ tạo mẫu. (VI)
-    /// </summary>
-    public DateTime CreatedAt { get; set; }
-
-    /// <summary>
-    ///     The last update date and time of the template. (EN)<br />
-    ///     Ngày và giờ cập nhật cuối cùng của mẫu. (VI)
-    /// </summary>
-    public DateTime UpdatedAt { get; set; }
-
-    // Navigation properties
-
-    /// <summary>
     ///     The name of the associated account. (EN)<br />
     ///     Tên của tài khoản liên kết. (VI)
     /// </summary>

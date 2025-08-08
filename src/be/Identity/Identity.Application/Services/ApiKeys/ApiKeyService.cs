@@ -262,7 +262,7 @@ public class ApiKeyService(
             .Replace('/', '_')
             .TrimEnd('=');
 
-        return $"pfm_{base64}";
+        return $"tihomo_{base64}";
     }
 
     private static ApiKeyResponse MapToApiKeyResponse(ApiKey apiKey)

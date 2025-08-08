@@ -156,20 +156,6 @@ public class Transaction : BaseEntity<Guid>
     public string? Group { get; set; }
 
     /// <summary>
-    ///     Created date (EN)<br />
-    ///     Ngày tạo giao dịch (VI)
-    /// </summary>
-    [Required]
-    public DateTime CreatedAt { get; set; }
-
-    /// <summary>
-    ///     Last updated date (EN)<br />
-    ///     Ngày cập nhật cuối cùng (VI)
-    /// </summary>
-    [Required]
-    public DateTime UpdatedAt { get; set; }
-
-    /// <summary>
     ///     Navigation property: link to account (EN)<br />
     ///     Thuộc tính điều hướng: liên kết với tài khoản (VI)
     /// </summary>

@@ -14,24 +14,16 @@ namespace Identity.Api.Middleware;
 /// Enhanced Hybrid Authentication Middleware - Supports both JWT and API Key authentication (EN)<br/>
 /// Middleware xác thực Hybrid nâng cao - Hỗ trợ cả JWT và API Key authentication (VI)
 /// </summary>
-public class EnhancedApiKeyAuthenticationMiddleware
+/// <remarks>
+/// Constructor for Enhanced API Key Authentication Middleware (EN)<br/>
+/// Constructor cho Middleware xác thực khóa API nâng cao (VI)
+/// </remarks>
+public class EnhancedApiKeyAuthenticationMiddleware(
+    RequestDelegate next,
+    ILogger<EnhancedApiKeyAuthenticationMiddleware> logger)
 {
-    private readonly RequestDelegate _next;
-    private readonly ILogger<EnhancedApiKeyAuthenticationMiddleware> _logger;
     private const string ApiKeyHeaderName = "X-API-Key";
     private const string ApiKeyQueryParam = "api_key";
-
-    /// <summary>
-    /// Constructor for Enhanced API Key Authentication Middleware (EN)<br/>
-    /// Constructor cho Middleware xác thực khóa API nâng cao (VI)
-    /// </summary>
-    public EnhancedApiKeyAuthenticationMiddleware(
-        RequestDelegate next,
-        ILogger<EnhancedApiKeyAuthenticationMiddleware> logger)
-    {
-        _next = next;
-        _logger = logger;
-    }
 
     /// <summary>
     /// Process HTTP request with hybrid authentication support (JWT + API Key) (EN)<br/>
@@ -42,7 +34,7 @@ public class EnhancedApiKeyAuthenticationMiddleware
         // Skip authentication for certain paths OR if JWT token detected
         if (ShouldSkipAuthenticationOrDelegateToJwt(context))
         {
-            await _next(context);
+            await next(context);
             return;
         }
 
@@ -81,18 +73,18 @@ public class EnhancedApiKeyAuthenticationMiddleware
             context.Items["StartTime"] = DateTime.UtcNow;
 
             // Log successful authentication
-            _logger.LogInformation("API key authenticated successfully for user {UserId} from IP {ClientIp}", 
+            logger.LogInformation("API key authenticated successfully for user {UserId} from IP {ClientIp}", 
                 verificationResult.UserId, clientIpAddress);
 
             // Continue to next middleware
-            await _next(context);
+            await next(context);
             
             // Log API key usage after request completion
             await LogApiKeyUsageAsync(context, verificationResult);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error during API key authentication");
+            logger.LogError(ex, "Error during API key authentication");
             await HandleInternalServerError(context, "Authentication service unavailable");
         }
     }
@@ -119,7 +111,7 @@ public class EnhancedApiKeyAuthenticationMiddleware
         var authHeader = context.Request.Headers.Authorization.FirstOrDefault();
         if (!string.IsNullOrEmpty(authHeader) && authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
         {
-            return authHeader.Substring("Bearer ".Length).Trim();
+            return authHeader["Bearer ".Length..].Trim();
         }
 
         return null;
@@ -173,7 +165,7 @@ public class EnhancedApiKeyAuthenticationMiddleware
         if (!string.IsNullOrEmpty(origin) && verificationResult.SecuritySettings?.AllowCorsRequests == true)
         {
             var allowedOrigins = verificationResult.SecuritySettings?.AllowedOrigins as List<string>;
-            if (allowedOrigins?.Any() == true && !string.IsNullOrEmpty(origin) && !allowedOrigins.Contains(origin) && !allowedOrigins.Contains("*"))
+            if (allowedOrigins!.Count != 0 && !string.IsNullOrEmpty(origin) && !allowedOrigins.Contains(origin) && !allowedOrigins.Contains("*"))
             {
                 await HandleForbidden(context, "Origin not allowed");
                 return false;
@@ -240,19 +232,19 @@ public class EnhancedApiKeyAuthenticationMiddleware
             };
 
             // Add to database
-            dbContext.ApiKeyUsageLogs.Add(usageLog);
+            await dbContext!.ApiKeyUsageLogs.AddAsync(usageLog);
             await dbContext.SaveChangesAsync();
 
             // Log successful usage tracking
             var apiKeyId = (Guid?)verificationResult.ApiKeyId;
-            _logger.LogDebug("API key usage logged for key {ApiKeyId} - {Method} {Endpoint}", 
+            logger.LogDebug("API key usage logged for key {ApiKeyId} - {Method} {Endpoint}", 
                 apiKeyId?.ToString() ?? "unknown", usageLog.Method, usageLog.Endpoint);
         }
         catch (Exception ex)
         {
             // Don't fail the request if logging fails
             var apiKeyId = (Guid?)verificationResult.ApiKeyId;
-            _logger.LogWarning(ex, "Failed to log API key usage for key {ApiKeyId}", 
+            logger.LogWarning(ex, "Failed to log API key usage for key {ApiKeyId}", 
                 apiKeyId?.ToString() ?? "unknown");
         }
     }
@@ -273,11 +265,11 @@ public class EnhancedApiKeyAuthenticationMiddleware
         var authHeader = context.Request.Headers.Authorization.FirstOrDefault();
         if (!string.IsNullOrEmpty(authHeader) && authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
         {
-            var token = authHeader.Substring("Bearer ".Length).Trim();
+            var token = authHeader["Bearer ".Length..].Trim();
             if (IsJwtFormat(token))
             {
-                _logger.LogDebug("JWT Bearer token detected, delegating to JWT middleware. Token prefix: {TokenPrefix}", 
-                    token.Substring(0, Math.Min(20, token.Length)) + "...");
+                logger.LogDebug("JWT Bearer token detected, delegating to JWT middleware. Token prefix: {TokenPrefix}",
+                    string.Concat(token.AsSpan(0, Math.Min(20, token.Length)), "..."));
                 return true; // Let JWT middleware handle this
             }
         }
@@ -317,7 +309,7 @@ public class EnhancedApiKeyAuthenticationMiddleware
         var path = context.Request.Path.Value?.ToLowerInvariant();
         
         // Debug logging to understand path issues
-        _logger.LogDebug("API Key middleware checking path: {Path}", path);
+        logger.LogDebug("API Key middleware checking path: {Path}", path);
         
         // Skip authentication for public endpoints
         var publicPaths = new[]
@@ -330,15 +322,11 @@ public class EnhancedApiKeyAuthenticationMiddleware
             "/api/auth/social-login",    // Allow social login without auth
             "/api/public/",
             "/metrics",
-            // Handle duplicate API path from Gateway routing
-            "/api/api/auth/login",
-            "/api/api/auth/register",
-            "/api/api/auth/refresh",
-            "/api/api/auth/social-login"
+            "/api/v1/api-keys/verify",   // Allow Gateway to verify API keys
         };
 
         var shouldSkip = publicPaths.Any(publicPath => path?.StartsWith(publicPath) == true);
-        _logger.LogDebug("Should skip authentication for path {Path}: {ShouldSkip}", path, shouldSkip);
+        logger.LogDebug("Should skip authentication for path {Path}: {ShouldSkip}", path, shouldSkip);
         
         return shouldSkip;
     }
@@ -355,7 +343,7 @@ public class EnhancedApiKeyAuthenticationMiddleware
         var response = new
         {
             error = "Unauthorized",
-            message = message,
+            message,
             timestamp = DateTime.UtcNow.ToString("O"),
             path = context.Request.Path.Value
         };
@@ -363,7 +351,7 @@ public class EnhancedApiKeyAuthenticationMiddleware
         var json = JsonSerializer.Serialize(response);
         await context.Response.WriteAsync(json);
 
-        _logger.LogWarning("Unauthorized API request: {Message} - Path: {Path} - IP: {ClientIp}", 
+        logger.LogWarning("Unauthorized API request: {Message} - Path: {Path} - IP: {ClientIp}", 
             message, context.Request.Path, GetClientIpAddress(context));
     }
 
@@ -379,7 +367,7 @@ public class EnhancedApiKeyAuthenticationMiddleware
         var response = new
         {
             error = "Forbidden",
-            message = message,
+            message,
             timestamp = DateTime.UtcNow.ToString("O"),
             path = context.Request.Path.Value
         };
@@ -387,7 +375,7 @@ public class EnhancedApiKeyAuthenticationMiddleware
         var json = JsonSerializer.Serialize(response);
         await context.Response.WriteAsync(json);
 
-        _logger.LogWarning("Forbidden API request: {Message} - Path: {Path} - IP: {ClientIp}", 
+        logger.LogWarning("Forbidden API request: {Message} - Path: {Path} - IP: {ClientIp}", 
             message, context.Request.Path, GetClientIpAddress(context));
     }
 
@@ -403,7 +391,7 @@ public class EnhancedApiKeyAuthenticationMiddleware
         var response = new
         {
             error = "Internal Server Error",
-            message = message,
+            message,
             timestamp = DateTime.UtcNow.ToString("O"),
             path = context.Request.Path.Value
         };

@@ -10,22 +10,12 @@ namespace ExcelApi.Controllers
     [ApiController]
     [Route("api/[controller]")]
     [SwaggerTag("Message Queue Testing")]
-    public class MessageTestController : ControllerBase
+    public class MessageTestController(
+        IExcelProcessingService excelService,
+        MessagePublishingService messageService,
+        LocalCorrelationContextService correlationContext,
+        ILogger<MessageTestController> logger) : ControllerBase
     {
-        private readonly IExcelProcessingService _excelService;
-        private readonly MessagePublishingService _messageService;
-        private readonly LocalCorrelationContextService _correlationContext;
-        private readonly ILogger<MessageTestController> _logger;        public MessageTestController(
-            IExcelProcessingService excelService,
-            MessagePublishingService messageService,
-            LocalCorrelationContextService correlationContext,
-            ILogger<MessageTestController> logger)
-        {
-            _excelService = excelService;
-            _messageService = messageService;
-            _correlationContext = correlationContext;
-            _logger = logger;
-        }
 
         /// <summary>
         /// Test endpoint để upload Excel file và publish message queue
@@ -52,23 +42,23 @@ namespace ExcelApi.Controllers
                     return BadRequest("File is required and cannot be empty");
                 }
 
-                var correlationId = _correlationContext.CorrelationId;
+                var correlationId = correlationContext.CorrelationId;
 
-                _logger.LogInformation(
+                logger.LogInformation(
                     "Starting Excel file processing and message publishing. FileName: {FileName}, Size: {FileSize}, CorrelationId: {CorrelationId}",
                     file.FileName, file.Length, correlationId);
 
                 // Step 1: Process Excel file
-                var extractedData = await _excelService.ProcessExcelFileAsync(file, null);
+                var extractedData = await excelService.ProcessExcelFileAsync(file, null);
 
-                _logger.LogInformation(
+                logger.LogInformation(
                     "Excel processing completed. RecordCount: {RecordCount}, CorrelationId: {CorrelationId}",
                     extractedData.Count, correlationId);
 
                 // Step 2: Publish messages to queue
-                await _messageService.PublishTransactionBatchAsync(extractedData, file.FileName);
+                await messageService.PublishTransactionBatchAsync(extractedData, file.FileName);
 
-                _logger.LogInformation(
+                logger.LogInformation(
                     "Messages published successfully. CorrelationId: {CorrelationId}",
                     correlationId);
 
@@ -84,16 +74,16 @@ namespace ExcelApi.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex,
+                logger.LogError(ex,
                     "Error processing file and publishing messages. FileName: {FileName}, CorrelationId: {CorrelationId}",
-                    file.FileName, _correlationContext.CorrelationId);
+                    file.FileName, correlationContext.CorrelationId);
 
                 return StatusCode(500, new
                 {
                     success = false,
                     message = "Internal server error during processing",
                     error = ex.Message,
-                    correlationId = _correlationContext.CorrelationId.ToString()
+                    correlationId = correlationContext.CorrelationId.ToString()
                 });
             }
         }
@@ -108,7 +98,7 @@ namespace ExcelApi.Controllers
             Description = "Returns the health status of message queue connectivity",
             OperationId = "GetMessageQueueHealth"
         )]
-        public async Task<IActionResult> GetHealthAsync()
+        public IActionResult GetHealthAsync()
         {
             try
             {
@@ -118,7 +108,7 @@ namespace ExcelApi.Controllers
                     status = "Healthy",
                     service = "ExcelApi-MessageQueue",
                     timestamp = DateTime.UtcNow,
-                    correlationId = _correlationContext.CorrelationId.ToString(),
+                    correlationId = correlationContext.CorrelationId.ToString(),
                     environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Development",
                     version = "1.0.0"
                 };
@@ -127,7 +117,7 @@ namespace ExcelApi.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Health check failed for message queue");
+                logger.LogError(ex, "Health check failed for message queue");
                 return StatusCode(500, new { status = "Unhealthy", error = ex.Message });
             }
         }
@@ -148,9 +138,9 @@ namespace ExcelApi.Controllers
         {
             try
             {
-                var correlationId = _correlationContext.CorrelationId;
+                var correlationId = correlationContext.CorrelationId;
                 
-                _logger.LogInformation(
+                logger.LogInformation(
                     "Starting test TransactionBatchInitiated message publish - CorrelationId: {CorrelationId}",
                     correlationId);
 
@@ -183,9 +173,9 @@ namespace ExcelApi.Controllers
                     }
                 };
 
-                await _messageService.PublishTransactionBatchAsync(sampleData, "test-transactions.xlsx");
+                await messageService.PublishTransactionBatchAsync(sampleData, "test-transactions.xlsx");
 
-                _logger.LogInformation(
+                logger.LogInformation(
                     "Successfully published test TransactionBatchInitiated message - CorrelationId: {CorrelationId}, Records: {RecordCount}",
                     correlationId, sampleData.Count);
 
@@ -193,7 +183,7 @@ namespace ExcelApi.Controllers
                 {
                     success = true,
                     message = "Test TransactionBatchInitiated message published successfully",
-                    correlationId = correlationId,
+                    correlationId,
                     recordCount = sampleData.Count,
                     timestamp = DateTime.UtcNow,
                     serviceName = "ExcelApi",
@@ -202,16 +192,16 @@ namespace ExcelApi.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex,
+                logger.LogError(ex,
                     "Failed to publish test TransactionBatchInitiated message - CorrelationId: {CorrelationId}, Error: {ErrorMessage}",
-                    _correlationContext.CorrelationId, ex.Message);
+                    correlationContext.CorrelationId, ex.Message);
 
                 return StatusCode(500, new
                 {
                     success = false,
                     message = "Failed to publish test message",
                     error = ex.Message,
-                    correlationId = _correlationContext.CorrelationId
+                    correlationId = correlationContext.CorrelationId
                 });
             }
         }

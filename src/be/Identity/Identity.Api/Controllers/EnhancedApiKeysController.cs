@@ -24,6 +24,75 @@ public class EnhancedApiKeysController(
     #region Core CRUD Operations
 
     /// <summary>
+    /// Create a simple API key (end users) (EN)<br/>
+    /// Tạo API key đơn giản cho end users (VI)
+    /// </summary>
+    /// <param name="request">Simple API key creation request</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Created API key with security details</returns>
+    [HttpPost("simple")]
+    [ProducesResponseType(typeof(CreateApiKeyResponse), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<CreateApiKeyResponse>> CreateSimpleApiKeyAsync(
+        [FromBody] CreateSimpleApiKeyRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        // Get user ID from JWT claims  
+        var userIdClaim = User.FindFirst("sub")?.Value ?? User.FindFirst("user_id")?.Value;
+        
+        try
+        {
+            if (!Guid.TryParse(userIdClaim, out var userId))
+            {
+                return BadRequest(new ProblemDetails
+                {
+                    Title = "Invalid User",
+                    Detail = "User ID not found in token",
+                    Status = StatusCodes.Status400BadRequest
+                });
+            }
+
+            var response = await apiKeyService.CreateSimpleApiKeyAsync(userId, request, cancellationToken);
+
+            logger.LogInformation("Simple API key {KeyId} created successfully for user {UserId}", 
+                response.Id, userId);
+
+            // Return 201 Created with response directly to avoid route matching issues
+            Response.Headers.Location = $"/api/v1/api-keys/{response.Id}";
+            return StatusCode(StatusCodes.Status201Created, response);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new ProblemDetails
+            {
+                Title = "Conflict",
+                Detail = ex.Message,
+                Status = StatusCodes.Status409Conflict
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new ProblemDetails
+            {
+                Title = "Invalid Request",
+                Detail = ex.Message,
+                Status = StatusCodes.Status400BadRequest
+            });
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error creating simple API key for user {UserId}", userIdClaim);
+            return StatusCode(StatusCodes.Status500InternalServerError, new ProblemDetails
+            {
+                Title = "Internal Server Error",
+                Detail = "An error occurred while creating the simple API key",
+                Status = StatusCodes.Status500InternalServerError
+            });
+        }
+    }
+
+    /// <summary>
     /// Create a new API key with enhanced security features (EN)<br/>
     /// Tạo API key mới với tính năng bảo mật nâng cao (VI)
     /// </summary>
@@ -58,8 +127,9 @@ public class EnhancedApiKeysController(
             logger.LogInformation("API key {KeyId} created successfully for user {UserId}", 
                 response.Id, userId);
 
-            return CreatedAtAction(nameof(GetApiKeyByIdAsync), 
-                new { apiKeyId = response.Id }, response);
+            // Return 201 Created with response directly to avoid route matching issues
+            Response.Headers.Location = $"/api/v1/api-keys/{response.Id}";
+            return StatusCode(StatusCodes.Status201Created, response);
         }
         catch (InvalidOperationException ex)
         {

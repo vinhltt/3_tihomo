@@ -22,11 +22,75 @@ public class EnhancedApiKeyService(
     IIpValidationService ipValidationService,
     ILogger<EnhancedApiKeyService> logger) : IEnhancedApiKeyService
 {
-    private const string KeyPrefix = "pfm_";
+    private const string KeyPrefix = "tihomo_";
     private const int MaxKeysPerUser = 10;
-    private const int KeyLength = 45;
+    private const int KeyLength = 43; // Base64 of 32 bytes = 44 chars, minus padding = 43 chars max
 
     #region Core CRUD Operations
+
+    /// <summary>
+    /// Create simple API key with default settings for end users (EN)<br/>
+    /// Tạo API key đơn giản với cài đặt mặc định cho end users (VI)
+    /// </summary>
+    public async Task<CreateApiKeyResponse> CreateSimpleApiKeyAsync(Guid userId, CreateSimpleApiKeyRequest request, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            // Verify user exists and is active
+            var user = await userRepository.GetByIdAsync(userId, cancellationToken);
+            if (user == null || !user.IsActive)
+                throw new InvalidOperationException("User not found or inactive");
+
+            // Check user's API key limit
+            var userApiKeys = await apiKeyRepository.GetByUserIdAsync(userId, cancellationToken);
+            if (userApiKeys.Count() >= MaxKeysPerUser)
+                throw new InvalidOperationException($"Maximum limit of {MaxKeysPerUser} API keys exceeded");
+
+            // Generate secure API key
+            var (rawApiKey, keyHash, keyPrefix) = GenerateSecureApiKey();
+
+            // Create entity with DEFAULT settings for end users
+            var apiKey = new ApiKey
+            {
+                Id = Guid.NewGuid(),
+                UserId = userId,
+                Name = request.Name,
+                Description = $"API Key created for {request.Name}", // Auto-generated description
+                KeyHash = keyHash,
+                KeyPrefix = keyPrefix,
+                Scopes = ["read", "write"], // Full access default scopes
+                Status = ApiKeyStatus.Active,
+                RateLimitPerMinute = 50, // Default rate limit
+                DailyUsageQuota = 500, // Default daily quota
+                IpWhitelist = [], // No IP restrictions by default
+                SecuritySettings = new ApiKeySecuritySettings // Default security settings
+                {
+                    RequireHttps = true, // Always require HTTPS
+                    AllowCorsRequests = false, // No CORS by default
+                    AllowedOrigins = [],
+                    EnableUsageAnalytics = true, // Enable analytics
+                    MaxRequestsPerSecond = 5, // Conservative default
+                    EnableIpValidation = false, // No IP validation by default
+                    EnableRateLimiting = true // Always enable rate limiting
+                },
+                ExpiresAt = null, // No expiration by default
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow,
+                LastResetDate = DateTime.SpecifyKind(DateTime.UtcNow.Date, DateTimeKind.Utc)
+            };
+
+            await apiKeyRepository.AddAsync(apiKey, cancellationToken);
+
+            logger.LogInformation("Simple API key {KeyId} created for user {UserId}", apiKey.Id, userId);
+
+            return MapToCreateApiKeyResponse(apiKey, rawApiKey);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error creating simple API key for user {UserId}", userId);
+            throw;
+        }
+    }
 
     /// <summary>
     /// Create new API key with enhanced security features (EN)<br/>
@@ -71,10 +135,10 @@ public class EnhancedApiKeyService(
                 DailyUsageQuota = request.DailyUsageQuota,
                 IpWhitelist = request.IpWhitelist,
                 SecuritySettings = MapToSecuritySettings(request.SecuritySettings),
-                ExpiresAt = request.ExpiresAt,
+                ExpiresAt = request.ExpiresAt.HasValue ? DateTime.SpecifyKind(request.ExpiresAt.Value, DateTimeKind.Utc) : null,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow,
-                LastResetDate = DateTime.UtcNow.Date
+                LastResetDate = DateTime.SpecifyKind(DateTime.UtcNow.Date, DateTimeKind.Utc)
             };
 
             await apiKeyRepository.AddAsync(apiKey, cancellationToken);
@@ -159,7 +223,7 @@ public class EnhancedApiKeyService(
             apiKey.Scopes = request.Scopes;
 
         if (request.ExpiresAt.HasValue)
-            apiKey.ExpiresAt = request.ExpiresAt;
+            apiKey.ExpiresAt = DateTime.SpecifyKind(request.ExpiresAt.Value, DateTimeKind.Utc);
 
         if (request.RateLimitPerMinute.HasValue)
             apiKey.RateLimitPerMinute = request.RateLimitPerMinute.Value;
@@ -269,10 +333,14 @@ public class EnhancedApiKeyService(
             // Update usage tracking
             await UpdateUsageTrackingAsync(apiKey, cancellationToken);
 
+            // Get user email for the response
+            var user = await userRepository.GetByIdAsync(apiKey.UserId, cancellationToken);
+
             return new VerifyApiKeyResponse
             {
                 IsValid = true,
                 UserId = apiKey.UserId,
+                UserEmail = user?.Email,
                 ApiKeyId = apiKey.Id,
                 Scopes = apiKey.Scopes,
                 Message = "API key is valid"
@@ -373,11 +441,14 @@ public class EnhancedApiKeyService(
         var bytes = new byte[32];
         rng.GetBytes(bytes);
 
-        var keyBody = Convert.ToBase64String(bytes)
-            .Replace("+", "-")
-            .Replace("/", "_")
-            .Replace("=", "")
-            .Substring(0, KeyLength);
+        var keyBody = Convert.ToBase64String(bytes);
+        keyBody = keyBody.Replace("+", "-");
+        keyBody = keyBody.Replace("/", "_");
+        keyBody = keyBody.Replace("=", "");
+        
+        // Safely truncate to prevent substring errors
+        var actualLength = Math.Min(keyBody.Length, KeyLength);
+        keyBody = keyBody.Substring(0, actualLength);
 
         var rawKey = KeyPrefix + keyBody;
         var keyPrefix = KeyPrefix + keyBody.Substring(0, 6);

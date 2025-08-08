@@ -75,7 +75,10 @@
       "Bash(sed:*)",
       "Bash(winpty docker exec -it tihomo-identity-api printenv)",
       "Bash(docker-compose down:*)",
-      "Bash(docker-compose:*)"
+      "Bash(docker-compose:*)",
+      "Bash(dotnet test:*)",
+      "Bash(dotnet build:*)",
+      "Bash(docker ps:*)"
     ],
     "deny": []
   },

@@ -7,19 +7,13 @@ namespace Identity.Application.Services.Security;
 /// IP Validation Service - Dịch vụ xác thực IP cho API keys (EN)<br/>
 /// Dịch vụ xác thực IP cho khóa API (VI)
 /// </summary>
-public class IpValidationService : IIpValidationService
+/// <remarks>
+/// Constructor for IpValidationService (EN)<br/>
+/// Constructor cho IpValidationService (VI)
+/// </remarks>
+/// <param name="logger">Logger service (EN)<br/>Dịch vụ logger (VI)</param>
+public class IpValidationService(ILogger<IpValidationService> logger) : IIpValidationService
 {
-    private readonly ILogger<IpValidationService> _logger;
-    
-    /// <summary>
-    /// Constructor for IpValidationService (EN)<br/>
-    /// Constructor cho IpValidationService (VI)
-    /// </summary>
-    /// <param name="logger">Logger service (EN)<br/>Dịch vụ logger (VI)</param>
-    public IpValidationService(ILogger<IpValidationService> logger)
-    {
-        _logger = logger;
-    }
 
     /// <summary>
     /// Validate client IP against whitelist (EN)<br/>
@@ -28,9 +22,9 @@ public class IpValidationService : IIpValidationService
     /// <param name="clientIp">Client IP address (EN)<br/>Địa chỉ IP client (VI)</param>
     /// <param name="ipWhitelist">List of allowed IPs/CIDR ranges (EN)<br/>Danh sách IP/CIDR được phép (VI)</param>
     /// <returns>True if IP is allowed (EN)<br/>True nếu IP được phép (VI)</returns>
-    public bool IsIpAllowed(string clientIp, List<string> ipWhitelist)
+    public bool IsIpAllowed(string? clientIp, List<string> ipWhitelist)
     {
-        if (ipWhitelist == null || !ipWhitelist.Any())
+        if (ipWhitelist == null || ipWhitelist.Count == 0)
         {
             // If no whitelist configured, allow all IPs
             return true;
@@ -38,7 +32,7 @@ public class IpValidationService : IIpValidationService
 
         if (string.IsNullOrEmpty(clientIp))
         {
-            _logger.LogWarning("Client IP is null or empty");
+            logger.LogWarning("Client IP is null or empty");
             return false;
         }
 
@@ -53,17 +47,17 @@ public class IpValidationService : IIpValidationService
 
                 if (IsIpInRange(clientAddress, allowedIp.Trim()))
                 {
-                    _logger.LogDebug("Client IP {ClientIp} matched whitelist entry {AllowedIp}", clientIp, allowedIp);
+                    logger.LogDebug("Client IP {ClientIp} matched whitelist entry {AllowedIp}", clientIp, allowedIp);
                     return true;
                 }
             }
             
-            _logger.LogWarning("Client IP {ClientIp} not found in whitelist", clientIp);
+            logger.LogWarning("Client IP {ClientIp} not found in whitelist", clientIp);
             return false;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error validating IP {ClientIp} against whitelist", clientIp);
+            logger.LogError(ex, "Error validating IP {ClientIp} against whitelist", clientIp);
             return false;
         }
     }
@@ -107,7 +101,7 @@ public class IpValidationService : IIpValidationService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error checking IP range for {ClientAddress} against {AllowedRange}", 
+            logger.LogError(ex, "Error checking IP range for {ClientAddress} against {AllowedRange}", 
                 clientAddress, allowedRange);
             return false;
         }
@@ -165,7 +159,7 @@ public class IpValidationService : IIpValidationService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error checking CIDR range for {ClientAddress} against {NetworkAddress}/{PrefixLength}", 
+            logger.LogError(ex, "Error checking CIDR range for {ClientAddress} against {NetworkAddress}/{PrefixLength}", 
                 clientAddress, networkAddress, prefixLength);
             return false;
         }
@@ -190,7 +184,7 @@ public class IpValidationService : IIpValidationService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error matching wildcard pattern {Pattern} for IP {ClientIp}", 
+            logger.LogError(ex, "Error matching wildcard pattern {Pattern} for IP {ClientIp}", 
                 wildcardPattern, clientIp);
             return false;
         }
@@ -202,7 +196,7 @@ public class IpValidationService : IIpValidationService
     /// </summary>
     /// <param name="ipAddress">IP address string (EN)<br/>Chuỗi địa chỉ IP (VI)</param>
     /// <returns>True if valid IP format (EN)<br/>True nếu định dạng IP hợp lệ (VI)</returns>
-    public bool IsValidIpAddress(string ipAddress)
+    public bool IsValidIpAddress(string? ipAddress)
     {
         if (string.IsNullOrWhiteSpace(ipAddress))
             return false;
@@ -236,7 +230,7 @@ public class IpValidationService : IIpValidationService
     /// </summary>
     /// <param name="cidrRange">CIDR range string (EN)<br/>Chuỗi CIDR range (VI)</param>
     /// <returns>True if valid CIDR format (EN)<br/>True nếu định dạng CIDR hợp lệ (VI)</returns>
-    public bool IsValidCidrRange(string cidrRange)
+    public bool IsValidCidrRange(string? cidrRange)
     {
         if (string.IsNullOrWhiteSpace(cidrRange))
             return false;
@@ -302,11 +296,11 @@ public class IpValidationService : IIpValidationService
     /// </summary>
     /// <param name="ipWhitelist">List of IP addresses/ranges (EN)<br/>Danh sách địa chỉ IP/ranges (VI)</param>
     /// <returns>Validation result with errors (EN)<br/>Kết quả xác thực với các lỗi (VI)</returns>
-    public (bool IsValid, List<string> Errors) ValidateIpWhitelist(List<string> ipWhitelist)
+    public (bool IsValid, List<string> Errors) ValidateIpWhitelist(List<string>? ipWhitelist)
     {
         var errors = new List<string>();
-        
-        if (ipWhitelist == null || !ipWhitelist.Any())
+
+        if (ipWhitelist == null || ipWhitelist.Count == 0)
         {
             return (true, errors); // Empty whitelist is valid (allows all IPs)
         }

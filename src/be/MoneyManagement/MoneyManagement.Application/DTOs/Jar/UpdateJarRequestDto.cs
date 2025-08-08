@@ -13,7 +13,7 @@ public class UpdateJarRequestDto
     ///     Tên lọ (VI)
     /// </summary>
     [MaxLength(200, ErrorMessage = "Jar name cannot exceed 200 characters")]
-    public string? Name { get; set; }
+    public required string Name { get; set; }
 
     /// <summary>
     ///     Jar description (EN)<br />

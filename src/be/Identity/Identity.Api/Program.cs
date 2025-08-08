@@ -21,7 +21,7 @@ using Serilog;
 using Serilog.Events;
 
 
-async Task MigrateDatabaseAsync(IHost host)
+static async Task MigrateDatabaseAsync(IHost host)
 {
     using var scope = host.Services.CreateScope();
     var services = scope.ServiceProvider;
@@ -84,7 +84,7 @@ builder.Services.AddSwaggerGen(c =>
 // Add CORS with environment-specific configuration
 // Thêm CORS với cấu hình theo môi trường
 var corsConfig = builder.Configuration.GetSection("CorsOptions");
-var allowedOrigins = corsConfig.GetSection("AllowedOrigins").Get<string[]>() ?? new[] { "*" };
+var allowedOrigins = corsConfig.GetSection("AllowedOrigins").Get<string[]>() ?? ["*"];
 var policyName = corsConfig["PolicyName"] ?? "DefaultCorsPolicy";
 
 builder.Services.AddCors(options =>
