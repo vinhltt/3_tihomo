@@ -97,7 +97,7 @@ public class CreateSharedExpenseRequestValidator : AbstractValidator<CreateShare
     private static bool HaveUniqueParticipants(ICollection<CreateSharedExpenseParticipantRequestDto> participants)
     {
         // Check for duplicate user IDs among registered users
-        var userIds = participants.Where(p => p.UserId.HasValue).Select(p => p.UserId.Value);
+        var userIds = participants.Where(p => p.UserId.HasValue).Select(p => p.UserId!.Value);
         return userIds.Distinct().Count() == userIds.Count();
     }
 

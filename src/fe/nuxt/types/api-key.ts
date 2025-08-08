@@ -5,6 +5,13 @@
 // Core Types & Enums
 // ========================================
 
+// Simple API Key Request for end users
+export interface CreateSimpleApiKeyRequest {
+  name: string
+}
+
+// ========================================
+
 export enum ApiKeyStatus {
   Active = 'active',
   Revoked = 'revoked', 

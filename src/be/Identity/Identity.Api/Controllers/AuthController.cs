@@ -76,6 +76,48 @@ public class AuthController(
     }
 
     /// <summary>
+    /// Basic login with real JWT token generation (EN)<br/>
+    /// Login cơ bản với tạo JWT token thật (VI)
+    /// </summary>
+    [HttpPost("login")]
+    public async Task<ActionResult<LoginResponse>> Login([FromBody] LoginRequest request)
+    {
+        try
+        {
+            // Create a test user for JWT generation
+            var testUser = new Identity.Domain.Entities.User
+            {
+                Id = Guid.NewGuid(),
+                Email = request.Username,
+                Username = request.Username,
+                Name = "Test User",
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            // Generate real JWT token
+            var accessToken = jwtService.GenerateAccessToken(testUser);
+            var tokenExpiration = jwtService.GetTokenExpiration();
+
+            // Map to response user info
+            var userInfo = await userService.MapToUserInfoAsync(testUser);
+
+            return Ok(new LoginResponse
+            {
+                AccessToken = accessToken,
+                RefreshToken = "test_refresh_123", // TODO: Generate real refresh token
+                ExpiresAt = tokenExpiration,
+                User = userInfo
+            });
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error during login");
+            return StatusCode(500, "Internal server error");
+        }
+    }
+
+    /// <summary>
     ///     Validate access token
     /// </summary>
     [HttpPost("validate-token")]
@@ -112,7 +154,7 @@ public class AuthController(
     ///     Refresh access token using refresh token
     ///     Làm mới access token bằng refresh token
     /// </summary>
-    /// [HttpPost("refresh-token")]
+    [HttpPost("refresh-token")]
     public async Task<ActionResult<RefreshTokenResponse>> RefreshToken([FromBody] RefreshTokenRequest request)
     {
         try

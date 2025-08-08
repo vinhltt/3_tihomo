@@ -118,20 +118,6 @@ public class ExpectedTransaction : BaseEntity<Guid>
     public DateTime? ProcessedAt { get; set; }
 
     /// <summary>
-    ///     Created date (EN)
-    ///     Ngày tạo (VI)
-    /// </summary>
-    [Required]
-    public DateTime CreatedAt { get; set; }
-
-    /// <summary>
-    ///     Last updated date (EN)
-    ///     Ngày cập nhật cuối cùng (VI)
-    /// </summary>
-    [Required]
-    public DateTime UpdatedAt { get; set; }
-
-    /// <summary>
     ///     Navigation property: link to recurring transaction template (EN)
     ///     Thuộc tính điều hướng: liên kết với mẫu giao dịch định kỳ (VI)
     /// </summary>

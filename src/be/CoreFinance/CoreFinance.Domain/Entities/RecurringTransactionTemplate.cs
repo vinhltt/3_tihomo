@@ -128,20 +128,6 @@ public class RecurringTransactionTemplate : BaseEntity<Guid>
     public string? Notes { get; set; }
 
     /// <summary>
-    ///     Created date (EN)
-    ///     Ngày tạo (VI)
-    /// </summary>
-    [Required]
-    public DateTime CreatedAt { get; set; }
-
-    /// <summary>
-    ///     Last updated date (EN)
-    ///     Ngày cập nhật cuối cùng (VI)
-    /// </summary>
-    [Required]
-    public DateTime UpdatedAt { get; set; }
-
-    /// <summary>
     ///     Navigation property: link to account (EN)
     ///     Thuộc tính điều hướng: liên kết với tài khoản (VI)
     /// </summary>

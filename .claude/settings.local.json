@@ -1,4 +1,5 @@
 {
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "permissions": {
     "allow": [
       "Bash(rm:*)",
@@ -54,13 +55,36 @@
       "mcp__serena__replace_regex",
       "mcp__serena__create_text_file",
       "mcp__MCP_DOCKER__write_file",
-      "Bash(uv run:*)"
+      "Bash(uv run:*)",
+      "mcp__serena__find_symbol",
+      "Bash(claude --version)",
+      "WebFetch(domain:docs.anthropic.com)",
+      "mcp__serena__think_about_collected_information",
+      "mcp__serena__restart_language_server",
+      "Bash(claude --reload-mcp)",
+      "Bash(claude mcp)",
+      "mcp__serena__list_memories",
+      "mcp__serena__insert_after_symbol",
+      "Bash(grep:*)",
+      "Bash(rg:*)",
+      "Bash(newman:*)",
+      "Bash(docker inspect:*)",
+      "Bash(cp:*)",
+      "Bash(copy:*)",
+      "Bash(docker-compose build:*)",
+      "Bash(sed:*)",
+      "Bash(winpty docker exec -it tihomo-identity-api printenv)",
+      "Bash(docker-compose down:*)",
+      "Bash(docker-compose:*)",
+      "Bash(dotnet test:*)",
+      "Bash(dotnet build:*)",
+      "Bash(docker ps:*)"
     ],
     "deny": []
   },
   "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
-    "mem0",
-    "MCP_DOCKER"
+    "MCP_DOCKER",
+    "serena"
   ]
 }

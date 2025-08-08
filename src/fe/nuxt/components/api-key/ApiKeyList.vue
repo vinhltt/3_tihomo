@@ -3,7 +3,7 @@
     <!-- Header với Create Button và View Toggle (Tiêu đề với nút tạo và toggle xem) -->
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
       <div class="flex items-center space-x-3">
-        <icon-key class="h-6 w-6 text-primary" />
+        <icon-lock class="h-6 w-6 text-primary" />
         <h2 class="text-xl font-semibold text-gray-900 dark:text-white">
           {{ $t('apiKey.management.title') }}
         </h2>
@@ -40,7 +40,7 @@
               : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
           ]"
         >
-          <icon-adjustments-horizontal class="h-4 w-4 mr-2" />
+          <icon-settings class="h-4 w-4 mr-2" />
           {{ $t('apiKey.list.advancedColumns') }}
         </button>
         
@@ -242,25 +242,25 @@
               <td class="table-cell text-right">
                 <div class="flex items-center justify-end space-x-2">
                   <button
-                    @click.stop="$emit('edit-key', apiKey.id)"
-                    class="p-1.5 text-gray-400 hover:text-primary transition-colors"
-                    :title="$t('common.edit')"
+                    @click.stop="$emit('copy-key-prefix', apiKey)"
+                    class="p-1.5 text-gray-400 hover:text-info transition-colors"
+                    title="Copy API Key Prefix"
                   >
-                    <icon-pencil class="h-4 w-4" />
+                    <icon-copy class="h-4 w-4" />
                   </button>
                   
                   <button
                     @click.stop="$emit('regenerate-key', apiKey.id)"
                     class="p-1.5 text-gray-400 hover:text-warning transition-colors"
-                    :title="$t('apiKey.actions.regenerate')"
+                    title="Regenerate API Key"
                   >
-                    <icon-arrow-path class="h-4 w-4" />
+                    <icon-refresh class="h-4 w-4" />
                   </button>
                   
                   <button
                     @click.stop="$emit('revoke-key', apiKey.id)"
                     class="p-1.5 text-gray-400 hover:text-danger transition-colors"
-                    :title="$t('apiKey.actions.revoke')"
+                    title="Revoke API Key"
                     :disabled="apiKey.status === 'revoked'"
                   >
                     <icon-trash class="h-4 w-4" />
@@ -343,16 +343,16 @@
               </div>
               <div class="flex items-center space-x-1">
                 <button
-                  @click.stop="$emit('edit-key', apiKey.id)"
-                  class="p-1.5 text-gray-400 hover:text-primary transition-colors"
+                  @click.stop="$emit('copy-key-prefix', apiKey)"
+                  class="p-1.5 text-gray-400 hover:text-info transition-colors"
                 >
-                  <icon-pencil class="h-4 w-4" />
+                  <icon-copy class="h-4 w-4" />
                 </button>
                 <button
                   @click.stop="$emit('regenerate-key', apiKey.id)"
                   class="p-1.5 text-gray-400 hover:text-warning transition-colors"
                 >
-                  <icon-arrow-path class="h-4 w-4" />
+                  <icon-refresh class="h-4 w-4" />
                 </button>
                 <button
                   @click.stop="$emit('revoke-key', apiKey.id)"
@@ -369,7 +369,7 @@
 
       <!-- Empty State (Trạng thái trống) -->
       <div v-if="!loading && filteredApiKeys.length === 0" class="text-center py-12">
-        <icon-key class="mx-auto h-12 w-12 text-gray-400" />
+        <icon-lock class="mx-auto h-12 w-12 text-gray-400" />
         <h3 class="mt-4 text-lg font-medium text-gray-900 dark:text-white">
           {{ hasFilters ? $t('apiKey.empty.noResults') : $t('apiKey.empty.noKeys') }}
         </h3>

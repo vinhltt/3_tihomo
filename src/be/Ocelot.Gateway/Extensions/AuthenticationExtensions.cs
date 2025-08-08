@@ -13,12 +13,12 @@ namespace Ocelot.Gateway.Extensions;
 public static class AuthenticationExtensions
 {
     /// <summary>
-    ///     Add JWT Bearer authentication
+    ///     Add JWT Bearer authentication and ApiKey authentication
     /// </summary>
     /// <param name="services">Service collection</param>
     /// <param name="jwtSettings">JWT configuration settings</param>
     /// <returns>Service collection</returns>
-    public static IServiceCollection AddJwtAuthentication(this IServiceCollection services, JwtSettings jwtSettings)
+    public static IServiceCollection AddAuthentication(this IServiceCollection services, JwtSettings jwtSettings)
     {
         var key = Encoding.UTF8.GetBytes(jwtSettings.SecretKey);
 
@@ -85,7 +85,7 @@ public static class AuthenticationExtensions
                     }
                 };
             })
-            .AddScheme<ApiKeyAuthenticationSchemeOptions, ApiKeyAuthenticationHandler>(
+            .AddScheme<ApiKeyAuthenticationSchemeOptions, DynamicApiKeyAuthenticationHandler>(
                 ApiKeyAuthenticationSchemeOptions.DefaultScheme,
                 options => { });
 
@@ -99,32 +99,21 @@ public static class AuthenticationExtensions
     /// <returns>Service collection</returns>
     public static IServiceCollection AddAuthorizationPolicies(this IServiceCollection services)
     {
-        services.AddAuthorization(options =>
-        {
-            // Default policy requires authentication
-            options.DefaultPolicy = new AuthorizationPolicyBuilder()
+        services.AddAuthorizationBuilder()
+            .SetDefaultPolicy(new AuthorizationPolicyBuilder()
                 .RequireAuthenticatedUser()
-                .Build();
-
-            // Admin policy requires Admin role
-            options.AddPolicy("AdminPolicy", policy =>
-                policy.RequireRole("Admin"));
-
-            // User policy requires User role
-            options.AddPolicy("UserPolicy", policy =>
-                policy.RequireRole("User", "Admin"));
-
-            // API Key policy for external services
-            options.AddPolicy("ApiKeyPolicy", policy =>
+                .Build())
+            .AddPolicy("AdminPolicy", policy =>
+                policy.RequireRole("Admin"))
+            .AddPolicy("UserPolicy", policy =>
+                policy.RequireRole("User", "Admin"))
+            .AddPolicy("ApiKeyPolicy", policy =>
                 policy.RequireAuthenticatedUser()
-                    .AddAuthenticationSchemes(ApiKeyAuthenticationSchemeOptions.DefaultScheme));
-
-            // Flexible policy that accepts either JWT or API Key
-            options.AddPolicy("FlexiblePolicy", policy =>
+                    .AddAuthenticationSchemes(ApiKeyAuthenticationSchemeOptions.DefaultScheme))
+            .AddPolicy("FlexiblePolicy", policy =>
                 policy.RequireAuthenticatedUser()
                     .AddAuthenticationSchemes(JwtBearerDefaults.AuthenticationScheme,
                         ApiKeyAuthenticationSchemeOptions.DefaultScheme));
-        });
 
         return services;
     }

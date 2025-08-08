@@ -1,6 +1,7 @@
 import type {
   ApiKey,
   CreateApiKeyRequest,
+  CreateSimpleApiKeyRequest,
   CreateApiKeyResponse,
   UpdateApiKeyRequest,
   ListApiKeysQuery,
@@ -18,7 +19,10 @@ import { ApiKeyStatus } from '~/types/api-key'
  * Composable để quản lý các thao tác API Key (VI)
  */
 export const useApiKeys = () => {
-  const { post, put, delete: deleteRequest } = useApi()
+  const { get, post, put, delete: deleteRequest } = useApi()
+  
+  // API endpoints configuration
+  const API_BASE = '/api/identity/v1/api-keys'
   
   // Reactive state
   const apiKeys = ref<ApiKey[]>([])
@@ -66,7 +70,7 @@ export const useApiKeys = () => {
 
       console.log('Fetching API keys with filters:', mergedQuery)
 
-      const response = await post<ListApiKeysResponse>('/api/identity/enhanced-api-keys/list', mergedQuery)
+      const response = await get<ListApiKeysResponse>(API_BASE, mergedQuery)
       
       if (response?.data) {
         // If cursor provided, append to existing data (pagination)
@@ -94,6 +98,34 @@ export const useApiKeys = () => {
   }
 
   /**
+   * Create simple API key (end users) (EN)
+   * Tạo API key đơn giản cho end users (VI)
+   */
+  const createSimpleApiKey = async (request: CreateSimpleApiKeyRequest): Promise<CreateApiKeyResponse> => {
+    try {
+      isLoading.value = true
+      error.value = null
+
+      console.log('Creating simple API key:', request)
+
+      const response = await post<CreateApiKeyResponse>(`${API_BASE}/simple`, request)
+      
+      if (response) {
+        // Refresh the list to include new key (without sensitive data)
+        await refreshData()
+      }
+      
+      return response
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Failed to create simple API key'
+      console.error('Failed to create simple API key:', err)
+      throw err
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  /**
    * Create new API key (EN)
    * Tạo API key mới (VI)
    */
@@ -104,7 +136,7 @@ export const useApiKeys = () => {
 
       console.log('Creating API key:', request)
 
-      const response = await post<CreateApiKeyResponse>('/api/identity/enhanced-api-keys', request)
+      const response = await post<CreateApiKeyResponse>(API_BASE, request)
       
       if (response) {
         // Refresh the list to include new key (without sensitive data)
@@ -132,7 +164,7 @@ export const useApiKeys = () => {
 
       console.log('Updating API key:', id, request)
 
-      const response = await put<ApiKey>(`/api/identity/enhanced-api-keys/${id}`, request)
+      const response = await put<ApiKey>(`${API_BASE}/${id}`, request)
       
       if (response) {
         // Update local state
@@ -166,7 +198,7 @@ export const useApiKeys = () => {
 
       console.log('Revoking API key:', id)
 
-      await deleteRequest(`/api/identity/enhanced-api-keys/${id}/revoke`)
+      await post(`${API_BASE}/${id}/revoke`)
       
       // Update local state - mark as revoked
       const key = apiKeys.value.find(k => k.id === id)
@@ -200,7 +232,7 @@ export const useApiKeys = () => {
 
       console.log('Rotating API key:', id)
 
-      const response = await post<RotateApiKeyResponse>(`/api/identity/enhanced-api-keys/${id}/rotate`, {})
+      const response = await post<RotateApiKeyResponse>(`${API_BASE}/${id}/rotate`)
       
       if (response) {
         // Update local state with new prefix
@@ -237,7 +269,7 @@ export const useApiKeys = () => {
 
       console.log('Fetching API key by ID:', id)
 
-      const response = await post<ApiKey>(`/api/identity/enhanced-api-keys/${id}`, {})
+      const response = await get<ApiKey>(`${API_BASE}/${id}`)
       
       if (response) {
         selectedApiKey.value = response
@@ -268,7 +300,7 @@ export const useApiKeys = () => {
       isLoading.value = true
       error.value = null
 
-      const response = await post<VerifyApiKeyResponse>('/api/identity/enhanced-api-keys/verify', { apiKey })
+      const response = await post<VerifyApiKeyResponse>(`${API_BASE}/verify`, apiKey)
       
       return response
     } catch (err) {
@@ -299,7 +331,7 @@ export const useApiKeys = () => {
 
       console.log('Fetching API key usage:', id, requestBody)
 
-      const response = await post<ApiKeyUsageResponse>(`/api/identity/enhanced-api-keys/${id}/usage`, requestBody)
+      const response = await get<ApiKeyUsageResponse>(`${API_BASE}/${id}/analytics`, requestBody)
       
       return response
     } catch (err) {
@@ -425,6 +457,7 @@ export const useApiKeys = () => {
 
     // Actions
     fetchApiKeys,
+    createSimpleApiKey,
     createApiKey,
     updateApiKey,
     revokeApiKey,

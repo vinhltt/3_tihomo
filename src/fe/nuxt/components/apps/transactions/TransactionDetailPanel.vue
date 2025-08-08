@@ -403,9 +403,9 @@
 </template>
 
 <script setup lang="ts">
-import type { TransactionViewModel, TransactionCreateRequest, TransactionUpdateRequest } from '~/types/transaction'
+import type { TransactionViewModel, TransactionCreateRequest, TransactionUpdateRequest, TransactionDirectionType } from '~/types/transaction'
 import type { AccountViewModel } from '~/types/account'
-import { TransactionDirection, CategoryType, TransactionDirectionType } from '~/types/transaction'
+import { TransactionDirection, CategoryType } from '~/types/transaction'
 
 // Props
 interface Props {

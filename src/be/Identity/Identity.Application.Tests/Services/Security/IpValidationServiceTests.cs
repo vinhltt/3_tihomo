@@ -245,11 +245,11 @@ public class IpValidationServiceTests
         var ipWhitelist = new List<string>();
 
         // Act
-        var result = _ipValidationService.ValidateIpWhitelist(ipWhitelist);
+        var (IsValid, Errors) = _ipValidationService.ValidateIpWhitelist(ipWhitelist);
 
         // Assert
-        result.IsValid.Should().BeTrue();
-        result.Errors.Should().BeEmpty();
+        IsValid.Should().BeTrue();
+        Errors.Should().BeEmpty();
     }
 
     [Fact]
@@ -259,11 +259,11 @@ public class IpValidationServiceTests
         List<string>? ipWhitelist = null;
 
         // Act
-        var result = _ipValidationService.ValidateIpWhitelist(ipWhitelist);
+        var (IsValid, Errors) = _ipValidationService.ValidateIpWhitelist(ipWhitelist);
 
         // Assert
-        result.IsValid.Should().BeTrue();
-        result.Errors.Should().BeEmpty();
+        IsValid.Should().BeTrue();
+        Errors.Should().BeEmpty();
     }
 
     [Fact]
@@ -279,11 +279,11 @@ public class IpValidationServiceTests
         };
 
         // Act
-        var result = _ipValidationService.ValidateIpWhitelist(ipWhitelist);
+        var (IsValid, Errors) = _ipValidationService.ValidateIpWhitelist(ipWhitelist);
 
         // Assert
-        result.IsValid.Should().BeTrue();
-        result.Errors.Should().BeEmpty();
+        IsValid.Should().BeTrue();
+        Errors.Should().BeEmpty();
     }
 
     [Fact]
@@ -299,11 +299,11 @@ public class IpValidationServiceTests
         };
 
         // Act
-        var result = _ipValidationService.ValidateIpWhitelist(ipWhitelist);
+        var (IsValid, Errors) = _ipValidationService.ValidateIpWhitelist(ipWhitelist);
 
         // Assert
-        result.IsValid.Should().BeTrue();
-        result.Errors.Should().BeEmpty();
+        IsValid.Should().BeTrue();
+        Errors.Should().BeEmpty();
     }
 
     [Fact]
@@ -318,11 +318,11 @@ public class IpValidationServiceTests
         };
 
         // Act
-        var result = _ipValidationService.ValidateIpWhitelist(ipWhitelist);
+        var (IsValid, Errors) = _ipValidationService.ValidateIpWhitelist(ipWhitelist);
 
         // Assert
-        result.IsValid.Should().BeTrue();
-        result.Errors.Should().BeEmpty();
+        IsValid.Should().BeTrue();
+        Errors.Should().BeEmpty();
     }
 
     [Fact]
@@ -337,11 +337,11 @@ public class IpValidationServiceTests
         };
 
         // Act
-        var result = _ipValidationService.ValidateIpWhitelist(ipWhitelist);
+        var (IsValid, Errors) = _ipValidationService.ValidateIpWhitelist(ipWhitelist);
 
         // Assert
-        result.IsValid.Should().BeTrue();
-        result.Errors.Should().BeEmpty();
+        IsValid.Should().BeTrue();
+        Errors.Should().BeEmpty();
     }
 
     [Fact]
@@ -356,14 +356,14 @@ public class IpValidationServiceTests
         };
 
         // Act
-        var result = _ipValidationService.ValidateIpWhitelist(ipWhitelist);
+        var (IsValid, Errors) = _ipValidationService.ValidateIpWhitelist(ipWhitelist);
 
         // Assert
-        result.IsValid.Should().BeFalse();
-        result.Errors.Should().HaveCount(3);
-        result.Errors.Should().Contain(error => error.Contains("256.1.1.1"));
-        result.Errors.Should().Contain(error => error.Contains("192.168.1"));
-        result.Errors.Should().Contain(error => error.Contains("invalid-ip"));
+        IsValid.Should().BeFalse();
+        Errors.Should().HaveCount(3);
+        Errors.Should().Contain(error => error.Contains("256.1.1.1"));
+        Errors.Should().Contain(error => error.Contains("192.168.1"));
+        Errors.Should().Contain(error => error.Contains("invalid-ip"));
     }
 
     [Fact]
@@ -378,11 +378,11 @@ public class IpValidationServiceTests
         };
 
         // Act
-        var result = _ipValidationService.ValidateIpWhitelist(ipWhitelist);
+        var (IsValid, Errors) = _ipValidationService.ValidateIpWhitelist(ipWhitelist);
 
         // Assert
-        result.IsValid.Should().BeFalse();
-        result.Errors.Should().HaveCount(3);
+        IsValid.Should().BeFalse();
+        Errors.Should().HaveCount(3);
     }
 
     [Fact]
@@ -397,11 +397,11 @@ public class IpValidationServiceTests
         };
 
         // Act
-        var result = _ipValidationService.ValidateIpWhitelist(ipWhitelist);
+        var (IsValid, Errors) = _ipValidationService.ValidateIpWhitelist(ipWhitelist);
 
         // Assert
-        result.IsValid.Should().BeFalse();
-        result.Errors.Should().NotBeEmpty();
+        IsValid.Should().BeFalse();
+        Errors.Should().NotBeEmpty();
     }
 
     [Fact]
@@ -416,11 +416,11 @@ public class IpValidationServiceTests
         };
 
         // Act
-        var result = _ipValidationService.ValidateIpWhitelist(ipWhitelist);
+        var (IsValid, Errors) = _ipValidationService.ValidateIpWhitelist(ipWhitelist);
 
         // Assert
-        result.IsValid.Should().BeFalse();
-        result.Errors.Should().Contain(error => error.Contains("Empty or whitespace"));
+        IsValid.Should().BeFalse();
+        Errors.Should().Contain(error => error.Contains("Empty or whitespace"));
     }
 
     [Fact]
@@ -437,13 +437,13 @@ public class IpValidationServiceTests
         };
 
         // Act
-        var result = _ipValidationService.ValidateIpWhitelist(ipWhitelist);
+        var (IsValid, Errors) = _ipValidationService.ValidateIpWhitelist(ipWhitelist);
 
         // Assert
-        result.IsValid.Should().BeFalse();
-        result.Errors.Should().HaveCount(2);
-        result.Errors.Should().Contain(error => error.Contains("256.1.1.1"));
-        result.Errors.Should().Contain(error => error.Contains("192.168.1.0/33"));
+        IsValid.Should().BeFalse();
+        Errors.Should().HaveCount(2);
+        Errors.Should().Contain(error => error.Contains("256.1.1.1"));
+        Errors.Should().Contain(error => error.Contains("192.168.1.0/33"));
     }
 
     #endregion

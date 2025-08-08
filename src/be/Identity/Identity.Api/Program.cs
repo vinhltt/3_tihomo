@@ -21,7 +21,7 @@ using Serilog;
 using Serilog.Events;
 
 
-async Task MigrateDatabaseAsync(IHost host)
+static async Task MigrateDatabaseAsync(IHost host)
 {
     using var scope = host.Services.CreateScope();
     var services = scope.ServiceProvider;
@@ -81,14 +81,28 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-// Add CORS
+// Add CORS with environment-specific configuration
+// Thêm CORS với cấu hình theo môi trường
+var corsConfig = builder.Configuration.GetSection("CorsOptions");
+var allowedOrigins = corsConfig.GetSection("AllowedOrigins").Get<string[]>() ?? ["*"];
+var policyName = corsConfig["PolicyName"] ?? "DefaultCorsPolicy";
+
 builder.Services.AddCors(options =>
 {
-    options.AddDefaultPolicy(corsPolicyBuilder =>
+    options.AddPolicy(policyName, corsPolicyBuilder =>
     {
-        corsPolicyBuilder.AllowAnyOrigin()
-            .AllowAnyMethod()
-            .AllowAnyHeader();
+        if (allowedOrigins.Contains("*"))
+        {
+            corsPolicyBuilder.AllowAnyOrigin();
+        }
+        else
+        {
+            corsPolicyBuilder.WithOrigins(allowedOrigins)
+                           .AllowCredentials();
+        }
+        
+        corsPolicyBuilder.AllowAnyMethod()
+                        .AllowAnyHeader();
     });
 });
 
@@ -241,14 +255,20 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-app.UseCors();
+app.UseCors(policyName);
 
 // ✅ Add ObservabilityMiddleware for correlation ID and request metrics
 // Thêm ObservabilityMiddleware cho correlation ID và request metrics
 app.UseMiddleware<ObservabilityMiddleware>();
 
-// Add API Key authentication middleware before JWT authentication
-app.UseMiddleware<ApiKeyAuthenticationMiddleware>();
+// Add API Key exception handling middleware
+app.UseApiKeyExceptionHandling();
+
+// Add API Key performance monitoring
+app.UseApiKeyPerformanceMonitoring();
+
+// Add Enhanced API Key authentication middleware before JWT authentication
+app.UseEnhancedApiKeyAuthentication();
 
 app.UseAuthentication();
 app.UseAuthorization();
