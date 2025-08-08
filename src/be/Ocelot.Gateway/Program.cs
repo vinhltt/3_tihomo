@@ -1,11 +1,12 @@
-using System.Text.Json;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.Extensions.DependencyInjection;
 using Ocelot.DependencyInjection;
 using Ocelot.Gateway.Configuration;
 using Ocelot.Gateway.Extensions;
 using Ocelot.Gateway.Middleware;
 using Ocelot.Middleware;
 using Serilog;
+using System.Text.Json;
 
 // Configure Serilog
 Log.Logger = new LoggerConfiguration()
@@ -57,12 +58,15 @@ try
                        new CorsSettings();
     var rateLimitSettings = builder.Configuration.GetSection(RateLimitSettings.SectionName).Get<RateLimitSettings>() ??
                             new RateLimitSettings();
+    var internalServiceSettings = builder.Configuration.GetSection(InternalServiceSettings.SectionName).Get<InternalServiceSettings>() ??
+                            new InternalServiceSettings();
 
     // Configure settings as services
     builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection(JwtSettings.SectionName));
     builder.Services.Configure<ApiKeySettings>(builder.Configuration.GetSection(ApiKeySettings.SectionName));
     builder.Services.Configure<CorsSettings>(builder.Configuration.GetSection(CorsSettings.SectionName));
     builder.Services.Configure<RateLimitSettings>(builder.Configuration.GetSection(RateLimitSettings.SectionName));
+    builder.Services.Configure<InternalServiceSettings>(builder.Configuration.GetSection(InternalServiceSettings.SectionName));
 
     // Add services to the container
     builder.Services.AddControllers()
@@ -88,7 +92,7 @@ try
     // Add HttpClient for Identity service communication
     builder.Services.AddHttpClient("IdentityService", client =>
     {
-        client.BaseAddress = new Uri("http://localhost:5001/"); // Identity service URL (corrected port)
+        client.BaseAddress = new Uri(internalServiceSettings.IdentityService!); // Identity service URL (corrected port)
         client.Timeout = TimeSpan.FromSeconds(30);
         client.DefaultRequestHeaders.Add("User-Agent", "TiHoMo-Gateway/1.0");
     });
