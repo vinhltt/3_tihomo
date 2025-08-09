@@ -412,7 +412,7 @@ public class JarService(IUnitOfWork unitOfWork, IMapper mapper, ILogger<JarServi
         };
     }
 
-    private JarBalanceStatistics CalculateStatistics(List<JarBalanceDetail> jarBalances)
+    private static JarBalanceStatistics CalculateStatistics(List<JarBalanceDetail> jarBalances)
     {
         var activeJars = jarBalances.Where(j => j.Status != "Inactive").ToList();
 

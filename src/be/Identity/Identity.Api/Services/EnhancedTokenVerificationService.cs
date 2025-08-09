@@ -131,8 +131,7 @@ public class EnhancedTokenVerificationService(
     /// </summary>
     private static string ComputeHash(string input)
     {
-        using var sha256 = SHA256.Create();
-        var hash = sha256.ComputeHash(Encoding.UTF8.GetBytes(input));
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(input));
         return Convert.ToBase64String(hash);
     }
 
@@ -212,7 +211,7 @@ public class EnhancedTokenVerificationService(
             var payload = await GoogleJsonWebSignature.ValidateAsync(token,
                 new GoogleJsonWebSignature.ValidationSettings
                 {
-                    Audience = new[] { clientId }
+                    Audience = [clientId]
                 });
 
             return new SocialUserInfo

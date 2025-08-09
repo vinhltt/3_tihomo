@@ -39,21 +39,28 @@ static async Task MigrateDatabaseAsync(IHost host)
     }
 }
 
-var builder = WebApplication.CreateBuilder(args);
-
 // ✅ Configure Serilog for structured logging với correlation ID support
 // Cấu hình Serilog cho structured logging với hỗ trợ correlation ID
+
+var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
+var configuration = new ConfigurationBuilder()
+    .AddEnvironmentVariables()
+    .AddJsonFile("appsettings.json", false, true)
+    .AddJsonFile($"appsettings.{env}.json", true, true)
+    .Build();
 Log.Logger = new LoggerConfiguration()
-    .MinimumLevel.Information()
-    .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
-    .MinimumLevel.Override("Microsoft.Hosting.Lifetime", LogEventLevel.Information)
-    .Enrich.FromLogContext()
-    .Enrich.WithProperty("Application", "TiHoMo.Identity")
-    .WriteTo.Console(
-        outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {CorrelationId} {Message:lj}{NewLine}{Exception}")
+    .ReadFrom.Configuration(configuration)
     .CreateLogger();
 
-builder.Host.UseSerilog();
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Host.UseSerilog((hostingContext, loggerConfiguration) =>
+{
+    loggerConfiguration
+        .ReadFrom.Configuration(hostingContext.Configuration)
+        .Enrich.FromLogContext()
+        .Enrich.WithMachineName();
+});
 
 // Add services to the container
 builder.Services.AddControllers();

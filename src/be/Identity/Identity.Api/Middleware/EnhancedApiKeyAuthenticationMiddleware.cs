@@ -93,7 +93,7 @@ public class EnhancedApiKeyAuthenticationMiddleware(
     /// Extract API key from request headers or query parameters (EN)<br/>
     /// Trích xuất khóa API từ headers hoặc query parameters (VI)
     /// </summary>
-    private string? ExtractApiKey(HttpContext context)
+    private static string? ExtractApiKey(HttpContext context)
     {
         // Try header first
         if (context.Request.Headers.TryGetValue(ApiKeyHeaderName, out var headerValue))
@@ -121,7 +121,7 @@ public class EnhancedApiKeyAuthenticationMiddleware(
     /// Get client IP address from request (EN)<br/>
     /// Lấy địa chỉ IP client từ request (VI)
     /// </summary>
-    private string GetClientIpAddress(HttpContext context)
+    private static string GetClientIpAddress(HttpContext context)
     {
         // Check for forwarded IP (behind proxy/load balancer)
         var forwardedFor = context.Request.Headers["X-Forwarded-For"].FirstOrDefault();
@@ -181,7 +181,7 @@ public class EnhancedApiKeyAuthenticationMiddleware(
     /// Set authentication context for downstream middleware (EN)<br/>
     /// Thiết lập context xác thực cho middleware downstream (VI)
     /// </summary>
-    private void SetAuthenticationContext(HttpContext context, dynamic verificationResult)
+    private static void SetAuthenticationContext(HttpContext context, dynamic verificationResult)
     {
         // Set user ID in context
         context.Items["UserId"] = verificationResult.UserId;
@@ -281,7 +281,7 @@ public class EnhancedApiKeyAuthenticationMiddleware(
     /// Determine if a token has JWT format (EN)<br/>
     /// Xác định xem token có định dạng JWT không (VI)
     /// </summary>
-    private bool IsJwtFormat(string token)
+    private static bool IsJwtFormat(string token)
     {
         if (string.IsNullOrWhiteSpace(token))
             return false;
@@ -383,7 +383,7 @@ public class EnhancedApiKeyAuthenticationMiddleware(
     /// Handle internal server error response (EN)<br/>
     /// Xử lý phản hồi internal server error (VI)
     /// </summary>
-    private async Task HandleInternalServerError(HttpContext context, string message)
+    private static async Task HandleInternalServerError(HttpContext context, string message)
     {
         context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
         context.Response.ContentType = "application/json";

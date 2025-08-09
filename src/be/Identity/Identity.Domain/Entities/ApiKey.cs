@@ -148,12 +148,13 @@ public class ApiKey : BaseEntity<Guid>
     /// </summary>
     public bool IsRateLimited => SecuritySettings.EnableRateLimiting && 
                                 TodayUsageCount >= DailyUsageQuota;
-    
+
     // Navigation properties
     /// <summary>
     /// User - Navigation property tới User (EN)<br/>
     /// Người dùng - Navigation property tới User (VI)
     /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore]
     public virtual User User { get; set; } = null!;
     
     /// <summary>

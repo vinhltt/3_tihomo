@@ -10,7 +10,7 @@ using Serilog;
 using Shared.Contracts.ConfigurationOptions;
 using Shared.Contracts.Utilities;
 
-async Task CreateDbIfNotExistsAsync(IHost host)
+static async Task CreateDbIfNotExistsAsync(IHost host)
 {
     using var scope = host.Services.CreateScope();
     var services = scope.ServiceProvider;

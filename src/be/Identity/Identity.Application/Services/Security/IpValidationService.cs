@@ -266,7 +266,7 @@ public class IpValidationService(ILogger<IpValidationService> logger) : IIpValid
     /// </summary>
     /// <param name="wildcardPattern">Wildcard pattern string (EN)<br/>Chuỗi wildcard pattern (VI)</param>
     /// <returns>True if valid wildcard pattern (EN)<br/>True nếu định dạng wildcard pattern hợp lệ (VI)</returns>
-    private bool IsValidWildcardPattern(string wildcardPattern)
+    private static bool IsValidWildcardPattern(string wildcardPattern)
     {
         if (string.IsNullOrWhiteSpace(wildcardPattern))
             return false;

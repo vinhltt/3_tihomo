@@ -15,7 +15,7 @@ public class ApiKeySettings
     /// <summary>
     ///     Valid API keys with their associated client names
     /// </summary>
-    public Dictionary<string, string> ValidApiKeys { get; set; } = new();
+    public Dictionary<string, string> ValidApiKeys { get; set; } = [];
 
     /// <summary>
     ///     Default rate limit for API key requests

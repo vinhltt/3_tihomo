@@ -43,5 +43,6 @@ public class UserLogin : BaseEntity<Guid>
     /// The user this login belongs to
     /// Người dùng mà thông tin đăng nhập này thuộc về
     /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore]
     public virtual User User { get; set; } = null!;
 }

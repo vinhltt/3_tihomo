@@ -163,14 +163,14 @@ public class TelemetryService : IDisposable
         };
         allTags.AddRange(tags);
 
-        TokenVerificationAttempts.Add(1, allTags.ToArray());
+        TokenVerificationAttempts.Add(1, [.. allTags]);
 
         if (success)
-            TokenVerificationSuccesses.Add(1, allTags.ToArray());
+            TokenVerificationSuccesses.Add(1, [.. allTags]);
         else
-            TokenVerificationFailures.Add(1, allTags.ToArray());
+            TokenVerificationFailures.Add(1, [.. allTags]);
 
-        TokenVerificationDuration.Record(duration.TotalSeconds, allTags.ToArray());
+        TokenVerificationDuration.Record(duration.TotalSeconds, [.. allTags]);
     }
 
     /// <summary>

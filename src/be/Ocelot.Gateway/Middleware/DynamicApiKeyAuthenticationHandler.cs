@@ -89,7 +89,7 @@ public class DynamicApiKeyAuthenticationHandler(
         }
     }
 
-    private JsonSerializerOptions GetOptions()
+    private static JsonSerializerOptions GetOptions()
     {
         return new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
     }
