@@ -78,7 +78,11 @@
       "Bash(docker-compose:*)",
       "Bash(dotnet test:*)",
       "Bash(dotnet build:*)",
-      "Bash(docker ps:*)"
+      "Bash(docker ps:*)",
+      "Bash(docker:*)",
+      "mcp__serena__replace_symbol_body",
+      "mcp__serena__insert_before_symbol",
+      "mcp__serena__insert_at_line"
     ],
     "deny": []
   },

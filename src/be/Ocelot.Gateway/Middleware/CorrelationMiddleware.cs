@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using Serilog.Context;
 
-namespace ExcelApi.Middleware;
+namespace Ocelot.Gateway.Middleware;
 
 /// <summary>
 ///     Middleware to handle correlation ID tracking and structured logging
@@ -23,7 +23,7 @@ public class CorrelationMiddleware(RequestDelegate next, ILogger<CorrelationMidd
         {
             var stopwatch = Stopwatch.StartNew();
 
-            logger.LogInformation("Request started: {Method} {Path}",
+            logger.LogInformation("Gateway request started: {Method} {Path}",
                 context.Request.Method, context.Request.Path);
 
             try
@@ -32,7 +32,7 @@ public class CorrelationMiddleware(RequestDelegate next, ILogger<CorrelationMidd
 
                 stopwatch.Stop();
                 logger.LogInformation(
-                    "Request completed: {Method} {Path} - Status: {StatusCode} - Duration: {ElapsedMs}ms",
+                    "Gateway request completed: {Method} {Path} - Status: {StatusCode} - Duration: {ElapsedMs}ms",
                     context.Request.Method,
                     context.Request.Path,
                     context.Response.StatusCode,
@@ -41,7 +41,7 @@ public class CorrelationMiddleware(RequestDelegate next, ILogger<CorrelationMidd
             catch (Exception ex)
             {
                 stopwatch.Stop();
-                logger.LogError(ex, "Request failed: {Method} {Path} - Duration: {ElapsedMs}ms - Error: {ErrorMessage}",
+                logger.LogError(ex, "Gateway request failed: {Method} {Path} - Duration: {ElapsedMs}ms - Error: {ErrorMessage}",
                     context.Request.Method,
                     context.Request.Path,
                     stopwatch.ElapsedMilliseconds,

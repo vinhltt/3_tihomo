@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using Serilog.Context;
 
-namespace ExcelApi.Middleware;
+namespace Identity.Api.Middleware;
 
 /// <summary>
 ///     Middleware to handle correlation ID tracking and structured logging

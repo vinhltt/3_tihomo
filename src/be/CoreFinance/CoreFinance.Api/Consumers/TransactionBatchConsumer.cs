@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using CoreFinance.Contracts.Messages;
 using MassTransit;
 using SerilogContext = Serilog.Context;
@@ -8,7 +9,9 @@ namespace CoreFinance.Api.Consumers;
 /// Consumer for handling transaction batch messages from ExcelApi
 /// Consumer để xử lý transaction batch messages từ ExcelApi
 /// </summary>
-public class TransactionBatchConsumer(ILogger<TransactionBatchConsumer> logger)
+public class TransactionBatchConsumer(
+    ILogger<TransactionBatchConsumer> logger, 
+    ActivitySource activitySource)
     : IConsumer<TransactionBatchInitiated>
 {
     /// <summary>
@@ -19,6 +22,24 @@ public class TransactionBatchConsumer(ILogger<TransactionBatchConsumer> logger)
     {
         var message = context.Message;
         var startTime = DateTime.UtcNow;
+
+        // Create OpenTelemetry span for message processing
+        // Tạo OpenTelemetry span cho xử lý message
+        using var activity = activitySource.StartActivity($"RabbitMQ receive {nameof(TransactionBatchInitiated)}");
+        
+        if (activity != null)
+        {
+            // Set message processing tags
+            // Đặt tags cho xử lý message
+            activity.SetTag("messaging.system", "rabbitmq");
+            activity.SetTag("messaging.operation", "receive");
+            activity.SetTag("messaging.destination", nameof(TransactionBatchInitiated));
+            activity.SetTag("messaging.message_id", context.MessageId?.ToString());
+            activity.SetTag("correlation.id", message.CorrelationId.ToString());
+            activity.SetTag("batch.id", message.BatchId.ToString());
+            activity.SetTag("batch.transaction_count", message.Transactions.Count);
+            activity.SetTag("message.source", "ExcelApi");
+        }
 
         // Add correlation context for distributed tracing
         using (SerilogContext.LogContext.PushProperty("CorrelationId", message.CorrelationId))
@@ -37,6 +58,22 @@ public class TransactionBatchConsumer(ILogger<TransactionBatchConsumer> logger)
                 var result = await ProcessTransactionBatch(message, context);
 
                 var duration = DateTime.UtcNow - startTime;
+                
+                // Update activity with success metrics
+                // Cập nhật activity với success metrics
+                activity?.SetTag("batch.processed_count", result.ProcessedCount);
+                activity?.SetTag("batch.failed_count", result.FailedCount);
+                activity?.SetTag("batch.duration_ms", duration.TotalMilliseconds);
+                
+                if (result.FailedCount > 0)
+                {
+                    activity?.SetStatus(ActivityStatusCode.Error, $"{result.FailedCount} transactions failed");
+                }
+                else
+                {
+                    activity?.SetStatus(ActivityStatusCode.Ok);
+                }
+                
                 logger.LogInformation(
                     "TransactionBatch processing completed - CorrelationId: {CorrelationId}, BatchId: {BatchId}, ProcessedCount: {ProcessedCount}, FailedCount: {FailedCount}, Duration: {DurationMs}ms",
                     message.CorrelationId, message.BatchId, result.ProcessedCount, result.FailedCount, duration.TotalMilliseconds);
@@ -52,6 +89,14 @@ public class TransactionBatchConsumer(ILogger<TransactionBatchConsumer> logger)
             catch (Exception ex)
             {
                 var duration = DateTime.UtcNow - startTime;
+                
+                // Record exception in activity
+                // Ghi lại exception trong activity
+                activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+                activity?.SetTag("error", true);
+                activity?.SetTag("error.type", ex.GetType().FullName);
+                activity?.SetTag("error.message", ex.Message);
+                
                 logger.LogError(ex,
                     "Critical error processing TransactionBatch - CorrelationId: {CorrelationId}, BatchId: {BatchId}, FileName: {FileName}, Duration: {DurationMs}ms, Error: {ErrorMessage}",
                     message.CorrelationId, message.BatchId, message.FileName, duration.TotalMilliseconds, ex.Message);

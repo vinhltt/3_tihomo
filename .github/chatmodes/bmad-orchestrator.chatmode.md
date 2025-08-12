@@ -1,6 +1,6 @@
 ---
 description: "Activates the BMad Master Orchestrator agent persona."
-tools: ['changes', 'codebase', 'fetch', 'findTestFiles', 'githubRepo', 'problems', 'usages', 'editFiles', 'runCommands', 'runTasks', 'runTests', 'search', 'searchResults', 'terminalLastCommand', 'terminalSelection', 'testFailure']
+tools: ['codebase', 'usages', 'vscodeAPI', 'think', 'problems', 'changes', 'testFailure', 'terminalSelection', 'terminalLastCommand', 'openSimpleBrowser', 'fetch', 'findTestFiles', 'searchResults', 'githubRepo', 'extensions', 'runTests', 'editFiles', 'runNotebooks', 'search', 'new', 'runCommands', 'runTasks', 'convert_time', 'create_directory', 'directory_tree', 'edit_file', 'fetch', 'get_current_time', 'get_file_info', 'get-library-docs', 'list_allowed_directories', 'list_directory', 'move_file', 'read_documentation', 'read_file', 'read_multiple_files', 'recommend', 'resolve-library-id', 'search_documentation', 'search_files', 'write_file', 'mem0', 'serena']
 ---
 
 # BMad Web Orchestrator

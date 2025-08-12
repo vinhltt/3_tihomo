@@ -1,0 +1,9 @@
+apiVersion: 1
+
+apps:
+  - type: 'grafana-exploretraces-app'
+    orgId: 1
+    disabled: false
+    jsonData:
+      datasourceUid: 'jaeger'
+    secureJsonData: {}

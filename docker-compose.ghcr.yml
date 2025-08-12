@@ -202,6 +202,8 @@ services:
       - GF_USERS_ALLOW_SIGN_UP=false
       - GF_ANALYTICS_REPORTING_ENABLED=${GRAFANA_ANALYTICS_ENABLED:-true}
       - GF_ANALYTICS_CHECK_FOR_UPDATES=${GRAFANA_CHECK_UPDATES:-true}
+      - GF_FEATURE_TOGGLES_ENABLE=traceToLogs,correlations,traces,nodeGraph,tracing
+      - GF_PLUGINS_ENABLE_ALPHA=true
     ports:
       - "${GRAFANA_PORT}:3000"
     volumes:
@@ -213,6 +215,7 @@ services:
     depends_on:
       - prometheus
       - loki
+      - tempo
     healthcheck:
       test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost:3000/api/health || exit 1"]
       interval: 30s
@@ -234,6 +237,31 @@ services:
       - tihomo-network
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3100/ready"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Grafana Tempo for Distributed Tracing
+  tempo:
+    image: grafana/tempo:latest
+    container_name: tihomo-tempo
+    restart: unless-stopped
+    user: root
+    command: [ "-config.file=/etc/tempo/tempo.yaml" ]
+    volumes:
+      - ./config/tempo.yml:/etc/tempo/tempo.yaml
+      - tempo_data:/tmp/tempo
+    ports:
+      - "3200:3200"   # Tempo HTTP API
+      - "4317:4317"   # OTLP gRPC receiver  
+      - "4318:4318"   # OTLP HTTP receiver
+      - "9411:9411"   # Zipkin receiver
+      - "14268:14268" # Jaeger HTTP receiver (for compatibility)
+      - "14250:14250" # Jaeger gRPC receiver (for compatibility)
+    networks:
+      - tihomo-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3200/ready"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -371,7 +399,11 @@ services:
       - JwtSettings__SecretKey=${JWT_SECRET_KEY}
       - JwtSettings__Issuer=${JWT_ISSUER}
       - JwtSettings__Audience=${JWT_AUDIENCE_OCELOT_GATEWAY}
+      - JwtSettings__AccessTokenExpirationMinutes=${JWT_ACCESS_TOKEN_EXPIRATION_MINUTES:-60}
+      - JwtSettings__RefreshTokenExpirationDays=${JWT_REFRESH_TOKEN_EXPIRATION_DAYS:-30}
       - Logging__LogLevel__Default=${API_LOG_LEVEL:-Information}
+      # OtelSettings are now configured in appsettings.json
+      - OtelSettings__ExporterOtlpEndpoint=${OTEL_EXPORTER_OTLP_ENDPOINT:-http://tempo:4317}
       - CorsSettings__AllowedOrigins__0=${CORS_ALLOWED_ORIGINS_0:-*}
       - CorsSettings__AllowedOrigins__1=${CORS_ALLOWED_ORIGINS_1:-}
       - CorsSettings__AllowedOrigins__2=${CORS_ALLOWED_ORIGINS_2:-}
@@ -410,7 +442,7 @@ services:
     container_name: tihomo-identity-api
     restart: unless-stopped
     environment:
-      - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Development}
+      - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Production}
       - ASPNETCORE_URLS=http://+:8080
       - GOOGLE_CLIENT_ID=${APP_PUBLIC_GOOGLE_CLIENT_ID}
       - GoogleAuth__ClientId=${APP_PUBLIC_GOOGLE_CLIENT_ID}
@@ -430,6 +462,8 @@ services:
       - RabbitMQ__Username=tihomo
       - RabbitMQ__Password=${RABBITMQ_PASSWORD}
       - Logging__LogLevel__Default=${API_LOG_LEVEL:-Information}
+      # OtelSettings are now configured in appsettings.json
+      - OtelSettings__ExporterOtlpEndpoint=${OTEL_EXPORTER_OTLP_ENDPOINT:-http://tempo:4317}
     volumes:
       - ./logs/identity:/app/logs
     networks:
@@ -468,6 +502,8 @@ services:
       - RabbitMQ__Password=${RABBITMQ_PASSWORD}
       - IdentityService__BaseUrl=http://identity-api:8080
       - Logging__LogLevel__Default=${API_LOG_LEVEL:-Information}
+      # OtelSettings are now configured in appsettings.json
+      - OtelSettings__ExporterOtlpEndpoint=${OTEL_EXPORTER_OTLP_ENDPOINT:-http://tempo:4317}
       # CORS Configuration with multiple origins support
       - CorsOptions__PolicyName=${CORS_POLICY_NAME:-DefaultCorsPolicy}
       - CorsOptions__AllowedOrigins__0=${CORS_ALLOWED_ORIGINS_0:-*}
@@ -518,6 +554,8 @@ services:
       - Redis__Password=${REDIS_PASSWORD}
       - UploadPath=/app/uploads
       - Logging__LogLevel__Default=${API_LOG_LEVEL:-Information}
+      # OtelSettings are now configured in appsettings.json
+      - OtelSettings__ExporterOtlpEndpoint=${OTEL_EXPORTER_OTLP_ENDPOINT:-http://tempo:4317}
     volumes:
       - ./uploads:/app/uploads
       - ./logs/excel:/app/logs
@@ -596,6 +634,8 @@ volumes:
   grafana_data:
     driver: local
   loki_data:
+    driver: local
+  tempo_data:
     driver: local
   
   # Development tools volumes

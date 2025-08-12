@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
 using Identity.Api.Configuration;
@@ -172,11 +173,28 @@ builder.Services.AddAuthorization();
 // Add HttpClient for external API calls
 builder.Services.AddHttpClient();
 
+// ✅ Configure OtelSettings from appsettings.json
+// Cấu hình OtelSettings từ appsettings.json
+var otelSettings = builder.Configuration.GetSection("OtelSettings").Get<OtelSettings>() ?? new OtelSettings
+{
+    ServiceName = "TiHoMo.Identity",
+    ServiceVersion = "1.0.0",
+    ExporterOtlpEndpoint = "http://tempo:4317",
+    TracesSampler = "traceidratio",
+    TracesSamplerArg = "1.0"
+};
+
+// ✅ Configure ActivitySource for distributed tracing
+// Cấu hình ActivitySource cho distributed tracing
+var activitySource = new ActivitySource(otelSettings.ServiceName);
+builder.Services.AddSingleton(activitySource);
+
 // ✅ Add OpenTelemetry for comprehensive observability
 // Thêm OpenTelemetry cho observability toàn diện
 builder.Services.AddOpenTelemetry()
     .ConfigureResource(resource => resource
-        .AddService("TiHoMo.Identity", "1.0.0")
+        .AddService(otelSettings.ServiceName, otelSettings.ServiceVersion)
+        .AddAttributes(otelSettings.GetResourceAttributesDictionary())
         .AddAttributes(new Dictionary<string, object>
         {
             ["service.namespace"] = "TiHoMo",
@@ -184,6 +202,7 @@ builder.Services.AddOpenTelemetry()
             ["deployment.environment"] = builder.Environment.EnvironmentName
         }))
     .WithTracing(tracing => tracing
+        .SetSampler(new TraceIdRatioBasedSampler(otelSettings.GetSamplingRatio()))
         .AddAspNetCoreInstrumentation(options =>
         {
             options.RecordException = true;
@@ -195,15 +214,17 @@ builder.Services.AddOpenTelemetry()
             options.SetDbStatementForStoredProcedure = true;
         })
         .AddHttpClientInstrumentation(options => { options.RecordException = true; })
-        .AddSource("TiHoMo.Identity.Telemetry")
-        .AddConsoleExporter()
-        .AddJaegerExporter())
+        .AddSource(otelSettings.ServiceName)
+        .AddOtlpExporter(otlpOptions =>
+        {
+            otlpOptions.Endpoint = new Uri(otelSettings.ExporterOtlpEndpoint);
+        })
+        .AddConsoleExporter())
     .WithMetrics(metrics => metrics
         .AddAspNetCoreInstrumentation()
         .AddHttpClientInstrumentation()
         .AddRuntimeInstrumentation()
-        .AddProcessInstrumentation()
-        .AddMeter("TiHoMo.Identity.Telemetry")
+        .AddMeter(otelSettings.ServiceName)
         .AddPrometheusExporter());
 
 // ✅ Register TelemetryService for custom metrics and tracing
@@ -264,9 +285,17 @@ app.UseHttpsRedirection();
 
 app.UseCors(policyName);
 
+// ✅ Add CorrelationMiddleware for correlation ID tracking and structured logging
+// Thêm CorrelationMiddleware cho correlation ID tracking và structured logging
+app.UseMiddleware<CorrelationMiddleware>();
+
 // ✅ Add ObservabilityMiddleware for correlation ID and request metrics
 // Thêm ObservabilityMiddleware cho correlation ID và request metrics
 app.UseMiddleware<ObservabilityMiddleware>();
+
+// ✅ Add TracingMiddleware for distributed tracing
+// Thêm TracingMiddleware cho distributed tracing
+app.UseDistributedTracing();
 
 // Add API Key exception handling middleware
 app.UseApiKeyExceptionHandling();
@@ -282,9 +311,7 @@ app.UseAuthorization();
 
 app.MapControllers();
 
-// ✅ Map Prometheus metrics endpoint for scraping
-// Map Prometheus metrics endpoint cho scraping
-app.MapPrometheusScrapingEndpoint("/metrics");
+// Note: Metrics are exported via OpenTelemetry Prometheus exporter
 
 // Health check endpoint with detailed information
 // Health check endpoint với thông tin chi tiết

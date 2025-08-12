@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Reflection;
 using System.Text;
 using ExcelApi.Middleware;
@@ -5,7 +6,11 @@ using ExcelApi.Services;
 using MassTransit;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.OpenApi.Models;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
 using Serilog;
+using ExcelApi.Configuration;
 
 // fix error encoding 1252 cho ExcelDataReader
 Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
@@ -59,6 +64,55 @@ builder.Services.AddMassTransit(x =>
     });
 });
 
+// ✅ Configure OtelSettings from appsettings.json
+// Cấu hình OtelSettings từ appsettings.json
+var otelSettings = builder.Configuration.GetSection("OtelSettings").Get<OtelSettings>() ?? new OtelSettings
+{
+    ServiceName = "TiHoMo.ExcelApi",
+    ServiceVersion = "1.0.0",
+    ExporterOtlpEndpoint = "http://tempo:4317",
+    TracesSampler = "traceidratio",
+    TracesSamplerArg = "1.0"
+};
+
+// ✅ Configure ActivitySource for distributed tracing
+// Cấu hình ActivitySource cho distributed tracing
+var activitySource = new ActivitySource(otelSettings.ServiceName);
+builder.Services.AddSingleton(activitySource);
+
+// ✅ Add OpenTelemetry for comprehensive observability
+// Thêm OpenTelemetry cho observability toàn diện
+builder.Services.AddOpenTelemetry()
+    .ConfigureResource(resource => resource
+        .AddService(otelSettings.ServiceName, otelSettings.ServiceVersion)
+        .AddAttributes(otelSettings.GetResourceAttributesDictionary())
+        .AddAttributes(new Dictionary<string, object>
+        {
+            ["service.namespace"] = "TiHoMo",
+            ["service.instance.id"] = Environment.MachineName,
+            ["deployment.environment"] = builder.Environment.EnvironmentName
+        }))
+    .WithTracing(tracing => tracing
+        .SetSampler(new TraceIdRatioBasedSampler(otelSettings.GetSamplingRatio()))
+        .AddAspNetCoreInstrumentation(options =>
+        {
+            options.RecordException = true;
+            options.Filter = httpContext => !httpContext.Request.Path.StartsWithSegments("/health");
+        })
+        .AddHttpClientInstrumentation(options => { options.RecordException = true; })
+        .AddSource(otelSettings.ServiceName)
+        .AddOtlpExporter(otlpOptions =>
+        {
+            otlpOptions.Endpoint = new Uri(otelSettings.ExporterOtlpEndpoint);
+        })
+        .AddConsoleExporter())
+    .WithMetrics(metrics => metrics
+        .AddAspNetCoreInstrumentation()
+        .AddHttpClientInstrumentation()
+        .AddRuntimeInstrumentation()
+        .AddMeter(otelSettings.ServiceName)
+        .AddPrometheusExporter());
+
 // Add health checks
 builder.Services.AddHealthChecks()
     .AddCheck("rabbitmq", () => HealthCheckResult.Healthy("RabbitMQ health check placeholder"));
@@ -99,6 +153,10 @@ var app = builder.Build();
 // Add enhanced correlation middleware
 app.UseMiddleware<CorrelationMiddleware>();
 
+// ✅ Add TracingMiddleware for distributed tracing
+// Thêm TracingMiddleware cho distributed tracing
+app.UseDistributedTracing();
+
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
@@ -115,6 +173,8 @@ app.UseAuthorization();
 
 // Add health checks endpoint
 app.MapHealthChecks("/health");
+
+// Note: Metrics are exported via OpenTelemetry Prometheus exporter
 
 app.MapControllers();
 

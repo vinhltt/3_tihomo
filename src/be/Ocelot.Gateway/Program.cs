@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.DependencyInjection;
 using Ocelot.DependencyInjection;
@@ -5,6 +6,10 @@ using Ocelot.Gateway.Configuration;
 using Ocelot.Gateway.Extensions;
 using Ocelot.Gateway.Middleware;
 using Ocelot.Middleware;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
+using OpenTelemetry.Exporter.Prometheus;
 using Serilog;
 using System.Text.Json;
 
@@ -100,6 +105,56 @@ try
     // Add Ocelot
     builder.Services.AddOcelot(builder.Configuration);
 
+    // ✅ Configure OtelSettings from appsettings.json
+    // Cấu hình OtelSettings từ appsettings.json
+    var otelSettings = builder.Configuration.GetSection("OtelSettings").Get<OtelSettings>() ?? new OtelSettings
+    {
+        ServiceName = "TiHoMo.Gateway",
+        ServiceVersion = "1.0.0",
+        ExporterOtlpEndpoint = "http://tempo:4317",
+        TracesSampler = "traceidratio",
+        TracesSamplerArg = "1.0"
+    };
+
+    // ✅ Configure ActivitySource for distributed tracing
+    // Cấu hình ActivitySource cho distributed tracing
+    var activitySource = new ActivitySource(otelSettings.ServiceName);
+    builder.Services.AddSingleton(activitySource);
+
+    // ✅ Add OpenTelemetry for comprehensive observability
+    // Thêm OpenTelemetry cho observability toàn diện
+    builder.Services.AddOpenTelemetry()
+        .ConfigureResource(resource => resource
+            .AddService(otelSettings.ServiceName, otelSettings.ServiceVersion)
+            .AddAttributes(otelSettings.GetResourceAttributesDictionary())
+            .AddAttributes(new Dictionary<string, object>
+            {
+                ["service.namespace"] = "TiHoMo",
+                ["service.instance.id"] = Environment.MachineName,
+                ["deployment.environment"] = builder.Environment.EnvironmentName,
+                ["service.type"] = "gateway"
+            }))
+        .WithTracing(tracing => tracing
+            .SetSampler(new TraceIdRatioBasedSampler(otelSettings.GetSamplingRatio()))
+            .AddAspNetCoreInstrumentation(options =>
+            {
+                options.RecordException = true;
+                options.Filter = httpContext => !httpContext.Request.Path.StartsWithSegments("/health");
+            })
+            .AddHttpClientInstrumentation(options => { options.RecordException = true; })
+            .AddSource(otelSettings.ServiceName)
+            .AddOtlpExporter(otlpOptions =>
+            {
+                otlpOptions.Endpoint = new Uri(otelSettings.ExporterOtlpEndpoint);
+            })
+            .AddConsoleExporter())
+        .WithMetrics(metrics => metrics
+            .AddAspNetCoreInstrumentation()
+            .AddHttpClientInstrumentation()
+            .AddRuntimeInstrumentation()
+            .AddMeter(otelSettings.ServiceName)
+            .AddPrometheusExporter());
+
     // Add OpenAPI/Swagger
     builder.Services.AddEndpointsApiExplorer();
     builder.Services.AddSwaggerGen();
@@ -108,6 +163,10 @@ try
 
     // Configure the HTTP request pipeline
     app.UseGlobalExceptionHandling();
+
+    // ✅ Add CorrelationMiddleware for correlation ID tracking and structured logging
+    // Thêm CorrelationMiddleware cho correlation ID tracking và structured logging
+    app.UseMiddleware<CorrelationMiddleware>();
 
     if (app.Environment.IsDevelopment())
     {
@@ -123,6 +182,10 @@ try
 
     app.UseRequestLogging();
 
+    // ✅ Add TracingMiddleware for distributed tracing
+    // Thêm TracingMiddleware cho distributed tracing
+    app.UseDistributedTracing();
+
     app.UseCors(corsSettings.PolicyName);
 
     app.UseAuthentication();
@@ -130,6 +193,9 @@ try
 
     // Handle local routes first
     app.MapControllers();
+
+    // Note: Gateway metrics are exposed via OpenTelemetry Prometheus exporter
+    // No need for explicit MapMetrics() endpoint in Gateway
 
     // Map health check endpoints
     app.MapHealthChecks("/health", new HealthCheckOptions
