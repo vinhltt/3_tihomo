@@ -2,6 +2,8 @@
 using Shared.EntityFramework.DTOs;
 using Microsoft.AspNetCore.Mvc;
 using Shared.EntityFramework.BaseEfModels;
+using CoreFinance.Api.Extensions;
+using CoreFinance.Application.Interfaces;
 
 namespace CoreFinance.Api.Controllers.Base;
 
@@ -12,7 +14,7 @@ public abstract class CrudController<TEntity, TCreateRequest, TUpdateRequest,
     IBaseService<TEntity, TCreateRequest, TUpdateRequest, TViewModel, TKey>
         baseService
 ) : BaseController(logger)
-    where TEntity : BaseEntity<TKey>, new()
+    where TEntity : UserOwnedEntity<TKey>, new()
     where TCreateRequest : BaseCreateRequest, new()
     where TUpdateRequest : BaseUpdateRequest<TKey>, new()
     where TViewModel : BaseViewModel<TKey>, new()
@@ -34,6 +36,38 @@ public abstract class CrudController<TEntity, TCreateRequest, TUpdateRequest,
     {
         if (null == request)
             return BadRequest();
+
+        // Debug: Log the incoming request
+        Logger.LogWarning("DEBUG: Incoming request type: {RequestType}", request.GetType().Name);
+        Logger.LogWarning("DEBUG: Request content: {RequestContent}", System.Text.Json.JsonSerializer.Serialize(request));
+        
+        // Extract UserId from JWT claims and set it in the request if it supports IUserRequest
+        if (request is IUserRequest userRequest)
+        {
+            Logger.LogWarning("DEBUG: User.Identity.IsAuthenticated = {IsAuthenticated}", User.Identity?.IsAuthenticated);
+            Logger.LogWarning("DEBUG: User.Identity.Name = {Name}", User.Identity?.Name);
+            Logger.LogWarning("DEBUG: User.Claims.Count = {ClaimsCount}", User.Claims.Count());
+            
+            // Debug: Log all available claims
+            Logger.LogWarning("=== All JWT Claims ===");
+            foreach (var claim in User.Claims)
+            {
+                Logger.LogWarning("Claim Type: '{ClaimType}', Value: '{ClaimValue}'", claim.Type, claim.Value);
+            }
+            Logger.LogWarning("=== End JWT Claims ===");
+
+            var userId = User.GetUserId();
+            if (userId.HasValue)
+            {
+                userRequest.UserId = userId;
+                Logger.LogDebug("Setting UserId {UserId} for create request from JWT claims", userId);
+            }
+            else
+            {
+                Logger.LogWarning("Could not extract UserId from JWT claims for create request");
+            }
+        }
+
         var result = await baseService.CreateAsync(request);
 
         if (null == result)

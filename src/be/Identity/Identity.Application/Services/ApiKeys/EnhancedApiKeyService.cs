@@ -20,6 +20,7 @@ public class EnhancedApiKeyService(
     IApiKeyHasher apiKeyHasher,
     IRateLimitingService rateLimitingService,
     IIpValidationService ipValidationService,
+    IJwtService jwtService,
     ILogger<EnhancedApiKeyService> logger) : IEnhancedApiKeyService
 {
     private const string KeyPrefix = "tihomo_";
@@ -748,6 +749,59 @@ public class EnhancedApiKeyService(
     private IEnumerable<ApiKey> ApplyPagination(IEnumerable<ApiKey> apiKeys, ListApiKeysQuery query)
     {
         return apiKeys.Take(query.Limit);
+    }
+
+    /// <summary>
+    /// Exchange API key for JWT token (EN)<br/>
+    /// Trao đổi API key lấy JWT token (VI)
+    /// </summary>
+    public async Task<ApiKeyExchangeResponse> ExchangeApiKeyForJwtAsync(string rawApiKey, string clientIpAddress, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            logger.LogDebug("Attempting to exchange API key for JWT token");
+
+            // First verify the API key using existing validation logic
+            var verifyResult = await VerifyApiKeyAsync(rawApiKey, clientIpAddress, cancellationToken);
+            
+            if (!verifyResult.IsValid)
+            {
+                logger.LogWarning("API key exchange failed: {ErrorMessage}", verifyResult.ErrorMessage);
+                throw new UnauthorizedAccessException(verifyResult.ErrorMessage ?? "Invalid API key");
+            }
+
+            // Get user information for JWT generation
+            var user = await userRepository.GetByIdAsync(verifyResult.UserId!.Value, cancellationToken);
+            if (user == null || !user.IsActive)
+            {
+                logger.LogWarning("User not found or inactive for API key exchange: {UserId}", verifyResult.UserId);
+                throw new UnauthorizedAccessException("User not found or inactive");
+            }
+
+            // Generate JWT token using existing JWT service
+            var accessToken = jwtService.GenerateAccessToken(user);
+            var expiresAt = jwtService.GetTokenExpiration();
+
+            logger.LogInformation("Successfully exchanged API key for JWT token for user: {UserId}", user.Id);
+
+            return new ApiKeyExchangeResponse
+            {
+                AccessToken = accessToken,
+                ExpiresAt = expiresAt,
+                TokenType = "Bearer",
+                UserId = user.Id,
+                UserEmail = user.Email
+            };
+        }
+        catch (UnauthorizedAccessException)
+        {
+            throw; // Re-throw authorization exceptions as-is
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Unexpected error during API key to JWT exchange");
+            throw new InvalidOperationException("Failed to exchange API key for JWT token", ex);
+        }
     }
 
     #endregion

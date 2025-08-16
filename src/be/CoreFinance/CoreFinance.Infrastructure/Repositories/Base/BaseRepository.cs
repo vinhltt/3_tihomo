@@ -16,7 +16,7 @@ public class BaseRepository<TEntity, TKey>(
     IHttpContextAccessor? httpContextAccessor
 )
     : IBaseRepository<TEntity, TKey>
-    where TEntity : BaseEntity<TKey>
+    where TEntity : UserOwnedEntity<TKey>
 {
     #region ctor
 
@@ -45,7 +45,8 @@ public class BaseRepository<TEntity, TKey>(
     {
         var query = Entities.AsNoTracking();
         query = includes.Aggregate(query, (current, include) => current.Include(include));
-        query = query.Where(e => e.CreateBy == GetUserNameInHttpContext());
+        var userId = GetUserIdInHttpContext();
+        query = query.Where(e => e.UserId == userId);
         return query;
     }
 
@@ -62,7 +63,8 @@ public class BaseRepository<TEntity, TKey>(
     {
         var query = Entities.AsNoTrackingWithIdentityResolution();
         query = includes.Aggregate(query, (current, include) => current.Include(include));
-        query = query.Where(e => e.CreateBy == GetUserNameInHttpContext());
+        var userId = GetUserIdInHttpContext();
+        query = query.Where(e => e.UserId == userId);
         return query;
     }
 
@@ -77,7 +79,8 @@ public class BaseRepository<TEntity, TKey>(
     {
         var query = Entities.AsQueryable();
         query = includes.Aggregate(query, (current, include) => current.Include(include));
-        query = query.Where(e => e.CreateBy == GetUserNameInHttpContext());
+        var userId = GetUserIdInHttpContext();
+        query = query.Where(e => e.UserId == userId);
         return query;
     }
 
@@ -109,7 +112,8 @@ public class BaseRepository<TEntity, TKey>(
     {
         var query = Entities.AsQueryable();
         query = includes.Aggregate(query, (current, include) => current.Include(include));
-        query = query.Where(e => e.CreateBy == GetUserNameInHttpContext());
+        var userId = GetUserIdInHttpContext();
+        query = query.Where(e => e.UserId == userId);
         var entity = query.SingleOrDefaultAsync(x => x.Id!.Equals(id));
         return entity;
     }
@@ -145,7 +149,8 @@ public class BaseRepository<TEntity, TKey>(
     {
         ValidateAndThrow(entity);
         var currentUserName = GetUserNameInHttpContext();
-        entity.SetDefaultValue(currentUserName);
+        var currentUserId = GetUserIdInHttpContext();
+        entity.SetDefaultValueWithUser(currentUserName, currentUserId);
         await Entities.AddAsync(entity);
         var countAffect = await context.SaveChangesAsync();
         return countAffect;
@@ -164,7 +169,8 @@ public class BaseRepository<TEntity, TKey>(
     {
         ValidateAndThrow(entities);
         var currentUserName = GetUserNameInHttpContext();
-        entities.ForEach(e => { e.SetDefaultValue(currentUserName); });
+        var currentUserId = GetUserIdInHttpContext();
+        entities.ForEach(e => { e.SetDefaultValueWithUser(currentUserName, currentUserId); });
 
         await Entities.AddRangeAsync(entities);
         var countAffect = await context.SaveChangesAsync();
@@ -310,6 +316,47 @@ public class BaseRepository<TEntity, TKey>(
     #region private
 
     protected DbSet<TEntity> Entities => EntitiesDbSet ??= context.Set<TEntity>();
+
+    /// <summary>
+    ///     (EN) Retrieves the user ID from the HTTP context.<br />
+    ///     (VI) Truy xuất ID người dùng từ ngữ cảnh HTTP.
+    /// </summary>
+    /// <returns>The user ID as Guid.</returns>
+    /// <exception cref="UnauthorizedAccessException">
+    ///     Thrown if the user ID is not found in claims. (EN)<br />Ném ngoại lệ nếu không tìm thấy user ID trong claims. (VI)
+    /// </exception>
+    protected Guid GetUserIdInHttpContext()
+    {
+        var userId = GetUserIdFromClaims(httpContextAccessor?.HttpContext?.User);
+        if (!userId.HasValue)
+            throw new UnauthorizedAccessException("User ID not found in claims");
+        return userId.Value;
+    }
+
+    /// <summary>
+    ///     (EN) Extracts the UserId from JWT claims.<br />
+    ///     (VI) Trích xuất UserId từ JWT claims.
+    /// </summary>
+    /// <param name="principal">The ClaimsPrincipal object from the request context</param>
+    /// <returns>UserId as Guid if found, otherwise null</returns>
+    private static Guid? GetUserIdFromClaims(ClaimsPrincipal? principal)
+    {
+        if (principal == null) return null;
+
+        // Try multiple claim types that might contain the user ID
+        var userIdClaim = principal.FindFirst(ClaimTypes.NameIdentifier) 
+                         ?? principal.FindFirst("sub") 
+                         ?? principal.FindFirst("userId")
+                         ?? principal.FindFirst("user_id")
+                         ?? principal.FindFirst("nameid"); // Add explicit check for nameid
+
+        if (userIdClaim?.Value != null && Guid.TryParse(userIdClaim.Value, out var userId))
+        {
+            return userId;
+        }
+
+        return null;
+    }
 
     /// <summary>
     ///     (EN) Retrieves the user name from the HTTP context.<br />

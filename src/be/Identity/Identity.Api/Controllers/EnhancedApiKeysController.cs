@@ -390,6 +390,68 @@ public class EnhancedApiKeysController(
     #region Security & Validation
 
     /// <summary>
+    /// Exchange API key for JWT token (EN)<br/>
+    /// Trao đổi API key lấy JWT token (VI)
+    /// </summary>
+    /// <param name="apiKey">API key to exchange</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>JWT token response</returns>
+    [HttpPost("exchange")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(ApiKeyExchangeResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult<ApiKeyExchangeResponse>> ExchangeApiKeyAsync(
+        [FromBody][Required] string apiKey,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(apiKey))
+            {
+                return BadRequest(new ProblemDetails
+                {
+                    Title = "Invalid Request",
+                    Detail = "API key is required",
+                    Status = StatusCodes.Status400BadRequest
+                });
+            }
+
+            // Get client IP address
+            var clientIpAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? 
+                                  HttpContext.Request.Headers["X-Forwarded-For"].FirstOrDefault() ??
+                                  HttpContext.Request.Headers["X-Real-IP"].FirstOrDefault() ??
+                                  "unknown";
+
+            var response = await apiKeyService.ExchangeApiKeyForJwtAsync(apiKey, clientIpAddress, cancellationToken);
+            
+            logger.LogInformation("Successfully exchanged API key for JWT token for user {UserId}", response.UserId);
+            
+            return Ok(response);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger.LogWarning("Unauthorized API key exchange attempt: {Message}", ex.Message);
+            return Unauthorized(new ProblemDetails
+            {
+                Title = "Unauthorized",
+                Detail = ex.Message,
+                Status = StatusCodes.Status401Unauthorized
+            });
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error exchanging API key for JWT token");
+            return StatusCode(StatusCodes.Status500InternalServerError, new ProblemDetails
+            {
+                Title = "Internal Server Error",
+                Detail = "An error occurred while exchanging the API key",
+                Status = StatusCodes.Status500InternalServerError
+            });
+        }
+    }
+
+    /// <summary>
     /// Verify API key with enhanced security checks (EN)<br/>
     /// Xác thực API key với kiểm tra bảo mật nâng cao (VI)
     /// </summary>

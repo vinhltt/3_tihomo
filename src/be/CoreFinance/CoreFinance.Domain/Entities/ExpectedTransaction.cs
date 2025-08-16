@@ -5,7 +5,7 @@ using Shared.EntityFramework.BaseEfModels;
 
 namespace CoreFinance.Domain.Entities;
 
-public class ExpectedTransaction : BaseEntity<Guid>
+public class ExpectedTransaction : UserOwnedEntity<Guid>
 {
     /// <summary>
     ///     Foreign key linking to RecurringTransactionTemplate (EN)
@@ -13,11 +13,7 @@ public class ExpectedTransaction : BaseEntity<Guid>
     /// </summary>
     public Guid? RecurringTransactionTemplateId { get; set; }
 
-    /// <summary>
-    ///     Foreign key linking to user (EN)
-    ///     Khóa ngoại liên kết với người dùng (VI)
-    /// </summary>
-    public Guid? UserId { get; set; }
+
 
     /// <summary>
     ///     Foreign key linking to account (EN)

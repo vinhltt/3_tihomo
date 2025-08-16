@@ -54,12 +54,53 @@ public class DynamicApiKeyAuthenticationHandler(
                 return AuthenticateResult.Fail("Invalid API key");
             }
 
-            // Create claims for the authenticated API key
+            // For API key exchange, we need to handle JWT token directly
+            if (!string.IsNullOrEmpty(validationResult.AccessToken))
+            {
+                // Store JWT token in HttpContext.Items for reliable forwarding to downstream services
+                Context.Items["JWT_TOKEN"] = validationResult.AccessToken;
+                
+                // Replace X-API-Key header with Authorization Bearer token 
+                Context.Request.Headers.Remove("X-API-Key");
+                Context.Request.Headers.Remove("Authorization");
+                
+                // Set standard Authorization header
+                Context.Request.Headers.Append("Authorization", $"Bearer {validationResult.AccessToken}");
+                
+                // Also set in different context locations for middleware access
+                Context.Items["FINAL_JWT_TOKEN"] = validationResult.AccessToken;
+                
+                _logger.LogInformation("API key successfully exchanged for JWT token for user: {UserEmail}",
+                    validationResult.UserEmail);
+                
+                // Create claims from the validation result to authenticate the user in Gateway
+                var exchangeClaims = new List<Claim>
+                {
+                    new(ClaimTypes.Name, validationResult.UserEmail ?? "ApiKeyUser"),
+                    new(ClaimTypes.NameIdentifier, validationResult.UserId?.ToString() ?? "unknown"),
+                    new("user_id", validationResult.UserId?.ToString() ?? "unknown"),
+                    new("email", validationResult.UserEmail ?? "unknown"),
+                    new("client_type", "api_key_exchange"),
+                    new("auth_method", "api_key_exchange")
+                };
+
+                var exchangeIdentity = new ClaimsIdentity(exchangeClaims, Scheme.Name);
+                var exchangePrincipal = new ClaimsPrincipal(exchangeIdentity);
+                var exchangeTicket = new AuthenticationTicket(exchangePrincipal, Scheme.Name);
+
+                _logger.LogInformation("API key exchange authentication successful for user: {UserEmail}",
+                    validationResult.UserEmail);
+                
+                return AuthenticateResult.Success(exchangeTicket);
+            }
+            
+            // Fallback: Create claims for the authenticated API key (legacy support)
             var claims = new List<Claim>
             {
                 new(ClaimTypes.Name, validationResult.UserEmail ?? "ApiKeyUser"),
-                new(ClaimTypes.NameIdentifier, validationResult.UserId ?? "unknown"),
-                new("api_key_id", validationResult.ApiKeyId ?? "unknown"),
+                new(ClaimTypes.NameIdentifier, validationResult.UserId?.ToString() ?? "unknown"),
+                new("user_id", validationResult.UserId?.ToString() ?? "unknown"),
+                new("api_key_id", validationResult.ApiKeyId?.ToString() ?? "unknown"),
                 new("client_type", "api_key"),
                 new("auth_method", "api_key")
             };
@@ -108,7 +149,7 @@ public class DynamicApiKeyAuthenticationHandler(
 
             _logger.LogDebug("Calling Identity service to validate API key");
 
-            var response = await _httpClient.PostAsync("api/v1/api-keys/verify", requestContent);
+            var response = await _httpClient.PostAsync("api/v1/api-keys/exchange", requestContent);
             
             if (!response.IsSuccessStatusCode)
             {
@@ -121,11 +162,11 @@ public class DynamicApiKeyAuthenticationHandler(
             }
 
             var responseContent = await response.Content.ReadAsStringAsync();
-            var validationResponse = JsonSerializer.Deserialize<IdentityApiKeyValidationResponse>(
+            var exchangeResponse = JsonSerializer.Deserialize<IdentityApiKeyExchangeResponse>(
                 responseContent,
-options);
+                options);
 
-            if (validationResponse == null)
+            if (exchangeResponse == null)
             {
                 _logger.LogWarning("Invalid response from Identity service");
                 return new ApiKeyValidationResult
@@ -135,14 +176,15 @@ options);
                 };
             }
 
+            // Store JWT token in validation result for later use
             return new ApiKeyValidationResult
             {
-                IsValid = validationResponse.IsValid,
-                UserId = validationResponse.UserId,
-                UserEmail = validationResponse.UserEmail,
-                ApiKeyId = validationResponse.ApiKeyId,
-                Scopes = validationResponse.Scopes,
-                ErrorMessage = validationResponse.ErrorMessage
+                IsValid = true,
+                UserId = exchangeResponse.UserId.ToString(),
+                UserEmail = exchangeResponse.UserEmail,
+                ApiKeyId = "exchange", // Mark as exchanged API key
+                AccessToken = exchangeResponse.AccessToken, // Store JWT token
+                ErrorMessage = null
             };
         }
         catch (HttpRequestException ex)
@@ -172,11 +214,24 @@ options);
 public class IdentityApiKeyValidationResponse
 {
     public bool IsValid { get; set; }
-    public string? UserId { get; set; }
+    public Guid? UserId { get; set; }
     public string? UserEmail { get; set; }
-    public string? ApiKeyId { get; set; }
-    public string[]? Scopes { get; set; }
+    public Guid? ApiKeyId { get; set; }
+    public List<string> Scopes { get; set; } = [];
+    public string Message { get; set; } = string.Empty;
     public string? ErrorMessage { get; set; }
+}
+
+/// <summary>
+/// Response model from Identity service API key exchange
+/// </summary>
+public class IdentityApiKeyExchangeResponse
+{
+    public string AccessToken { get; set; } = string.Empty;
+    public DateTime ExpiresAt { get; set; }
+    public string TokenType { get; set; } = "Bearer";
+    public Guid UserId { get; set; }
+    public string UserEmail { get; set; } = string.Empty;
 }
 
 /// <summary>
@@ -189,5 +244,6 @@ public class ApiKeyValidationResult
     public string? UserEmail { get; set; }
     public string? ApiKeyId { get; set; }
     public string[]? Scopes { get; set; }
+    public string? AccessToken { get; set; } // JWT token from exchange
     public string? ErrorMessage { get; set; }
 }

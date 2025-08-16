@@ -13,6 +13,7 @@ using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using Serilog;
 using CoreFinance.Api.Configuration;
+using CoreFinance.Api.Extensions;
 using Shared.Contracts.ConfigurationOptions;
 using Shared.Contracts.Utilities;
 
@@ -59,6 +60,12 @@ var policyName = corsOption!.PolicyName.Nullify("AppCorsPolicy");
 builder.AddConfigurationSettings();
 builder.AddGeneralConfigurations(policyName, corsOption);
 builder.Services.AddInjectedServices();
+
+// Configure JWT Authentication
+var jwtSettings = builder.Configuration.GetSection(JwtSettings.SectionName).Get<JwtSettings>() ?? new JwtSettings();
+builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection(JwtSettings.SectionName));
+builder.Services.AddJwtAuthentication(jwtSettings);
+builder.Services.AddJwtAuthorization();
 
 // Add MassTransit for message consumption
 builder.Services.AddMassTransit(x =>
@@ -193,8 +200,9 @@ app.UseHttpsRedirection();
 
 app.UseCors(policyName);
 
-// Add the authorization middleware
-//app.UseAuthorization();
+// Add authentication and authorization middleware
+app.UseAuthentication();
+app.UseAuthorization();
 app.UseRouting();
 
 // Map health check endpoint

@@ -323,6 +323,7 @@ public class EnhancedApiKeyAuthenticationMiddleware(
             "/api/public/",
             "/metrics",
             "/api/v1/api-keys/verify",   // Allow Gateway to verify API keys
+            "/api/v1/api-keys/exchange", // Allow Gateway to exchange API keys for JWT
         };
 
         var shouldSkip = publicPaths.Any(publicPath => path?.StartsWith(publicPath) == true);

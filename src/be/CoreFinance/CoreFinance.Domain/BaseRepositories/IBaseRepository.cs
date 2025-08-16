@@ -7,7 +7,7 @@ namespace CoreFinance.Domain.BaseRepositories;
 ///     Base interface for repositories. (EN)<br />
 ///     Giao diện cơ sở cho các repository. (VI)
 /// </summary>
-public interface IBaseRepository<TEntity, in TKey> where TEntity : BaseEntity<TKey>
+public interface IBaseRepository<TEntity, in TKey> where TEntity : UserOwnedEntity<TKey>
 {
     /// <summary>
     ///     Creates a list of new entities asynchronously. (EN)<br />

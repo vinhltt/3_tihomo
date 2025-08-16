@@ -550,6 +550,43 @@ public class VerifyApiKeyResponse
 }
 
 /// <summary>
+/// Response model for API key exchange to JWT token (EN)<br/>
+/// Model phản hồi cho trao đổi API key thành JWT token (VI)
+/// </summary>
+public class ApiKeyExchangeResponse
+{
+    /// <summary>
+    /// Access Token - JWT token (EN)<br/>
+    /// Access Token - JWT token (VI)
+    /// </summary>
+    public string AccessToken { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// Expires At - Thời gian hết hạn (EN)<br/>
+    /// Thời gian hết hạn (VI)
+    /// </summary>
+    public DateTime ExpiresAt { get; set; }
+    
+    /// <summary>
+    /// Token Type - Loại token (EN)<br/>
+    /// Loại token (VI)
+    /// </summary>
+    public string TokenType { get; set; } = "Bearer";
+    
+    /// <summary>
+    /// User ID - ID của user (EN)<br/>
+    /// ID của người dùng (VI)
+    /// </summary>
+    public Guid UserId { get; set; }
+    
+    /// <summary>
+    /// User Email - Email của user (EN)<br/>
+    /// Email của người dùng (VI)
+    /// </summary>
+    public string UserEmail { get; set; } = string.Empty;
+}
+
+/// <summary>
 /// Response model for list API keys (EN)<br/>
 /// Model phản hồi cho danh sách API keys (VI)
 /// </summary>

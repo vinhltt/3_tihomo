@@ -46,7 +46,6 @@ public static class DependencyInjection
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IUserService, UserService>();
         services.AddScoped<IRoleService, RoleService>();
-        services.AddScoped<IApiKeyService, ApiKeyService>();
 
         // ✅ Enhanced API Key services for advanced security features
         // Thêm Enhanced API Key services cho advanced security features

@@ -5,19 +5,13 @@ using Shared.EntityFramework.BaseEfModels;
 
 namespace CoreFinance.Domain.Entities;
 
-public class Transaction : BaseEntity<Guid>
+public class Transaction : UserOwnedEntity<Guid>
 {
     /// <summary>
     ///     Foreign key linking to account (EN)
     ///     Khóa ngoại liên kết với tài khoản (VI)
     /// </summary>
     public Guid? AccountId { get; set; }
-
-    /// <summary>
-    ///     Foreign key linking to user (EN)
-    ///     Khóa ngoại liên kết với người dùng (VI)
-    /// </summary>
-    public Guid? UserId { get; set; }
 
     /// <summary>
     ///     Transaction date and time (EN)

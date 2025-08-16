@@ -1,5 +1,6 @@
 using Identity.Contracts;
 using Identity.Api.Services;
+using Identity.Application.Common.Interfaces;
 using Identity.Application.Services.RefreshTokens;
 using Identity.Domain.Dtos.Authentication;
 using Identity.Domain.Dtos.RefreshTokens;

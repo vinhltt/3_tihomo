@@ -158,7 +158,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.ASCII.GetBytes(jwtSecretKey)),
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecretKey)),
             ValidateIssuer = true,
             ValidIssuer = builder.Configuration["JWT:Issuer"] ?? "TiHoMo.Identity",
             ValidateAudience = true,
@@ -233,6 +233,7 @@ builder.Services.AddSingleton<TelemetryService>();
 
 // ✅ Add enhanced application services with resilience patterns
 // Thêm enhanced application services với resilience patterns
+// TODO: Implement enhanced services
 builder.Services.AddScoped<ITokenVerificationService>(provider =>
 {
     // Register the enhanced service first
@@ -244,8 +245,7 @@ builder.Services.AddScoped<ITokenVerificationService>(provider =>
         enhancedService);
 });
 builder.Services.AddScoped<IUserService, EnhancedUserService>();
-builder.Services.AddScoped<IApiKeyService, ApiKeyService>();
-builder.Services.AddScoped<IJwtService, JwtService>();
+builder.Services.AddScoped<Identity.Application.Common.Interfaces.IJwtService, JwtService>();
 
 // ✅ Add refresh token service for Phase 2 implementation
 // Thêm refresh token service cho triển khai Phase 2
@@ -253,15 +253,17 @@ builder.Services.AddScoped<IRefreshTokenService, EfRefreshTokenService>();
 
 // ✅ Add background service for token cleanup
 // Thêm background service để dọn dẹp token
-builder.Services.AddHostedService<RefreshTokenCleanupService>();
+// TODO: Implement refresh token cleanup service
+// builder.Services.AddHostedService<RefreshTokenCleanupService>();
 
 // Add health checks for monitoring (including resilience patterns)
 // Thêm health checks để monitoring (bao gồm resilience patterns)
 builder.Services.AddHealthChecks()
     .AddDbContextCheck<IdentityDbContext>("database")
-    .AddCheck("memory_cache", () => HealthCheckResult.Healthy("Memory cache is healthy"))
-    .AddCheck<CircuitBreakerHealthCheck>("circuit_breaker")
-    .AddCheck<TelemetryHealthCheck>("telemetry");
+    .AddCheck("memory_cache", () => HealthCheckResult.Healthy("Memory cache is healthy"));
+    // TODO: Implement CircuitBreakerHealthCheck and TelemetryHealthCheck
+    // .AddCheck<CircuitBreakerHealthCheck>("circuit_breaker")
+    // .AddCheck<TelemetryHealthCheck>("telemetry");
 
 // Add logging configuration for performance monitoring
 // Thêm cấu hình logging để monitoring hiệu suất

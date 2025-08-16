@@ -74,6 +74,13 @@ public interface IEnhancedApiKeyService
     Task<RotateApiKeyResponse> RotateApiKeyAsync(Guid apiKeyId,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Exchange API key for JWT token (EN)<br/>
+    /// Trao đổi API key lấy JWT token (VI)
+    /// </summary>
+    Task<ApiKeyExchangeResponse> ExchangeApiKeyForJwtAsync(string rawApiKey, string clientIpAddress,
+        CancellationToken cancellationToken = default);
+
     #endregion
 
     #region Usage Analytics

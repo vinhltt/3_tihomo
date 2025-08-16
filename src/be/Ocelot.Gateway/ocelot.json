@@ -69,30 +69,9 @@
         "PeriodTimespan": 60,
         "Limit": 200
       }
-    },    {
-      "DownstreamPathTemplate": "/{everything}",
-      "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [
-        {
-          "Host": "corefinance-api",
-          "Port": 8080
-        }
-      ],
-      "UpstreamPathTemplate": "/api/core-finance/{everything}",
-      "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE", "OPTIONS" ],
-      "RouteClaimsRequirement": {},
-      "LoadBalancerOptions": {
-        "Type": "RoundRobin"
-      },
-      "RateLimitOptions": {
-        "ClientWhitelist": [],
-        "EnableRateLimiting": true,
-        "Period": "1m",
-        "PeriodTimespan": 60,
-        "Limit": 200
-      }
-    },    {
-      "DownstreamPathTemplate": "/{everything}",
+    },
+    {
+      "DownstreamPathTemplate": "/api/{everything}",
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [
         {
@@ -116,8 +95,10 @@
         "Period": "1m",
         "PeriodTimespan": 60,
         "Limit": 200
-      }    },    {
-      "DownstreamPathTemplate": "/{everything}",
+      }
+    },
+    {
+      "DownstreamPathTemplate": "/api/{everything}",
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [
         {
@@ -142,8 +123,9 @@
         "PeriodTimespan": 60,
         "Limit": 150
       }
-    },    {
-      "DownstreamPathTemplate": "/{everything}",
+    },
+    {
+      "DownstreamPathTemplate": "/api/{everything}",
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [
         {

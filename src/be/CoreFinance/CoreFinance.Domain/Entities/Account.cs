@@ -5,14 +5,8 @@ using Shared.EntityFramework.BaseEfModels;
 
 namespace CoreFinance.Domain.Entities;
 
-public class Account : BaseEntity<Guid>
+public class Account : UserOwnedEntity<Guid>
 {
-    /// <summary>
-    ///     Foreign key linking to user (EN)
-    ///     Khóa ngoại liên kết với người dùng (VI)
-    /// </summary>
-    public Guid? UserId { get; set; }
-
     /// <summary>
     ///     Account name for easy identification (EN)
     ///     Tên tài khoản để dễ nhận biết (VI)

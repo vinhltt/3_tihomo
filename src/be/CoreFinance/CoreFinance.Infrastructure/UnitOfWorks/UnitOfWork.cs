@@ -103,7 +103,7 @@ public class UnitOfWork<TContext>(
     ///     Ném ngoại lệ nếu dịch vụ repository chưa được đăng ký. (VI)
     /// </exception>
     public IBaseRepository<TEntity, TKey> Repository<TEntity, TKey>()
-        where TEntity : BaseEntity<TKey>
+        where TEntity : UserOwnedEntity<TKey>
     {
         _repositories ??= new Dictionary<Type, object?>();
 
