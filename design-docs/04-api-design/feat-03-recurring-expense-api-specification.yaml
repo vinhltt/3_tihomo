@@ -1,0 +1,1942 @@
+openapi: 3.0.3
+info:
+  title: TiHoMo - Recurring Expense Management API
+  description: |
+    API cho quản lý chi tiêu định kỳ trong hệ thống TiHoMo CoreFinance.
+    
+    ## Features
+    - **CRUD Operations**: Tạo, đọc, cập nhật, xóa giao dịch định kỳ
+    - **Execution Management**: Thực hiện thủ công, enable/disable
+    - **Forecasting**: Dự báo dòng tiền từ giao dịch định kỳ
+    - **Calendar View**: Xem lịch các giao dịch sắp tới
+    - **Search & Filter**: Tìm kiếm và lọc giao dịch theo nhiều tiêu chí
+    
+    ## Authentication
+    Tất cả endpoints yêu cầu JWT Bearer token trong header `Authorization: Bearer <token>`
+    
+    ## Rate Limiting
+    - 100 requests/minute cho authenticated users
+    - 10 requests/minute cho unauthenticated requests
+    
+    ## Error Handling
+    API sử dụng RFC 7807 Problem Details format cho error responses.
+  version: '1.0.0'
+  contact:
+    name: TiHoMo Development Team
+    email: dev@tihomo.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: https://api.tihomo.com/v1
+    description: Production server
+  - url: https://staging-api.tihomo.com/v1
+    description: Staging server
+  - url: http://localhost:5802/api/v1
+    description: Local development server (CoreFinance service)
+
+tags:
+  - name: recurring-transactions
+    description: Quản lý giao dịch định kỳ
+  - name: forecasting
+    description: Dự báo dòng tiền
+  - name: calendar
+    description: Lịch giao dịch định kỳ
+  - name: templates
+    description: Mẫu giao dịch định kỳ
+
+security:
+  - BearerAuth: []
+
+paths:
+  /recurring-transactions:
+    get:
+      tags:
+        - recurring-transactions
+      summary: Lấy danh sách giao dịch định kỳ
+      description: |
+        Lấy danh sách giao dịch định kỳ của user hiện tại với khả năng search và filter.
+        
+        **Permissions**: Chỉ trả về giao dịch thuộc sở hữu của user hiện tại.
+      operationId: getRecurringTransactions
+      parameters:
+        - name: page
+          in: query
+          description: Số trang (bắt đầu từ 1)
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: pageSize
+          in: query
+          description: Số items per page
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: transactionType
+          in: query
+          description: Lọc theo loại giao dịch
+          required: false
+          schema:
+            $ref: '#/components/schemas/TransactionType'
+        - name: accountId
+          in: query
+          description: Lọc theo tài khoản
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: categoryId
+          in: query
+          description: Lọc theo danh mục
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: isActive
+          in: query
+          description: Lọc theo trạng thái hoạt động
+          required: false
+          schema:
+            type: boolean
+        - name: frequency
+          in: query
+          description: Lọc theo tần suất
+          required: false
+          schema:
+            $ref: '#/components/schemas/RecurrenceFrequency'
+        - name: searchTerm
+          in: query
+          description: Tìm kiếm theo title hoặc description
+          required: false
+          schema:
+            type: string
+            maxLength: 100
+        - name: startDateFrom
+          in: query
+          description: Lọc ngày bắt đầu từ
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: startDateTo
+          in: query
+          description: Lọc ngày bắt đầu đến
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: nextExecutionFrom
+          in: query
+          description: Lọc ngày thực hiện tiếp theo từ
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: nextExecutionTo
+          in: query
+          description: Lọc ngày thực hiện tiếp theo đến
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: amountFrom
+          in: query
+          description: Lọc số tiền từ
+          required: false
+          schema:
+            type: number
+            format: decimal
+            minimum: 0
+        - name: amountTo
+          in: query
+          description: Lọc số tiền đến
+          required: false
+          schema:
+            type: number
+            format: decimal
+            minimum: 0
+        - name: sortBy
+          in: query
+          description: Sắp xếp theo field
+          required: false
+          schema:
+            type: string
+            enum: [title, amount, nextExecutionDate, createdAt, updatedAt]
+            default: nextExecutionDate
+        - name: sortDirection
+          in: query
+          description: Hướng sắp xếp
+          required: false
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: asc
+      responses:
+        '200':
+          description: Danh sách giao dịch định kỳ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagedResultRecurringTransactionDto'
+              examples:
+                success:
+                  summary: Thành công
+                  value:
+                    items:
+                      - id: "550e8400-e29b-41d4-a716-446655440000"
+                        code: "RT202501000001"
+                        accountId: "550e8400-e29b-41d4-a716-446655440001"
+                        accountName: "Tài khoản chính"
+                        categoryId: "550e8400-e29b-41d4-a716-446655440002"
+                        categoryName: "Tiền thuê nhà"
+                        transactionType: "Expense"
+                        amount: 5000000
+                        currency: "VND"
+                        frequency: "Monthly"
+                        frequencyInterval: 1
+                        startDate: "2024-01-01"
+                        endDate: null
+                        nextExecutionDate: "2024-02-01"
+                        lastExecutionDate: "2024-01-01"
+                        title: "Tiền thuê nhà hàng tháng"
+                        description: "Thanh toán tiền thuê nhà cho căn hộ"
+                        isActive: true
+                        isAutoExecute: true
+                        createdAt: "2024-01-01T00:00:00Z"
+                        updatedAt: "2024-01-01T00:00:00Z"
+                        recentExecutions: []
+                    totalCount: 1
+                    pageNumber: 1
+                    pageSize: 20
+                    totalPages: 1
+                    hasPreviousPage: false
+                    hasNextPage: false
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      tags:
+        - recurring-transactions
+      summary: Tạo giao dịch định kỳ mới
+      description: |
+        Tạo một giao dịch định kỳ mới cho user hiện tại.
+        
+        **Business Rules**:
+        - User chỉ có thể tạo tối đa 100 giao dịch định kỳ
+        - Account phải thuộc sở hữu của user
+        - StartDate không được quá 1 ngày trong quá khứ
+        - EndDate phải sau StartDate (nếu có)
+        - FrequencyInterval phải từ 1-365
+      operationId: createRecurringTransaction
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecurringTransactionCreateRequest'
+            examples:
+              monthly_rent:
+                summary: Tiền thuê nhà hàng tháng
+                value:
+                  title: "Tiền thuê nhà hàng tháng"
+                  amount: 5000000
+                  transactionType: "Expense"
+                  accountId: "550e8400-e29b-41d4-a716-446655440001"
+                  categoryId: "550e8400-e29b-41d4-a716-446655440002"
+                  frequency: "Monthly"
+                  frequencyInterval: 1
+                  startDate: "2024-02-01"
+                  endDate: null
+                  description: "Thanh toán tiền thuê nhà cho căn hộ"
+                  isAutoExecute: true
+              weekly_salary:
+                summary: Lương hàng tuần
+                value:
+                  title: "Lương part-time hàng tuần"
+                  amount: 2000000
+                  transactionType: "Income"
+                  accountId: "550e8400-e29b-41d4-a716-446655440001"
+                  categoryId: "550e8400-e29b-41d4-a716-446655440003"
+                  frequency: "Weekly"
+                  frequencyInterval: 1
+                  startDate: "2024-01-15"
+                  endDate: "2024-12-31"
+                  description: "Lương từ công việc part-time"
+                  isAutoExecute: false
+      responses:
+        '201':
+          description: Giao dịch định kỳ được tạo thành công
+          headers:
+            Location:
+              description: URL of the created resource
+              schema:
+                type: string
+                format: uri
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecurringTransactionDto'
+              examples:
+                created:
+                  summary: Giao dịch được tạo thành công
+                  value:
+                    id: "550e8400-e29b-41d4-a716-446655440000"
+                    code: "RT202501000001"
+                    accountId: "550e8400-e29b-41d4-a716-446655440001"
+                    accountName: "Tài khoản chính"
+                    categoryId: "550e8400-e29b-41d4-a716-446655440002"
+                    categoryName: "Tiền thuê nhà"
+                    transactionType: "Expense"
+                    amount: 5000000
+                    currency: "VND"
+                    frequency: "Monthly"
+                    frequencyInterval: 1
+                    startDate: "2024-02-01"
+                    endDate: null
+                    nextExecutionDate: "2024-02-01"
+                    lastExecutionDate: null
+                    title: "Tiền thuê nhà hàng tháng"
+                    description: "Thanh toán tiền thuê nhà cho căn hộ"
+                    isActive: true
+                    isAutoExecute: true
+                    createdAt: "2024-01-17T10:30:00Z"
+                    updatedAt: "2024-01-17T10:30:00Z"
+                    recentExecutions: []
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          description: Business rule violation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                max_limit_exceeded:
+                  summary: Vượt quá giới hạn số lượng
+                  value:
+                    type: "https://api.tihomo.com/problems/max-recurring-transactions-exceeded"
+                    title: "Maximum recurring transactions limit exceeded"
+                    status: 409
+                    detail: "User has reached the maximum limit of 100 recurring transactions"
+                    instance: "/api/v1/recurring-transactions"
+                    extensions:
+                      currentCount: 100
+                      maxAllowed: 100
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /recurring-transactions/{id}:
+    get:
+      tags:
+        - recurring-transactions
+      summary: Lấy chi tiết giao dịch định kỳ
+      description: |
+        Lấy chi tiết một giao dịch định kỳ cụ thể.
+        
+        **Permissions**: Chỉ user sở hữu giao dịch mới có thể truy cập.
+      operationId: getRecurringTransactionById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID của giao dịch định kỳ
+          schema:
+            type: string
+            format: uuid
+        - name: includeExecutions
+          in: query
+          description: Có include lịch sử thực hiện không
+          required: false
+          schema:
+            type: boolean
+            default: false
+        - name: executionsLimit
+          in: query
+          description: Giới hạn số lượng executions trả về
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 10
+      responses:
+        '200':
+          description: Chi tiết giao dịch định kỳ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecurringTransactionDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    put:
+      tags:
+        - recurring-transactions
+      summary: Cập nhật giao dịch định kỳ
+      description: |
+        Cập nhật thông tin giao dịch định kỳ.
+        
+        **Business Rules**:
+        - Chỉ user sở hữu mới có thể cập nhật
+        - Không thể thay đổi Code, AccountId, UserId
+        - Nếu thay đổi frequency, NextExecutionDate sẽ được tính lại
+        - EndDate phải sau StartDate (nếu có)
+      operationId: updateRecurringTransaction
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID của giao dịch định kỳ
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecurringTransactionUpdateRequest'
+            examples:
+              update_amount:
+                summary: Cập nhật số tiền
+                value:
+                  title: "Tiền thuê nhà hàng tháng"
+                  amount: 5500000
+                  categoryId: "550e8400-e29b-41d4-a716-446655440002"
+                  frequency: "Monthly"
+                  frequencyInterval: 1
+                  endDate: null
+                  description: "Thanh toán tiền thuê nhà cho căn hộ (tăng giá)"
+                  isAutoExecute: true
+      responses:
+        '200':
+          description: Cập nhật thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecurringTransactionDto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    delete:
+      tags:
+        - recurring-transactions
+      summary: Xóa giao dịch định kỳ
+      description: |
+        Xóa (soft delete) giao dịch định kỳ.
+        
+        **Business Rules**:
+        - Chỉ user sở hữu mới có thể xóa
+        - Soft delete - dữ liệu được giữ lại cho audit
+        - Tất cả pending executions sẽ bị hủy
+        - Lịch sử thực hiện trong quá khứ được bảo tồn
+      operationId: deleteRecurringTransaction
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID của giao dịch định kỳ
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Xóa thành công
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Không thể xóa do ràng buộc business
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                has_pending_executions:
+                  summary: Có executions đang pending
+                  value:
+                    type: "https://api.tihomo.com/problems/cannot-delete-with-pending-executions"
+                    title: "Cannot delete recurring transaction with pending executions"
+                    status: 409
+                    detail: "This recurring transaction has 3 pending executions that will be cancelled"
+                    instance: "/api/v1/recurring-transactions/550e8400-e29b-41d4-a716-446655440000"
+                    extensions:
+                      pendingExecutions: 3
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /recurring-transactions/{id}/execute-now:
+    post:
+      tags:
+        - recurring-transactions
+      summary: Thực hiện giao dịch định kỳ ngay lập tức
+      description: |
+        Thực hiện một giao dịch định kỳ ngay lập tức trước ngày dự kiến.
+        
+        **Business Rules**:
+        - Chỉ user sở hữu mới có thể thực hiện
+        - Tài khoản phải có đủ số dư (đối với Expense/Transfer)
+        - Sẽ tạo Transaction record thực tế
+        - Cập nhật LastExecutionDate và NextExecutionDate
+        - Tạo RecurringTransactionExecution record
+      operationId: executeRecurringTransactionNow
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID của giao dịch định kỳ
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                adjustedAmount:
+                  type: number
+                  format: decimal
+                  minimum: 0.01
+                  description: Số tiền điều chỉnh (optional, mặc định dùng amount gốc)
+                notes:
+                  type: string
+                  maxLength: 500
+                  description: Ghi chú cho lần thực hiện này
+            examples:
+              default_execution:
+                summary: Thực hiện với số tiền mặc định
+                value: {}
+              adjusted_amount:
+                summary: Thực hiện với số tiền điều chỉnh
+                value:
+                  adjustedAmount: 5200000
+                  notes: "Thực hiện sớm với số tiền điều chỉnh"
+      responses:
+        '200':
+          description: Thực hiện thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionDto'
+              examples:
+                executed:
+                  summary: Thực hiện thành công
+                  value:
+                    id: "550e8400-e29b-41d4-a716-446655440010"
+                    accountId: "550e8400-e29b-41d4-a716-446655440001"
+                    amount: 5000000
+                    transactionType: "Expense"
+                    categoryId: "550e8400-e29b-41d4-a716-446655440002"
+                    description: "Manual execution: Tiền thuê nhà hàng tháng"
+                    transactionDate: "2024-01-17"
+                    referenceNumber: "TXN202401170001"
+                    status: "Completed"
+                    createdAt: "2024-01-17T10:30:00Z"
+        '400':
+          description: Yêu cầu không hợp lệ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                insufficient_balance:
+                  summary: Số dư không đủ
+                  value:
+                    type: "https://api.tihomo.com/problems/insufficient-balance"
+                    title: "Insufficient account balance"
+                    status: 400
+                    detail: "Account balance 1,000,000 VND is insufficient for transaction amount 5,000,000 VND"
+                    instance: "/api/v1/recurring-transactions/550e8400-e29b-41d4-a716-446655440000/execute-now"
+                    extensions:
+                      currentBalance: 1000000
+                      requiredAmount: 5000000
+                      currency: "VND"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Trạng thái không cho phép thực hiện
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                not_active:
+                  summary: Giao dịch không hoạt động
+                  value:
+                    type: "https://api.tihomo.com/problems/recurring-transaction-not-active"
+                    title: "Recurring transaction is not active"
+                    status: 409
+                    detail: "Cannot execute inactive recurring transaction"
+                    instance: "/api/v1/recurring-transactions/550e8400-e29b-41d4-a716-446655440000/execute-now"
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /recurring-transactions/{id}/disable:
+    post:
+      tags:
+        - recurring-transactions
+      summary: Vô hiệu hóa giao dịch định kỳ
+      description: |
+        Vô hiệu hóa giao dịch định kỳ mà không xóa cấu hình.
+        
+        **Business Rules**:
+        - Chỉ user sở hữu mới có thể disable
+        - Sẽ hủy tất cả pending executions
+        - Có thể enable lại sau này
+        - Cấu hình được bảo tồn
+      operationId: disableRecurringTransaction
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID của giao dịch định kỳ
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Vô hiệu hóa thành công
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Recurring transaction disabled successfully"
+                  disabledAt:
+                    type: string
+                    format: date-time
+                    example: "2024-01-17T10:30:00Z"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Giao dịch đã bị disable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                already_disabled:
+                  summary: Đã bị disable
+                  value:
+                    type: "https://api.tihomo.com/problems/already-disabled"
+                    title: "Recurring transaction is already disabled"
+                    status: 409
+                    detail: "Cannot disable an already disabled recurring transaction"
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /recurring-transactions/{id}/enable:
+    post:
+      tags:
+        - recurring-transactions
+      summary: Kích hoạt giao dịch định kỳ
+      description: |
+        Kích hoạt lại giao dịch định kỳ đã bị disable.
+        
+        **Business Rules**:
+        - Chỉ user sở hữu mới có thể enable
+        - NextExecutionDate sẽ được tính lại từ thời điểm hiện tại
+        - Chỉ có thể enable giao dịch đã bị disable
+      operationId: enableRecurringTransaction
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID của giao dịch định kỳ
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Kích hoạt thành công
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Recurring transaction enabled successfully"
+                  enabledAt:
+                    type: string
+                    format: date-time
+                    example: "2024-01-17T10:30:00Z"
+                  nextExecutionDate:
+                    type: string
+                    format: date
+                    example: "2024-02-17"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Giao dịch đã được enable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                already_enabled:
+                  summary: Đã được enable
+                  value:
+                    type: "https://api.tihomo.com/problems/already-enabled"
+                    title: "Recurring transaction is already enabled"
+                    status: 409
+                    detail: "Cannot enable an already enabled recurring transaction"
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /recurring-transactions/{id}/forecast:
+    get:
+      tags:
+        - forecasting
+      summary: Dự báo dòng tiền từ giao dịch định kỳ
+      description: |
+        Tạo dự báo dòng tiền cho một giao dịch định kỳ cụ thể trong khoảng thời gian nhất định.
+        
+        **Business Rules**:
+        - Chỉ user sở hữu mới có thể xem forecast
+        - Tối đa 24 tháng forecast
+        - Tính toán dựa trên frequency và frequency interval
+        - Không tính các giao dịch đã past end date
+      operationId: getForecastForRecurringTransaction
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID của giao dịch định kỳ
+          schema:
+            type: string
+            format: uuid
+        - name: months
+          in: query
+          description: Số tháng dự báo từ hôm nay
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 24
+            default: 6
+        - name: fromDate
+          in: query
+          description: Ngày bắt đầu dự báo (override months)
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: toDate
+          in: query
+          description: Ngày kết thúc dự báo (override months)
+          required: false
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Dự báo dòng tiền
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  recurringTransactionId:
+                    type: string
+                    format: uuid
+                  title:
+                    type: string
+                  forecastPeriod:
+                    type: object
+                    properties:
+                      fromDate:
+                        type: string
+                        format: date
+                      toDate:
+                        type: string
+                        format: date
+                  forecasts:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ForecastDto'
+                  summary:
+                    type: object
+                    properties:
+                      totalAmount:
+                        type: number
+                        format: decimal
+                      totalExecutions:
+                        type: integer
+                      currency:
+                        type: string
+              examples:
+                monthly_rent_forecast:
+                  summary: Dự báo tiền thuê nhà 6 tháng
+                  value:
+                    recurringTransactionId: "550e8400-e29b-41d4-a716-446655440000"
+                    title: "Tiền thuê nhà hàng tháng"
+                    forecastPeriod:
+                      fromDate: "2024-01-17"
+                      toDate: "2024-07-17"
+                    forecasts:
+                      - date: "2024-02-01"
+                        amount: 5000000
+                        transactionType: "Expense"
+                        title: "Tiền thuê nhà hàng tháng"
+                        accountName: "Tài khoản chính"
+                        categoryName: "Tiền thuê nhà"
+                        recurringTransactionId: "550e8400-e29b-41d4-a716-446655440000"
+                        isAutoExecute: true
+                      - date: "2024-03-01"
+                        amount: 5000000
+                        transactionType: "Expense"
+                        title: "Tiền thuê nhà hàng tháng"
+                        accountName: "Tài khoản chính"
+                        categoryName: "Tiền thuê nhà"
+                        recurringTransactionId: "550e8400-e29b-41d4-a716-446655440000"
+                        isAutoExecute: true
+                    summary:
+                      totalAmount: 30000000
+                      totalExecutions: 6
+                      currency: "VND"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /recurring-transactions/calendar:
+    get:
+      tags:
+        - calendar
+      summary: Lấy lịch giao dịch định kỳ
+      description: |
+        Lấy tất cả giao dịch định kỳ trong khoảng thời gian để hiển thị dạng calendar.
+        
+        **Business Rules**:
+        - Chỉ trả về giao dịch của user hiện tại
+        - Tối đa 1 năm dữ liệu
+        - Bao gồm cả executed và upcoming transactions
+      operationId: getRecurringTransactionsCalendar
+      parameters:
+        - name: fromDate
+          in: query
+          required: true
+          description: Ngày bắt đầu
+          schema:
+            type: string
+            format: date
+        - name: toDate
+          in: query
+          required: true
+          description: Ngày kết thúc
+          schema:
+            type: string
+            format: date
+        - name: accountId
+          in: query
+          description: Lọc theo tài khoản
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: transactionType
+          in: query
+          description: Lọc theo loại giao dịch
+          required: false
+          schema:
+            $ref: '#/components/schemas/TransactionType'
+        - name: includeExecuted
+          in: query
+          description: Có bao gồm giao dịch đã thực hiện không
+          required: false
+          schema:
+            type: boolean
+            default: true
+        - name: includeUpcoming
+          in: query
+          description: Có bao gồm giao dịch sắp tới không
+          required: false
+          schema:
+            type: boolean
+            default: true
+      responses:
+        '200':
+          description: Lịch giao dịch định kỳ
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  period:
+                    type: object
+                    properties:
+                      fromDate:
+                        type: string
+                        format: date
+                      toDate:
+                        type: string
+                        format: date
+                  events:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CalendarEventDto'
+                  summary:
+                    type: object
+                    properties:
+                      totalEvents:
+                        type: integer
+                      totalAmount:
+                        type: number
+                        format: decimal
+                      currency:
+                        type: string
+              examples:
+                january_calendar:
+                  summary: Lịch tháng 1/2024
+                  value:
+                    period:
+                      fromDate: "2024-01-01"
+                      toDate: "2024-01-31"
+                    events:
+                      - id: "550e8400-e29b-41d4-a716-446655440000"
+                        date: "2024-01-01"
+                        title: "Tiền thuê nhà hàng tháng"
+                        amount: 5000000
+                        transactionType: "Expense"
+                        accountName: "Tài khoản chính"
+                        isAutoExecute: true
+                        isExecuted: true
+                      - id: "550e8400-e29b-41d4-a716-446655440001"
+                        date: "2024-01-15"
+                        title: "Lương part-time hàng tuần"
+                        amount: 2000000
+                        transactionType: "Income"
+                        accountName: "Tài khoản chính"
+                        isAutoExecute: false
+                        isExecuted: false
+                    summary:
+                      totalEvents: 2
+                      totalAmount: 3000000
+                      currency: "VND"
+        '400':
+          description: Tham số không hợp lệ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                date_range_too_large:
+                  summary: Khoảng thời gian quá lớn
+                  value:
+                    type: "https://api.tihomo.com/problems/date-range-too-large"
+                    title: "Date range is too large"
+                    status: 400
+                    detail: "Date range cannot exceed 365 days. Current range: 400 days"
+                    instance: "/api/v1/recurring-transactions/calendar"
+                    extensions:
+                      maxDays: 365
+                      requestedDays: 400
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /recurring-transactions/forecast:
+    get:
+      tags:
+        - forecasting
+      summary: Dự báo tổng hợp dòng tiền
+      description: |
+        Tạo dự báo tổng hợp dòng tiền từ tất cả giao dịch định kỳ của user.
+        
+        **Features**:
+        - Tổng hợp theo ngày/tuần/tháng
+        - Phân tích theo loại giao dịch
+        - Dự báo cash flow net
+        - Cảnh báo về các tháng âm
+      operationId: getComprehensiveForecast
+      parameters:
+        - name: months
+          in: query
+          description: Số tháng dự báo
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 24
+            default: 6
+        - name: accountId
+          in: query
+          description: Lọc theo tài khoản cụ thể
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: groupBy
+          in: query
+          description: Nhóm kết quả theo
+          required: false
+          schema:
+            type: string
+            enum: [day, week, month]
+            default: month
+        - name: includeInactive
+          in: query
+          description: Có bao gồm giao dịch inactive không
+          required: false
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: Dự báo tổng hợp
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  forecastPeriod:
+                    type: object
+                    properties:
+                      fromDate:
+                        type: string
+                        format: date
+                      toDate:
+                        type: string
+                        format: date
+                      groupBy:
+                        type: string
+                  periods:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        period:
+                          type: string
+                          description: "Format: YYYY-MM for month, YYYY-Www for week, YYYY-MM-DD for day"
+                        startDate:
+                          type: string
+                          format: date
+                        endDate:
+                          type: string
+                          format: date
+                        income:
+                          type: number
+                          format: decimal
+                        expense:
+                          type: number
+                          format: decimal
+                        netFlow:
+                          type: number
+                          format: decimal
+                        transactionCount:
+                          type: integer
+                  summary:
+                    type: object
+                    properties:
+                      totalIncome:
+                        type: number
+                        format: decimal
+                      totalExpense:
+                        type: number
+                        format: decimal
+                      netFlow:
+                        type: number
+                        format: decimal
+                      totalTransactions:
+                        type: integer
+                      currency:
+                        type: string
+                      averageMonthlyIncome:
+                        type: number
+                        format: decimal
+                      averageMonthlyExpense:
+                        type: number
+                        format: decimal
+                  insights:
+                    type: object
+                    properties:
+                      negativeCashFlowMonths:
+                        type: array
+                        items:
+                          type: string
+                      highestExpenseMonth:
+                        type: object
+                        properties:
+                          period:
+                            type: string
+                          amount:
+                            type: number
+                            format: decimal
+                      lowestIncomeMonth:
+                        type: object
+                        properties:
+                          period:
+                            type: string
+                          amount:
+                            type: number
+                            format: decimal
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /recurring-transactions/templates:
+    get:
+      tags:
+        - templates
+      summary: Lấy danh sách mẫu giao dịch định kỳ
+      description: |
+        Lấy danh sách mẫu giao dịch định kỳ có sẵn (system templates) và do user tạo.
+        
+        **Template Types**:
+        - System templates: Được tạo sẵn bởi hệ thống
+        - User templates: Được user tạo từ giao dịch hiện có
+      operationId: getRecurringTransactionTemplates
+      parameters:
+        - name: templateType
+          in: query
+          description: Loại template
+          required: false
+          schema:
+            type: string
+            enum: [system, user, all]
+            default: all
+        - name: category
+          in: query
+          description: Lọc theo danh mục
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Danh sách templates
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  systemTemplates:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/RecurringTransactionTemplateDto'
+                  userTemplates:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/RecurringTransactionTemplateDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT Bearer token từ TiHoMo Identity service.
+        
+        **Format**: `Authorization: Bearer <jwt_token>`
+        
+        **Required Claims**:
+        - `sub`: User ID
+        - `email`: User email
+        - `exp`: Expiration time
+        - `iat`: Issued at time
+
+  schemas:
+    TransactionType:
+      type: string
+      enum: [Income, Expense, Transfer]
+      description: |
+        Loại giao dịch:
+        - `Income`: Thu nhập
+        - `Expense`: Chi tiêu  
+        - `Transfer`: Chuyển khoản
+
+    RecurrenceFrequency:
+      type: string
+      enum: [Daily, Weekly, Monthly, Quarterly, Yearly]
+      description: |
+        Tần suất lặp lại:
+        - `Daily`: Hàng ngày
+        - `Weekly`: Hàng tuần
+        - `Monthly`: Hàng tháng
+        - `Quarterly`: Hàng quý (3 tháng)
+        - `Yearly`: Hàng năm
+
+    ExecutionStatus:
+      type: string
+      enum: [Pending, Executed, Failed, Skipped]
+      description: |
+        Trạng thái thực hiện:
+        - `Pending`: Chờ thực hiện
+        - `Executed`: Đã thực hiện
+        - `Failed`: Thất bại
+        - `Skipped`: Bỏ qua
+
+    RecurringTransactionDto:
+      type: object
+      required:
+        - id
+        - code
+        - accountId
+        - accountName
+        - transactionType
+        - amount
+        - currency
+        - frequency
+        - frequencyInterval
+        - startDate
+        - nextExecutionDate
+        - title
+        - isActive
+        - isAutoExecute
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: ID duy nhất của giao dịch định kỳ
+        code:
+          type: string
+          pattern: '^RT\d{6}\d{6}$'
+          description: Mã nghiệp vụ duy nhất (RT + YYYYMM + 6 digits)
+          example: "RT202501000001"
+        accountId:
+          type: string
+          format: uuid
+          description: ID tài khoản liên kết
+        accountName:
+          type: string
+          description: Tên tài khoản hiển thị
+          example: "Tài khoản chính"
+        categoryId:
+          type: string
+          format: uuid
+          nullable: true
+          description: ID danh mục giao dịch
+        categoryName:
+          type: string
+          nullable: true
+          description: Tên danh mục hiển thị
+          example: "Tiền thuê nhà"
+        transactionType:
+          $ref: '#/components/schemas/TransactionType'
+        amount:
+          type: number
+          format: decimal
+          minimum: 0.01
+          description: Số tiền giao dịch
+          example: 5000000
+        currency:
+          type: string
+          minLength: 3
+          maxLength: 3
+          description: Đơn vị tiền tệ (ISO 4217)
+          example: "VND"
+        frequency:
+          $ref: '#/components/schemas/RecurrenceFrequency'
+        frequencyInterval:
+          type: integer
+          minimum: 1
+          maximum: 365
+          description: Khoảng cách giữa các lần thực hiện
+          example: 1
+        startDate:
+          type: string
+          format: date
+          description: Ngày bắt đầu giao dịch định kỳ
+          example: "2024-01-01"
+        endDate:
+          type: string
+          format: date
+          nullable: true
+          description: Ngày kết thúc giao dịch định kỳ (null = vô hạn)
+          example: "2024-12-31"
+        nextExecutionDate:
+          type: string
+          format: date
+          description: Ngày thực hiện tiếp theo
+          example: "2024-02-01"
+        lastExecutionDate:
+          type: string
+          format: date
+          nullable: true
+          description: Ngày thực hiện gần nhất
+          example: "2024-01-01"
+        title:
+          type: string
+          maxLength: 200
+          description: Tiêu đề giao dịch
+          example: "Tiền thuê nhà hàng tháng"
+        description:
+          type: string
+          maxLength: 1000
+          nullable: true
+          description: Mô tả chi tiết
+          example: "Thanh toán tiền thuê nhà cho căn hộ"
+        isActive:
+          type: boolean
+          description: Giao dịch có đang hoạt động không
+          example: true
+        isAutoExecute:
+          type: boolean
+          description: Có tự động thực hiện không
+          example: true
+        createdAt:
+          type: string
+          format: date-time
+          description: Thời gian tạo
+          example: "2024-01-01T00:00:00Z"
+        updatedAt:
+          type: string
+          format: date-time
+          description: Thời gian cập nhật cuối
+          example: "2024-01-01T00:00:00Z"
+        recentExecutions:
+          type: array
+          description: Danh sách thực hiện gần đây (tối đa 10)
+          items:
+            $ref: '#/components/schemas/RecurringTransactionExecutionDto'
+
+    RecurringTransactionCreateRequest:
+      type: object
+      required:
+        - title
+        - amount
+        - transactionType
+        - accountId
+        - frequency
+        - startDate
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: Tiêu đề giao dịch
+          example: "Tiền thuê nhà hàng tháng"
+        amount:
+          type: number
+          format: decimal
+          minimum: 0.01
+          maximum: 1000000000
+          description: Số tiền giao dịch
+          example: 5000000
+        transactionType:
+          $ref: '#/components/schemas/TransactionType'
+        accountId:
+          type: string
+          format: uuid
+          description: ID tài khoản (phải thuộc sở hữu của user)
+        categoryId:
+          type: string
+          format: uuid
+          nullable: true
+          description: ID danh mục giao dịch
+        frequency:
+          $ref: '#/components/schemas/RecurrenceFrequency'
+        frequencyInterval:
+          type: integer
+          minimum: 1
+          maximum: 365
+          default: 1
+          description: Khoảng cách giữa các lần thực hiện
+          example: 1
+        startDate:
+          type: string
+          format: date
+          description: Ngày bắt đầu (không được quá 1 ngày trong quá khứ)
+          example: "2024-02-01"
+        endDate:
+          type: string
+          format: date
+          nullable: true
+          description: Ngày kết thúc (phải sau startDate)
+          example: "2024-12-31"
+        description:
+          type: string
+          maxLength: 1000
+          nullable: true
+          description: Mô tả chi tiết
+          example: "Thanh toán tiền thuê nhà cho căn hộ"
+        isAutoExecute:
+          type: boolean
+          default: false
+          description: Có tự động thực hiện không
+          example: true
+
+    RecurringTransactionUpdateRequest:
+      type: object
+      required:
+        - title
+        - amount
+        - frequency
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: Tiêu đề giao dịch
+          example: "Tiền thuê nhà hàng tháng"
+        amount:
+          type: number
+          format: decimal
+          minimum: 0.01
+          maximum: 1000000000
+          description: Số tiền giao dịch
+          example: 5500000
+        categoryId:
+          type: string
+          format: uuid
+          nullable: true
+          description: ID danh mục giao dịch
+        frequency:
+          $ref: '#/components/schemas/RecurrenceFrequency'
+        frequencyInterval:
+          type: integer
+          minimum: 1
+          maximum: 365
+          default: 1
+          description: Khoảng cách giữa các lần thực hiện
+          example: 1
+        endDate:
+          type: string
+          format: date
+          nullable: true
+          description: Ngày kết thúc (phải sau startDate)
+          example: "2024-12-31"
+        description:
+          type: string
+          maxLength: 1000
+          nullable: true
+          description: Mô tả chi tiết
+          example: "Thanh toán tiền thuê nhà cho căn hộ (tăng giá)"
+        isAutoExecute:
+          type: boolean
+          description: Có tự động thực hiện không
+          example: true
+
+    RecurringTransactionExecutionDto:
+      type: object
+      required:
+        - id
+        - recurringTransactionId
+        - executionDate
+        - plannedAmount
+        - status
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: ID của execution record
+        recurringTransactionId:
+          type: string
+          format: uuid
+          description: ID giao dịch định kỳ liên kết
+        executionDate:
+          type: string
+          format: date
+          description: Ngày dự kiến/thực tế thực hiện
+          example: "2024-01-01"
+        plannedAmount:
+          type: number
+          format: decimal
+          description: Số tiền dự kiến
+          example: 5000000
+        actualAmount:
+          type: number
+          format: decimal
+          nullable: true
+          description: Số tiền thực tế (null nếu chưa thực hiện)
+          example: 5000000
+        status:
+          $ref: '#/components/schemas/ExecutionStatus'
+        transactionId:
+          type: string
+          format: uuid
+          nullable: true
+          description: ID giao dịch thực tế (null nếu chưa thực hiện)
+        notes:
+          type: string
+          maxLength: 500
+          nullable: true
+          description: Ghi chú cho lần thực hiện
+        errorMessage:
+          type: string
+          maxLength: 1000
+          nullable: true
+          description: Thông báo lỗi (nếu status = Failed)
+        createdAt:
+          type: string
+          format: date-time
+          description: Thời gian tạo execution record
+          example: "2024-01-01T00:00:00Z"
+        updatedAt:
+          type: string
+          format: date-time
+          description: Thời gian cập nhật cuối
+          example: "2024-01-01T00:00:00Z"
+
+    ForecastDto:
+      type: object
+      required:
+        - date
+        - amount
+        - transactionType
+        - title
+        - accountName
+        - recurringTransactionId
+        - isAutoExecute
+      properties:
+        date:
+          type: string
+          format: date
+          description: Ngày dự kiến thực hiện
+          example: "2024-02-01"
+        amount:
+          type: number
+          format: decimal
+          description: Số tiền dự kiến
+          example: 5000000
+        transactionType:
+          $ref: '#/components/schemas/TransactionType'
+        title:
+          type: string
+          description: Tiêu đề giao dịch
+          example: "Tiền thuê nhà hàng tháng"
+        accountName:
+          type: string
+          description: Tên tài khoản
+          example: "Tài khoản chính"
+        categoryName:
+          type: string
+          nullable: true
+          description: Tên danh mục
+          example: "Tiền thuê nhà"
+        recurringTransactionId:
+          type: string
+          format: uuid
+          description: ID giao dịch định kỳ gốc
+        isAutoExecute:
+          type: boolean
+          description: Có tự động thực hiện không
+          example: true
+
+    CalendarEventDto:
+      type: object
+      required:
+        - id
+        - date
+        - title
+        - amount
+        - transactionType
+        - accountName
+        - isAutoExecute
+        - isExecuted
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: ID giao dịch định kỳ
+        date:
+          type: string
+          format: date
+          description: Ngày thực hiện
+          example: "2024-01-01"
+        title:
+          type: string
+          description: Tiêu đề giao dịch
+          example: "Tiền thuê nhà hàng tháng"
+        amount:
+          type: number
+          format: decimal
+          description: Số tiền
+          example: 5000000
+        transactionType:
+          $ref: '#/components/schemas/TransactionType'
+        accountName:
+          type: string
+          description: Tên tài khoản
+          example: "Tài khoản chính"
+        isAutoExecute:
+          type: boolean
+          description: Có tự động thực hiện không
+          example: true
+        isExecuted:
+          type: boolean
+          description: Đã thực hiện chưa
+          example: true
+
+    RecurringTransactionTemplateDto:
+      type: object
+      required:
+        - id
+        - name
+        - isSystemTemplate
+        - isUserTemplate
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: ID template
+        name:
+          type: string
+          description: Tên template
+          example: "Tiền thuê nhà hàng tháng"
+        description:
+          type: string
+          nullable: true
+          description: Mô tả template
+          example: "Template cho thanh toán tiền thuê nhà định kỳ"
+        defaultCategoryId:
+          type: string
+          format: uuid
+          nullable: true
+          description: Danh mục mặc định
+        defaultAmount:
+          type: number
+          format: decimal
+          nullable: true
+          description: Số tiền mặc định
+          example: 5000000
+        defaultFrequency:
+          $ref: '#/components/schemas/RecurrenceFrequency'
+        defaultTransactionType:
+          $ref: '#/components/schemas/TransactionType'
+        isSystemTemplate:
+          type: boolean
+          description: Có phải system template không
+          example: true
+        isUserTemplate:
+          type: boolean
+          description: Có phải user template không
+          example: false
+        createdBy:
+          type: string
+          format: uuid
+          nullable: true
+          description: User tạo template (null cho system template)
+        createdAt:
+          type: string
+          format: date-time
+          description: Thời gian tạo
+          example: "2024-01-01T00:00:00Z"
+
+    TransactionDto:
+      type: object
+      required:
+        - id
+        - accountId
+        - amount
+        - transactionType
+        - transactionDate
+        - referenceNumber
+        - status
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: ID giao dịch
+        accountId:
+          type: string
+          format: uuid
+          description: ID tài khoản
+        amount:
+          type: number
+          format: decimal
+          description: Số tiền giao dịch
+          example: 5000000
+        transactionType:
+          $ref: '#/components/schemas/TransactionType'
+        categoryId:
+          type: string
+          format: uuid
+          nullable: true
+          description: ID danh mục
+        description:
+          type: string
+          nullable: true
+          description: Mô tả giao dịch
+          example: "Manual execution: Tiền thuê nhà hàng tháng"
+        transactionDate:
+          type: string
+          format: date
+          description: Ngày giao dịch
+          example: "2024-01-17"
+        referenceNumber:
+          type: string
+          description: Số tham chiếu giao dịch
+          example: "TXN202401170001"
+        status:
+          type: string
+          enum: [Pending, Completed, Failed, Cancelled]
+          description: Trạng thái giao dịch
+          example: "Completed"
+        createdAt:
+          type: string
+          format: date-time
+          description: Thời gian tạo
+          example: "2024-01-17T10:30:00Z"
+
+    PagedResultRecurringTransactionDto:
+      type: object
+      required:
+        - items
+        - totalCount
+        - pageNumber
+        - pageSize
+        - totalPages
+        - hasPreviousPage
+        - hasNextPage
+      properties:
+        items:
+          type: array
+          description: Danh sách items trong trang hiện tại
+          items:
+            $ref: '#/components/schemas/RecurringTransactionDto'
+        totalCount:
+          type: integer
+          minimum: 0
+          description: Tổng số items
+          example: 25
+        pageNumber:
+          type: integer
+          minimum: 1
+          description: Số trang hiện tại
+          example: 1
+        pageSize:
+          type: integer
+          minimum: 1
+          description: Số items per page
+          example: 20
+        totalPages:
+          type: integer
+          minimum: 0
+          description: Tổng số trang
+          example: 2
+        hasPreviousPage:
+          type: boolean
+          description: Có trang trước không
+          example: false
+        hasNextPage:
+          type: boolean
+          description: Có trang sau không
+          example: true
+
+    ProblemDetails:
+      type: object
+      required:
+        - type
+        - title
+        - status
+      properties:
+        type:
+          type: string
+          format: uri
+          description: URI xác định loại lỗi
+          example: "https://api.tihomo.com/problems/validation-error"
+        title:
+          type: string
+          description: Tóm tắt ngắn gọn về lỗi
+          example: "Validation Error"
+        status:
+          type: integer
+          description: HTTP status code
+          example: 400
+        detail:
+          type: string
+          description: Mô tả chi tiết về lỗi
+          example: "One or more validation errors occurred"
+        instance:
+          type: string
+          format: uri
+          description: URI của request gây ra lỗi
+          example: "/api/v1/recurring-transactions"
+        extensions:
+          type: object
+          description: Thông tin bổ sung về lỗi
+          additionalProperties: true
+
+    ValidationErrorResponse:
+      allOf:
+        - $ref: '#/components/schemas/ProblemDetails'
+        - type: object
+          properties:
+            errors:
+              type: object
+              description: Chi tiết lỗi validation cho từng field
+              additionalProperties:
+                type: array
+                items:
+                  type: string
+              example:
+                title: ["Title is required", "Title cannot exceed 200 characters"]
+                amount: ["Amount must be greater than 0"]
+
+  responses:
+    BadRequest:
+      description: Yêu cầu không hợp lệ
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+          examples:
+            invalid_request:
+              summary: Yêu cầu không hợp lệ
+              value:
+                type: "https://api.tihomo.com/problems/bad-request"
+                title: "Bad Request"
+                status: 400
+                detail: "The request is invalid"
+                instance: "/api/v1/recurring-transactions"
+
+    Unauthorized:
+      description: Không có quyền truy cập
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+          examples:
+            missing_token:
+              summary: Thiếu token
+              value:
+                type: "https://api.tihomo.com/problems/unauthorized"
+                title: "Unauthorized"
+                status: 401
+                detail: "Authorization header is missing or invalid"
+                instance: "/api/v1/recurring-transactions"
+            expired_token:
+              summary: Token hết hạn
+              value:
+                type: "https://api.tihomo.com/problems/token-expired"
+                title: "Token Expired"
+                status: 401
+                detail: "The provided JWT token has expired"
+                instance: "/api/v1/recurring-transactions"
+
+    Forbidden:
+      description: Không có quyền thực hiện hành động
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+          examples:
+            access_denied:
+              summary: Từ chối truy cập
+              value:
+                type: "https://api.tihomo.com/problems/access-denied"
+                title: "Access Denied"
+                status: 403
+                detail: "You don't have permission to access this resource"
+                instance: "/api/v1/recurring-transactions/550e8400-e29b-41d4-a716-446655440000"
+
+    NotFound:
+      description: Không tìm thấy tài nguyên
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+          examples:
+            not_found:
+              summary: Không tìm thấy
+              value:
+                type: "https://api.tihomo.com/problems/not-found"
+                title: "Not Found"
+                status: 404
+                detail: "The requested recurring transaction was not found"
+                instance: "/api/v1/recurring-transactions/550e8400-e29b-41d4-a716-446655440000"
+
+    ValidationError:
+      description: Lỗi validation dữ liệu đầu vào
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationErrorResponse'
+          examples:
+            validation_failed:
+              summary: Validation thất bại
+              value:
+                type: "https://api.tihomo.com/problems/validation-error"
+                title: "Validation Error"
+                status: 422
+                detail: "One or more validation errors occurred"
+                instance: "/api/v1/recurring-transactions"
+                errors:
+                  title: ["Title is required", "Title cannot exceed 200 characters"]
+                  amount: ["Amount must be greater than 0", "Amount cannot exceed 1,000,000,000"]
+                  startDate: ["Start date cannot be more than 1 day in the past"]
+
+    InternalServerError:
+      description: Lỗi server nội bộ
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+          examples:
+            server_error:
+              summary: Lỗi server
+              value:
+                type: "https://api.tihomo.com/problems/internal-server-error"
+                title: "Internal Server Error"
+                status: 500
+                detail: "An unexpected error occurred while processing the request"
+                instance: "/api/v1/recurring-transactions"
+                extensions:
+                  correlationId: "550e8400-e29b-41d4-a716-446655440000"
