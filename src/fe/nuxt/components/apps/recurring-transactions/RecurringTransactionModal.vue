@@ -31,7 +31,7 @@
                         <label class="form-label">Tài khoản *</label>
                         <select v-model="form.accountId" class="form-select" required>
                             <option value="">Chọn tài khoản</option>
-                            <option v-for="account in accounts" :key="account.id" :value="account.id">
+                            <option v-for="account in accountsList" :key="account.id" :value="account.id">
                                 {{ account.name }}
                             </option>
                         </select>
@@ -199,6 +199,9 @@
                         {{ isEditMode ? 'Cập nhật' : 'Tạo mẫu' }}
                     </button>
                 </div>
+                <div v-if="submitError" class="mt-3 text-sm text-red-600 dark:text-red-400">
+                    {{ submitError }}
+                </div>
             </form>
         </div>
     </div>
@@ -207,13 +210,15 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRecurringTransactions } from '~/composables/useRecurringTransactions'
+import { useAccountsSimple } from '~/composables/useAccountsSimple'
 import type { RecurringTransactionTemplateViewModel, RecurringTransactionTemplateCreateRequest, RecurringTransactionTemplateUpdateRequest } from '~/types'
 import IconX from '~/components/icon/icon-x.vue'
 
 // Props
 interface Props {
     template?: RecurringTransactionTemplateViewModel | null
-    accounts: any[]
+    // allow readonly arrays coming from composables (.value is readonly)
+    accounts: ReadonlyArray<any>
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -228,9 +233,28 @@ const emit = defineEmits<{
 
 // Composables
 const { createTemplate, updateTemplate } = useRecurringTransactions()
+const { accounts: accountsFromStore, getAccounts: fetchAccounts } = useAccountsSimple()
+
+// Use accounts prop if provided, otherwise fallback to composable's accounts
+const accountsList = computed(() => (props.accounts && props.accounts.length ? props.accounts : accountsFromStore as any))
 
 // Reactive data
 const loading = ref(false)
+const submitError = ref<string | null>(null)
+
+const extractErrorMessage = (err: any): string => {
+    if (!err) return 'Lỗi không xác định'
+    // Axios-style error with response payload
+    const resp = err?.response?.data
+    if (resp) {
+        if (typeof resp === 'string') return resp
+        if (resp.message) return resp.message
+        if (resp.error) return resp.error
+        if (resp.errors) return JSON.stringify(resp.errors)
+    }
+    if (err.message) return err.message
+    return String(err)
+}
 const form = ref({
     userId: '00000000-0000-0000-0000-000000000000', // Temporary user ID
     accountId: '',
@@ -263,22 +287,22 @@ const handleFrequencyChange = () => {
 const resetForm = () => {
     if (props.template) {
         // Edit mode - populate form with template data
-        form.value = {
+            form.value = {
             userId: props.template.userId,
             accountId: props.template.accountId,
             name: props.template.name,
             description: props.template.description || '',
-            amount: props.template.amount,
-            transactionType: props.template.transactionType,
+            amount: props.template.amount ?? 0,
+            transactionType: props.template.transactionType ?? 1,
             category: props.template.category || '',
-            frequency: props.template.frequency,
-            customIntervalDays: props.template.customIntervalDays,
-            startDate: props.template.startDate.split('T')[0], // Convert to date format
+            frequency: props.template.frequency ?? 3,
+            customIntervalDays: props.template.customIntervalDays ?? null,
+            startDate: (props.template.startDate ?? new Date().toISOString()).split('T')[0], // Convert to date format
             endDate: props.template.endDate ? props.template.endDate.split('T')[0] : '',
             cronExpression: props.template.cronExpression || '',
-            isActive: props.template.isActive,
-            autoGenerate: props.template.autoGenerate,
-            daysInAdvance: props.template.daysInAdvance,
+            isActive: props.template.isActive ?? true,
+            autoGenerate: props.template.autoGenerate ?? true,
+            daysInAdvance: props.template.daysInAdvance ?? 30,
             notes: props.template.notes || ''
         }
     } else {
@@ -306,9 +330,21 @@ const resetForm = () => {
 }
 
 const handleSubmit = async () => {
+    submitError.value = null
     try {
         loading.value = true
-        
+        // Basic client-side validation to avoid server-side null constraint errors
+        if (!form.value.name || form.value.name.trim() === '') {
+            submitError.value = 'Tên mẫu là bắt buộc.'
+            loading.value = false
+            return
+        }
+        if (!form.value.accountId || form.value.accountId.trim() === '') {
+            submitError.value = 'Vui lòng chọn tài khoản.'
+            loading.value = false
+            return
+        }
+
         const requestData = {
             ...form.value,
             endDate: form.value.endDate || null,
@@ -317,6 +353,11 @@ const handleSubmit = async () => {
             cronExpression: form.value.cronExpression || null,
             notes: form.value.notes || null
         }
+
+        // Debug: log request to help troubleshooting in dev
+        // (No sensitive values are logged)
+        // eslint-disable-next-line no-console
+        console.debug('RecurringTemplate submit', { isEdit: isEditMode.value, requestData })
 
         if (isEditMode.value && props.template) {
             // Update existing template
@@ -332,9 +373,10 @@ const handleSubmit = async () => {
         }
 
         emit('saved')
-    } catch (error) {
+    } catch (error: any) {
+        // eslint-disable-next-line no-console
         console.error('Error saving template:', error)
-        // TODO: Show error message to user
+        submitError.value = extractErrorMessage(error) || 'Lỗi khi lưu mẫu. Vui lòng thử lại.'
     } finally {
         loading.value = false
     }
@@ -346,8 +388,12 @@ watch(() => props.template, () => {
 }, { immediate: true })
 
 // Lifecycle
-onMounted(() => {
+onMounted(async () => {
     resetForm()
+    // If parent didn't pass accounts, fetch them here as a fallback
+    if ((!props.accounts || props.accounts.length === 0) && fetchAccounts) {
+        await fetchAccounts()
+    }
 })
 </script>
 

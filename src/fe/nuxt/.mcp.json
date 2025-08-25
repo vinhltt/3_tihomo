@@ -1,0 +1,49 @@
+{
+	"mcpServers": {
+		"serena": {
+			"command": "uv",
+			"args": [
+				"run",
+				"--directory",
+				"D:/Programs/serena",
+				"serena-mcp-server"
+			],
+			"env": {
+				"SERENA_PROJECT_ROOT": "D:/1.Workspace/0.Personal/3_tihomo/src/fe/nuxt",
+				"SERENA_DEFAULT_PROJECT": "TiHoMo-Frontend"
+			}
+		},
+		"context7": {
+			"command": "npx",
+			"args": [
+				"-y",
+				"@upstash/context7-mcp@latest"
+			],
+			"env": {
+				"CONTEXT7_PROJECT": "tihomo-nuxt-frontend"
+			}
+		},
+		"sequential-thinking": {
+			"command": "npx",
+			"args": [
+				"-y",
+				"@modelcontextprotocol/server-sequential-thinking"
+			],
+			"env": {
+				"THINKING_OUTPUT_DIR": "./mcp-thinking-sessions",
+				"THINKING_PROJECT_CONTEXT": "TiHoMo Nuxt 3 Frontend"
+			}
+		},
+		"fetch": {
+			"command": "npx",
+			"args": [
+				"-y",
+				"@modelcontextprotocol/server-fetch"
+			],
+			"env": {
+				"FETCH_TIMEOUT": "30000",
+				"FETCH_USER_AGENT": "TiHoMo-Frontend-MCP/1.0"
+			}
+		}
+	}
+}

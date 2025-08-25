@@ -546,4 +546,60 @@ export interface AdjustTransactionRequest {
    * Lý do điều chỉnh. (VI)
    */
   reason: string
+}
+
+/**
+ * Calendar event for recurring transactions. (EN)
+ * 
+ * Sự kiện lịch cho giao dịch định kỳ. (VI)
+ */
+export interface RecurringTransactionCalendarEvent {
+  /**
+   * The unique identifier for the template. (EN)
+   * 
+   * Định danh duy nhất cho mẫu. (VI)
+   */
+  id: string
+  /**
+   * The name of the template. (EN)
+   * 
+   * Tên của mẫu. (VI)
+   */
+  name: string
+  /**
+   * The description of the template (optional). (EN)
+   * 
+   * Mô tả của mẫu (tùy chọn). (VI)
+   */
+  description?: string | null
+  /**
+   * The amount for the recurring transaction. (EN)
+   * 
+   * Số tiền cho giao dịch định kỳ. (VI)
+   */
+  amount: number
+  /**
+   * The type of transaction (Revenue or Expense). (EN)
+   * 
+   * Loại giao dịch (Thu nhập hoặc Chi phí). (VI)
+   */
+  transactionType: RecurringTransactionType
+  /**
+   * The category of the transaction (optional). (EN)
+   * 
+   * Danh mục của giao dịch (tùy chọn). (VI)
+   */
+  category?: string | null
+  /**
+   * The next execution date. (EN)
+   * 
+   * Ngày thực hiện tiếp theo. (VI)
+   */
+  nextExecutionDate: string
+  /**
+   * The ID of the account associated with the template. (EN)
+   * 
+   * ID của tài khoản liên quan đến mẫu. (VI)
+   */
+  accountId: string
 } 

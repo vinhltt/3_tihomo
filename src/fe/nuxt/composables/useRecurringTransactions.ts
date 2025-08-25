@@ -1,240 +1,69 @@
-import { ref, reactive } from 'vue'
-import type { 
-    RecurringTransactionTemplateViewModel, 
+import type {
+    RecurringTransactionTemplateViewModel,
     RecurringTransactionTemplateCreateRequest,
     RecurringTransactionTemplateUpdateRequest,
-    FilterBodyRequest,
-    IBasePaging 
-} from '~/types'
+    RecurringTransactionCalendarEvent,
+    IBasePaging
+} from '~/types/recurring-transaction'
+import type { FilterBodyRequest } from '~/types/api'
+import { useApi } from './useApi'
 
 export const useRecurringTransactions = () => {
-    const { $api } = useNuxtApp()
-    
-    // Reactive state
-    const templates = ref<RecurringTransactionTemplateViewModel[]>([])
-    const loading = ref(false)
-    const pagination = reactive({
-        pageIndex: 1,
-        pageSize: 10,
-        totalRow: 0,
-        pageCount: 0
-    })
+    const { get, post, postForm, putForm, delete: del, apiCall } = useApi()
 
-    // Build filter request
-    const buildFilterRequest = (filters: any = {}): FilterBodyRequest => {
-        const filterDetails = []
-        
-        if (filters.accountId) {
-            filterDetails.push({
-                attributeName: 'AccountId',
-                value: filters.accountId,
-                filterType: 0 // Equal
-            })
-        }
-        
-        if (filters.isActive !== undefined) {
-            filterDetails.push({
-                attributeName: 'IsActive',
-                value: filters.isActive.toString(),
-                filterType: 0 // Equal
-            })
-        }
-        
-        if (filters.frequency !== undefined) {
-            filterDetails.push({
-                attributeName: 'Frequency',
-                value: filters.frequency.toString(),
-                filterType: 0 // Equal
-            })
-        }
-
-        return {
-            langId: '',
-            searchValue: '',
-            filter: {
-                logicalOperator: 0, // And
-                details: filterDetails
-            },
-            orders: [
-                {
-                    field: 'CreatedAt',
-                    direction: 1 // Descending
-                }
-            ],
-            pagination: {
-                pageIndex: filters.pageIndex || pagination.pageIndex,
-                pageSize: filters.pageSize || pagination.pageSize,
-                totalRow: 0,
-                pageCount: 0
-            }
-        }
+    /**
+     * Get paginated templates (filter body request)
+     */
+    const getTemplates = async (request: FilterBodyRequest): Promise<IBasePaging<RecurringTransactionTemplateViewModel>> => {
+        return post<IBasePaging<RecurringTransactionTemplateViewModel>>('/api/core-finance/RecurringTransactionTemplate/filter', request)
     }
 
-    // Get templates with pagination and filtering
-    const getTemplates = async (filters: any = {}) => {
-        try {
-            loading.value = true
-            const request = buildFilterRequest(filters)
-            
-            const response = await $api.post<IBasePaging<RecurringTransactionTemplateViewModel>>(
-                '/api/RecurringTransactionTemplate/filter',
-                request
-            )
-            
-            if (response.data) {
-                templates.value = response.data.data || []
-                pagination.pageIndex = response.data.pageIndex
-                pagination.pageSize = response.data.pageSize
-                pagination.totalRow = response.data.totalRow
-                pagination.pageCount = response.data.pageCount
-            }
-        } catch (error) {
-            console.error('Error fetching recurring transaction templates:', error)
-            templates.value = []
-        } finally {
-            loading.value = false
-        }
+    const getActiveTemplates = async (userId: string): Promise<RecurringTransactionTemplateViewModel[]> => {
+        return get<RecurringTransactionTemplateViewModel[]>(`/api/core-finance/RecurringTransactionTemplate/active/${userId}`)
     }
 
-    // Get active templates for a user
-    const getActiveTemplates = async (userId: string) => {
-        try {
-            const response = await $api.get<RecurringTransactionTemplateViewModel[]>(
-                `/api/RecurringTransactionTemplate/active/${userId}`
-            )
-            return response.data || []
-        } catch (error) {
-            console.error('Error fetching active templates:', error)
-            return []
-        }
+    const getTemplatesByAccount = async (accountId: string): Promise<RecurringTransactionTemplateViewModel[]> => {
+        return get<RecurringTransactionTemplateViewModel[]>(`/api/core-finance/RecurringTransactionTemplate/account/${accountId}`)
     }
 
-    // Get templates by account
-    const getTemplatesByAccount = async (accountId: string) => {
-        try {
-            const response = await $api.get<RecurringTransactionTemplateViewModel[]>(
-                `/api/RecurringTransactionTemplate/account/${accountId}`
-            )
-            return response.data || []
-        } catch (error) {
-            console.error('Error fetching templates by account:', error)
-            return []
-        }
+    const createTemplate = async (request: RecurringTransactionTemplateCreateRequest): Promise<RecurringTransactionTemplateViewModel> => {
+        return postForm<RecurringTransactionTemplateViewModel>('/api/core-finance/RecurringTransactionTemplate', request)
     }
 
-    // Create template
-    const createTemplate = async (request: RecurringTransactionTemplateCreateRequest) => {
-        try {
-            const formData = new FormData()
-            Object.entries(request).forEach(([key, value]) => {
-                if (value !== null && value !== undefined) {
-                    formData.append(key, value.toString())
-                }
-            })
-
-            const response = await $api.postForm<RecurringTransactionTemplateViewModel>(
-                '/api/RecurringTransactionTemplate',
-                formData
-            )
-            return response.data
-        } catch (error) {
-            console.error('Error creating recurring transaction template:', error)
-            throw error
-        }
+    const updateTemplate = async (id: string, request: RecurringTransactionTemplateUpdateRequest): Promise<RecurringTransactionTemplateViewModel> => {
+        return putForm<RecurringTransactionTemplateViewModel>(`/api/core-finance/RecurringTransactionTemplate/${id}`, request)
     }
 
-    // Update template
-    const updateTemplate = async (id: string, request: RecurringTransactionTemplateUpdateRequest) => {
-        try {
-            const formData = new FormData()
-            Object.entries(request).forEach(([key, value]) => {
-                if (value !== null && value !== undefined) {
-                    formData.append(key, value.toString())
-                }
-            })
-
-            const response = await $api.putForm<RecurringTransactionTemplateViewModel>(
-                `/api/RecurringTransactionTemplate/${id}`,
-                formData
-            )
-            return response.data
-        } catch (error) {
-            console.error('Error updating recurring transaction template:', error)
-            throw error
-        }
+    const deleteTemplate = async (id: string): Promise<void> => {
+        return del<void>(`/api/core-finance/RecurringTransactionTemplate/${id}`)
     }
 
-    // Delete template
-    const deleteTemplate = async (id: string) => {
-        try {
-            await $api.delete(`/api/RecurringTransactionTemplate/${id}`)
-            return true
-        } catch (error) {
-            console.error('Error deleting recurring transaction template:', error)
-            return false
-        }
+    const toggleActiveStatus = async (templateId: string, isActive: boolean): Promise<void> => {
+        // apiCall used because useApi doesn't expose PATCH directly
+        return apiCall(`/api/core-finance/RecurringTransactionTemplate/${templateId}/toggle-active`, {
+            method: ('PATCH' as any),
+            body: isActive
+        })
     }
 
-    // Toggle active status
-    const toggleActiveStatus = async (templateId: string, isActive: boolean) => {
-        try {
-            const response = await $api.patch(
-                `/api/RecurringTransactionTemplate/${templateId}/toggle-active`,
-                isActive
-            )
-            return response.status === 200
-        } catch (error) {
-            console.error('Error toggling template status:', error)
-            return false
-        }
+    const calculateNextExecutionDate = async (templateId: string): Promise<string | null> => {
+        const resp = await get<{ nextExecutionDate: string }>(`/api/core-finance/RecurringTransactionTemplate/${templateId}/next-execution-date`)
+        return resp?.nextExecutionDate || null
     }
 
-    // Calculate next execution date
-    const calculateNextExecutionDate = async (templateId: string) => {
-        try {
-            const response = await $api.get<{ nextExecutionDate: string }>(
-                `/api/RecurringTransactionTemplate/${templateId}/next-execution-date`
-            )
-            return response.data?.nextExecutionDate
-        } catch (error) {
-            console.error('Error calculating next execution date:', error)
-            return null
-        }
+    const generateExpectedTransactions = async (templateId: string, daysInAdvance = 30): Promise<void> => {
+        return post<void>(`/api/core-finance/RecurringTransactionTemplate/${templateId}/generate-expected-transactions?daysInAdvance=${daysInAdvance}`)
     }
 
-    // Generate expected transactions for a template
-    const generateExpectedTransactions = async (templateId: string, daysInAdvance: number = 30) => {
-        try {
-            const response = await $api.post(
-                `/api/RecurringTransactionTemplate/${templateId}/generate-expected-transactions?daysInAdvance=${daysInAdvance}`
-            )
-            return response.status === 200
-        } catch (error) {
-            console.error('Error generating expected transactions:', error)
-            return false
-        }
+    const generateAllExpectedTransactions = async (): Promise<void> => {
+        return post<void>('/api/core-finance/RecurringTransactionTemplate/generate-all-expected-transactions')
     }
 
-    // Generate expected transactions for all active templates
-    const generateAllExpectedTransactions = async () => {
-        try {
-            const response = await $api.post(
-                '/api/RecurringTransactionTemplate/generate-all-expected-transactions'
-            )
-            return response.status === 200
-        } catch (error) {
-            console.error('Error generating all expected transactions:', error)
-            return false
-        }
+    const getCalendarEvents = async (month: string): Promise<RecurringTransactionCalendarEvent[]> => {
+        return get<RecurringTransactionCalendarEvent[]>(`/api/core-finance/RecurringTransactionTemplate/calendar?month=${month}`)
     }
 
     return {
-        // State
-        templates,
-        loading,
-        pagination,
-        
-        // Methods
         getTemplates,
         getActiveTemplates,
         getTemplatesByAccount,
@@ -244,6 +73,7 @@ export const useRecurringTransactions = () => {
         toggleActiveStatus,
         calculateNextExecutionDate,
         generateExpectedTransactions,
-        generateAllExpectedTransactions
+        generateAllExpectedTransactions,
+        getCalendarEvents
     }
-} 
+}

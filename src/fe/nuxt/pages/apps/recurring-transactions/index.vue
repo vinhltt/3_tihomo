@@ -2,13 +2,46 @@
     <div>
         <div class="panel">
             <div class="mb-5 flex items-center justify-between">
-                <h5 class="text-lg font-semibold dark:text-white-light">Quản lý Giao dịch Định kỳ</h5>
+                <div class="flex items-center gap-4">
+                    <h5 class="text-lg font-semibold dark:text-white-light">Quản lý Giao dịch Định kỳ</h5>
+                    <!-- View Toggle -->
+                    <div class="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
+                        <button
+                            type="button"
+                            :class="[
+                                'px-3 py-1 text-sm font-medium rounded-md transition-colors',
+                                currentView === 'list' 
+                                    ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm' 
+                                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                            ]"
+                            @click="currentView = 'list'"
+                        >
+                            <icon-list class="w-4 h-4 mr-1" />
+                            Danh sách
+                        </button>
+                        <button
+                            type="button"
+                            :class="[
+                                'px-3 py-1 text-sm font-medium rounded-md transition-colors',
+                                currentView === 'calendar' 
+                                    ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm' 
+                                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                            ]"
+                            @click="currentView = 'calendar'"
+                        >
+                            <icon-calendar class="w-4 h-4 mr-1" />
+                            Lịch
+                        </button>
+                    </div>
+                </div>
                 <button type="button" class="btn btn-primary" @click="openCreateModal">
                     <icon-plus class="w-5 h-5 ltr:mr-2 rtl:ml-2" />
                     Thêm mẫu mới
                 </button>
             </div>
 
+            <!-- List View -->
+            <div v-show="currentView === 'list'">
             <!-- Filters -->
             <div class="mb-5 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <div>
@@ -65,7 +98,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <tr v-if="loading">
+                        <tr v-if="isLoading">
                             <td colspan="7" class="text-center py-4">
                                 <div class="inline-block animate-spin border-4 border-transparent border-l-primary rounded-full w-10 h-10"></div>
                             </td>
@@ -166,6 +199,12 @@
                     </button>
                 </div>
             </div>
+            </div>
+
+            <!-- Calendar View -->
+            <div v-show="currentView === 'calendar'">
+                <RecurringTransactionCalendar />
+            </div>
         </div>
 
         <!-- Create/Edit Modal -->
@@ -184,10 +223,15 @@ import { ref, onMounted, computed } from 'vue'
 import { useRecurringTransactions } from '~/composables/useRecurringTransactions'
 import { useAccountsSimple } from '~/composables/useAccountsSimple'
 import type { RecurringTransactionTemplateViewModel } from '~/types'
+import type { FilterBodyRequest } from '~/types/api'
+import { FilterLogicalOperator, FilterType, SortDirection } from '~/types/api'
 import RecurringTransactionModal from '~/components/apps/recurring-transactions/RecurringTransactionModal.vue'
+import RecurringTransactionCalendar from '~/components/apps/recurring-transactions/RecurringTransactionCalendar.vue'
 
 // Icons
 import IconPlus from '~/components/icon/icon-plus.vue'
+import IconList from '~/components/icon/icon-list.vue'
+import IconCalendar from '~/components/icon/icon-calendar.vue'
 import IconRefresh from '~/components/icon/icon-refresh.vue'
 import IconEye from '~/components/icon/icon-eye.vue'
 import IconEdit from '~/components/icon/icon-edit.vue'
@@ -195,49 +239,105 @@ import IconPause from '~/components/icon/icon-pause.vue'
 import IconPlay from '~/components/icon/icon-play.vue'
 import IconTrash from '~/components/icon/icon-trash.vue'
 
-// Composables
-const { 
-    templates, 
-    loading, 
-    pagination, 
-    getTemplates, 
-    toggleActiveStatus, 
-    deleteTemplate: deleteTemplateApi 
-} = useRecurringTransactions()
-const { accounts, getAccountName } = useAccountsSimple()
+// Composables (stateless API methods)
+const { getTemplates: apiGetTemplates, toggleActiveStatus, deleteTemplate: deleteTemplateApi } = useRecurringTransactions()
+const { accounts, getAccounts, getAccountName } = useAccountsSimple()
+
+// Local reactive state (previously provided by the composable)
+const templates = ref<RecurringTransactionTemplateViewModel[]>([])
+const isLoading = ref(false)
+const pagination = ref({
+    pageIndex: 1,
+    pageSize: 10,
+    totalRow: 0,
+    pageCount: 0
+})
 
 // Reactive data
+const currentView = ref<'list' | 'calendar'>('list')
 const selectedAccountId = ref('')
 const selectedStatus = ref('')
 const selectedFrequency = ref('')
 const showModal = ref(false)
 const selectedTemplate = ref<RecurringTransactionTemplateViewModel | null>(null)
 
+// Build a FilterBodyRequest compatible with the backend filter endpoint
+const buildFilterRequest = (filters: any = {}): FilterBodyRequest => {
+    const details: any[] = []
+    if (filters.accountId) {
+        details.push({ attributeName: 'AccountId', value: filters.accountId, filterType: FilterType.Equal })
+    }
+    if (filters.isActive !== undefined) {
+        details.push({ attributeName: 'IsActive', value: String(filters.isActive), filterType: FilterType.Equal })
+    }
+    if (filters.frequency !== undefined) {
+        details.push({ attributeName: 'Frequency', value: String(filters.frequency), filterType: FilterType.Equal })
+    }
+
+    return {
+        langId: '',
+        searchValue: '',
+        filter: {
+            logicalOperator: FilterLogicalOperator.And,
+            details
+        },
+        orders: [{ field: 'CreatedAt', direction: SortDirection.Descending }],
+        pagination: {
+            pageIndex: filters.pageIndex || pagination.value.pageIndex,
+            pageSize: filters.pageSize || pagination.value.pageSize,
+            totalRow: 0,
+            pageCount: 0
+        }
+    }
+}
+
+// Wrapper that calls the stateless composable and updates local state
+const fetchTemplates = async (filters: any = {}) => {
+    isLoading.value = true
+    try {
+        const req = buildFilterRequest(filters)
+        const resp = await apiGetTemplates(req)
+        // resp expected to be IBasePaging<T> with .data and pagination fields
+        templates.value = resp?.data || []
+        pagination.value.pageIndex = resp?.pageIndex ?? pagination.value.pageIndex
+        pagination.value.pageSize = resp?.pageSize ?? pagination.value.pageSize
+        pagination.value.totalRow = resp?.totalRow ?? pagination.value.totalRow
+        pagination.value.pageCount = resp?.pageCount ?? pagination.value.pageCount
+    } catch (err) {
+        // on error, reset list
+        // eslint-disable-next-line no-console
+        console.error('Error loading recurring templates', err)
+        templates.value = []
+    } finally {
+        isLoading.value = false
+    }
+}
+
 // Methods
 const handleAccountChange = () => {
-    getTemplates({ accountId: selectedAccountId.value })
+    fetchTemplates({ accountId: selectedAccountId.value })
 }
 
 const handleStatusChange = () => {
     const isActive = selectedStatus.value === 'active' ? true : 
                     selectedStatus.value === 'inactive' ? false : undefined
-    getTemplates({ isActive })
+    fetchTemplates({ isActive })
 }
 
 const handleFrequencyChange = () => {
     const frequency = selectedFrequency.value ? parseInt(selectedFrequency.value) : undefined
-    getTemplates({ frequency })
+    fetchTemplates({ frequency })
 }
 
 const resetFilters = () => {
     selectedAccountId.value = ''
     selectedStatus.value = ''
     selectedFrequency.value = ''
-    getTemplates()
+    fetchTemplates()
 }
 
 const changePage = (page: number) => {
-    getTemplates({ pageIndex: page })
+    fetchTemplates({ pageIndex: page })
 }
 
 const openCreateModal = () => {
@@ -256,17 +356,23 @@ const editTemplate = (template: RecurringTransactionTemplateViewModel) => {
 }
 
 const toggleTemplateStatus = async (template: RecurringTransactionTemplateViewModel) => {
-    const success = await toggleActiveStatus(template.id, !template.isActive)
-    if (success) {
-        await getTemplates()
+    try {
+        await toggleActiveStatus(template.id, !template.isActive)
+        await fetchTemplates()
+    } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error('Error toggling template status', err)
     }
 }
 
 const deleteTemplate = async (template: RecurringTransactionTemplateViewModel) => {
     if (confirm(`Bạn có chắc chắn muốn xóa mẫu "${template.name}"?`)) {
-        const success = await deleteTemplateApi(template.id)
-        if (success) {
-            await getTemplates()
+        try {
+            await deleteTemplateApi(template.id)
+            await fetchTemplates()
+        } catch (err) {
+            // eslint-disable-next-line no-console
+            console.error('Error deleting template', err)
         }
     }
 }
@@ -276,9 +382,9 @@ const closeModal = () => {
     selectedTemplate.value = null
 }
 
-const handleTemplateSaved = () => {
+const handleTemplateSaved = async () => {
     closeModal()
-    getTemplates()
+    await fetchTemplates()
 }
 
 // Utility functions
@@ -313,7 +419,11 @@ const getFrequencyText = (frequency: number) => {
 
 // Lifecycle
 onMounted(async () => {
-    await getTemplates()
+    // Load templates and accounts in parallel
+    await Promise.all([
+        fetchTemplates(),
+        getAccounts()
+    ])
 })
 </script>
 

@@ -5,6 +5,17 @@ export type { AccountType, Account, AccountCreateRequest, AccountUpdateRequest, 
 export type { Pagination, SortDescriptor, FilterDetailsRequest, FilterRequest, FilterBodyRequest, ApiResponse, ApiError } from './api' 
 export { FilterLogicalOperator, FilterType } from './api' 
 
+// Dashboard types
+export type { 
+    FinancialSummary, 
+    Budget, 
+    RecentTransaction, 
+    DashboardStats, 
+    QuickAction, 
+    NetWorthData, 
+    DashboardData 
+} from './dashboard'
+
 // Recurring Transaction types
 export type { 
     IBasePaging,

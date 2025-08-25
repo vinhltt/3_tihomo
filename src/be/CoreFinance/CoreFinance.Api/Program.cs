@@ -16,6 +16,11 @@ using CoreFinance.Api.Configuration;
 using CoreFinance.Api.Extensions;
 using Shared.Contracts.ConfigurationOptions;
 using Shared.Contracts.Utilities;
+using Hangfire;
+using Hangfire.PostgreSql;
+using CoreFinance.Application.Interfaces;
+using CoreFinance.Application.Services.Jobs;
+using CoreFinance.Api.Infrastructures.Hangfire;
 
 static async Task CreateDbIfNotExistsAsync(IHost host)
 {
@@ -55,7 +60,7 @@ Log.Logger = new LoggerConfiguration()
 
 var builder = WebApplication.CreateBuilder(args);
 
-var corsOption = configuration.GetOptions<CorsOptions>("CorsOptions");
+var corsOption = configuration.GetOptions<CorsOptions>(nameof(CorsOptions));
 var policyName = corsOption!.PolicyName.Nullify("AppCorsPolicy");
 builder.AddConfigurationSettings();
 builder.AddGeneralConfigurations(policyName, corsOption);
@@ -66,6 +71,23 @@ var jwtSettings = builder.Configuration.GetSection(JwtSettings.SectionName).Get<
 builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection(JwtSettings.SectionName));
 builder.Services.AddJwtAuthentication(jwtSettings);
 builder.Services.AddJwtAuthorization();
+
+// Configure Hangfire for background jobs
+var connectionString = builder.Configuration.GetConnectionString(CoreFinanceDbContext.DEFAULT_CONNECTION_STRING);
+builder.Services.AddHangfire(config =>
+{
+    config.UsePostgreSqlStorage(options => options.UseNpgsqlConnection(connectionString));
+});
+
+builder.Services.AddHangfireServer(options =>
+{
+    options.ServerName = $"CoreFinance-{Environment.MachineName}";
+    options.Queues = ["default", "recurring-transactions", "notifications", "analytics"];
+    options.WorkerCount = Environment.ProcessorCount * 2;
+});
+
+// Register job services
+builder.Services.AddScoped<IRecurringTransactionJobService, RecurringTransactionJobService>();
 
 // Add MassTransit for message consumption
 builder.Services.AddMassTransit(x =>
@@ -205,6 +227,15 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.UseRouting();
 
+// Add Hangfire dashboard (only in development)
+if (app.Environment.IsDevelopment())
+{
+    app.UseHangfireDashboard("/hangfire", new DashboardOptions
+    {
+        Authorization = new[] { new HangfireAuthorizationFilter() }
+    });
+}
+
 // Map health check endpoint
 app.MapHealthChecks("/health");
 
@@ -214,6 +245,52 @@ app.MapControllers();
 
 await CreateDbIfNotExistsAsync(app);
 
+// Schedule recurring jobs
+using (var scope = app.Services.CreateScope())
+{
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+    
+    try
+    {
+        var options = new RecurringJobOptions
+        {
+            TimeZone = TimeZoneInfo.Local, // Set timezone within options
+        };
+        // Schedule daily job at 2:00 AM
+        RecurringJob.AddOrUpdate<IRecurringTransactionJobService>(
+            "process-daily-recurring-transactions",
+            service => service.ProcessDailyRecurringTransactionsAsync(),
+            "0 2 * * *", // Daily at 2:00 AM
+            options);
+
+        // Schedule daily notifications at 8:00 AM
+        RecurringJob.AddOrUpdate<IRecurringTransactionJobService>(
+            "send-upcoming-notifications",
+            service => service.SendUpcomingTransactionNotificationsAsync(),
+            "0 8 * * *", // Daily at 8:00 AM
+            options);
+
+        // Schedule weekly analytics on Sundays at 3:00 AM
+        RecurringJob.AddOrUpdate<IRecurringTransactionJobService>(
+            "generate-weekly-analytics",
+            service => service.GenerateWeeklyAnalyticsAsync(),
+            "0 3 * * 0", // Sundays at 3:00 AM
+            options);
+
+        // Schedule monthly cleanup on first day of month at 1:00 AM
+        RecurringJob.AddOrUpdate<IRecurringTransactionJobService>(
+            "cleanup-old-data",
+            service => service.CleanupOldDataAsync(),
+            "0 1 1 * *", // First day of month at 1:00 AM
+            options);
+
+        logger.LogInformation("Hangfire recurring jobs scheduled successfully");
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "Error scheduling Hangfire recurring jobs");
+    }
+}
 
 try
 {

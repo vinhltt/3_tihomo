@@ -1,0 +1,26 @@
+{
+  "inputs": [],
+  "servers": {
+    "serena": {
+      "command": "uv",
+      "args": [
+        "run",
+        "--directory",
+        "D:/Programs/serena",
+        "serena-mcp-server"
+      ],
+      "env": {
+        "SERENA_PROJECT_ROOT": "D:/1.Workspace/0.Personal/3_tihomo",
+        "SERENA_DEFAULT_PROJECT": "TiHoMo"
+      }
+    },
+    "MCP_DOCKER": {
+      "command": "docker",
+      "args": [
+        "mcp",
+        "gateway",
+        "run"
+      ]
+    }
+  }
+}

@@ -83,7 +83,12 @@
       "mcp__serena__replace_symbol_body",
       "mcp__serena__insert_before_symbol",
       "mcp__serena__insert_at_line",
-      "mcp__serena__execute_shell_command"
+      "mcp__serena__execute_shell_command",
+      "Bash(dotnet ef migrations:*)",
+      "Bash(dotnet ef database:*)",
+      "mcp__MCP_DOCKER__list_allowed_directories",
+      "mcp__serena__write_memory",
+      "Bash(npm run dev:*)"
     ],
     "deny": []
   },
