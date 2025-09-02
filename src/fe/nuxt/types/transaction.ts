@@ -12,7 +12,8 @@ export const CategoryType = {
   Expense: 1,
   Transfer: 2,
   Fee: 3,
-  Other: 4
+  Investment: 4,
+  Other: 5
 } as const
 
 export type CategoryTypeType = typeof CategoryType[keyof typeof CategoryType]

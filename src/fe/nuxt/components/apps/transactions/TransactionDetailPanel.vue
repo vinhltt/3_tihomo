@@ -117,6 +117,7 @@
             <option :value="CategoryType.Expense">Chi tiêu</option>
             <option :value="CategoryType.Transfer">Chuyển khoản</option>
             <option :value="CategoryType.Fee">Phí</option>
+            <option :value="CategoryType.Investment">Đầu tư</option>
             <option :value="CategoryType.Other">Khác</option>
           </select>
         </div>

@@ -120,8 +120,136 @@
                 <option :value="CategoryType.Expense">Chi tiêu</option>
                 <option :value="CategoryType.Transfer">Chuyển khoản</option>
                 <option :value="CategoryType.Fee">Phí</option>
+                <option :value="CategoryType.Investment">Đầu tư</option>
                 <option :value="CategoryType.Other">Khác</option>
               </select>
+            </div>
+
+            <!-- Investment Suggestion (new) -->
+            <div v-if="form.categoryType === CategoryType.Investment && mode === 'create' && !hideInvestmentSuggestion" 
+                 class="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-700">
+              <div class="flex items-start space-x-3">
+                <div class="text-blue-500 mt-1">
+                  <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                  </svg>
+                </div>
+                <div class="flex-1">
+                  <p class="text-sm font-medium text-blue-800 dark:text-blue-200">
+                    💡 Thêm vào danh mục đầu tư
+                  </p>
+                  <p class="text-sm text-blue-600 dark:text-blue-300 mt-1">
+                    Bạn có muốn thêm giao dịch này vào portfolio đầu tư để theo dõi profit/loss không?
+                  </p>
+                  <div class="flex space-x-3 mt-3">
+                    <button type="button" @click="showInvestmentForm = true" 
+                            class="text-sm bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700">
+                      Có, thêm vào portfolio
+                    </button>
+                    <button type="button" @click="hideInvestmentSuggestion = true"
+                            class="text-sm text-blue-600 hover:text-blue-800">
+                      Bỏ qua
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Investment Form Modal -->
+            <div v-if="showInvestmentForm" 
+                 class="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg border border-green-200 dark:border-green-700 space-y-4">
+              <div class="flex items-center justify-between">
+                <h6 class="text-md font-semibold text-green-800 dark:text-green-200">
+                  📈 Thông tin đầu tư
+                </h6>
+                <button type="button" @click="showInvestmentForm = false" 
+                        class="text-green-600 hover:text-green-800">
+                  <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"/>
+                  </svg>
+                </button>
+              </div>
+              
+              <div class="grid grid-cols-2 gap-4">
+                <div>
+                  <label class="text-sm font-medium text-green-800 dark:text-green-200">
+                    Mã cổ phiếu/Symbol *
+                  </label>
+                  <input 
+                    v-model="investmentForm.symbol" 
+                    type="text" 
+                    class="form-input text-sm"
+                    placeholder="VIC, FPT, BID..."
+                    required
+                  />
+                </div>
+                <div>
+                  <label class="text-sm font-medium text-green-800 dark:text-green-200">
+                    Tên đầu tư
+                  </label>
+                  <input 
+                    v-model="investmentForm.name" 
+                    type="text" 
+                    class="form-input text-sm"
+                    placeholder="Vingroup, FPT Corp..."
+                  />
+                </div>
+                <div>
+                  <label class="text-sm font-medium text-green-800 dark:text-green-200">
+                    Số lượng *
+                  </label>
+                  <input 
+                    v-model.number="investmentForm.quantity" 
+                    type="number" 
+                    min="1"
+                    step="1"
+                    class="form-input text-sm"
+                    placeholder="100"
+                    required
+                  />
+                </div>
+                <div>
+                  <label class="text-sm font-medium text-green-800 dark:text-green-200">
+                    Giá mua/CP (VND)
+                  </label>
+                  <input 
+                    v-model.number="investmentForm.pricePerUnit" 
+                    type="number" 
+                    step="0.01"
+                    class="form-input text-sm"
+                    placeholder="50000"
+                  />
+                </div>
+              </div>
+              
+              <div>
+                <label class="text-sm font-medium text-green-800 dark:text-green-200">
+                  Ghi chú đầu tư
+                </label>
+                <textarea 
+                  v-model="investmentForm.description" 
+                  rows="2"
+                  class="form-textarea text-sm"
+                  placeholder="Mua cổ phiếu theo khuyến nghị..."
+                ></textarea>
+              </div>
+              
+              <div class="flex space-x-3">
+                <button type="button" @click="handleCreateInvestment" 
+                        :disabled="isCreatingInvestment"
+                        class="text-sm bg-green-600 text-white px-3 py-2 rounded hover:bg-green-700 disabled:opacity-50">
+                  <div v-if="isCreatingInvestment" class="animate-spin rounded-full h-4 w-4 border-b-2 border-white inline-block mr-2"></div>
+                  {{ isCreatingInvestment ? 'Đang tạo...' : 'Tạo Investment' }}
+                </button>
+                <button type="button" @click="showInvestmentForm = false"
+                        class="text-sm text-green-600 hover:text-green-800 px-3 py-2">
+                  Hủy
+                </button>
+              </div>
+              
+              <div v-if="investmentError" class="text-sm text-red-600">
+                {{ investmentError }}
+              </div>
             </div>
 
             <!-- Description -->
@@ -452,11 +580,31 @@ const emit = defineEmits<{
 
 // Composables
 const { createTransaction, updateTransaction, deleteTransaction, createFormDefaults, resetForm } = useTransactions()
+const { 
+  createInvestmentFromTransaction, 
+  parseTransactionForInvestment, 
+  isEligibleForInvestment,
+  isCreating: isCreatingInvestment,
+  error: investmentError 
+} = useInvestmentSuggestion()
 
 // State
 const isLoading = ref(false)
 const error = ref<string | null>(null)
 const showAdvanced = ref(false)
+
+// Investment suggestion state
+const showInvestmentForm = ref(false)
+const hideInvestmentSuggestion = ref(false)
+
+// Investment form state
+const investmentForm = ref({
+  symbol: '',
+  name: '',
+  quantity: 1,
+  pricePerUnit: 0,
+  description: ''
+})
 
 // Form state
 const form = ref<TransactionCreateRequest>({
@@ -500,6 +648,29 @@ watch(() => props.transaction, () => {
     initializeForm()
   }
 })
+
+// Watch for form changes to auto-suggest investment details
+watch(() => [form.value.description, form.value.amount], () => {
+  if (form.value.categoryType === CategoryType.Investment && showInvestmentForm.value) {
+    const transactionData = {
+      description: form.value.description,
+      spentAmount: form.value.transactionDirection === TransactionDirection.Spent ? form.value.amount : 0,
+      revenueAmount: form.value.transactionDirection === TransactionDirection.Revenue ? form.value.amount : 0,
+      categoryType: form.value.categoryType
+    } as TransactionViewModel
+
+    const suggestion = parseTransactionForInvestment(transactionData)
+    if (suggestion.suggested) {
+      investmentForm.value.symbol = suggestion.symbol
+      investmentForm.value.name = suggestion.name
+      investmentForm.value.quantity = suggestion.quantity
+      investmentForm.value.pricePerUnit = suggestion.pricePerUnit
+    } else if (!investmentForm.value.pricePerUnit && form.value.amount > 0) {
+      // Auto-calculate price per unit if not suggested
+      investmentForm.value.pricePerUnit = form.value.amount / investmentForm.value.quantity
+    }
+  }
+}, { deep: true })
 
 // Methods
 const initializeForm = () => {
@@ -556,6 +727,59 @@ const handleSubmit = async () => {
     error.value = err instanceof Error ? err.message : 'Có lỗi xảy ra'
   } finally {
     isLoading.value = false
+  }
+}
+
+const handleCreateInvestment = async () => {
+  if (!investmentForm.value.symbol || !investmentForm.value.quantity) {
+    error.value = 'Vui lòng nhập đầy đủ thông tin Symbol và Số lượng'
+    return
+  }
+
+  try {
+    // Calculate amount from form
+    const amount = form.value.amount || 0
+    
+    // Create a mock transaction object for the investment creation
+    const transactionData = {
+      id: 'temp-id', // Temporary ID since transaction hasn't been created yet
+      accountId: form.value.accountId,
+      transactionDate: form.value.transactionDate,
+      revenueAmount: form.value.transactionDirection === TransactionDirection.Revenue ? amount : 0,
+      spentAmount: form.value.transactionDirection === TransactionDirection.Spent ? amount : 0,
+      description: form.value.description,
+      balance: form.value.balance,
+      categoryType: form.value.categoryType,
+      syncMisa: form.value.syncMisa,
+      syncSms: form.value.syncSms,
+      vn: form.value.vn
+    } as TransactionViewModel
+
+    await createInvestmentFromTransaction(transactionData, {
+      symbol: investmentForm.value.symbol,
+      name: investmentForm.value.name || investmentForm.value.symbol,
+      quantity: investmentForm.value.quantity,
+      pricePerUnit: investmentForm.value.pricePerUnit || (amount / investmentForm.value.quantity),
+      description: investmentForm.value.description
+    })
+
+    // Reset investment form and hide it
+    investmentForm.value = {
+      symbol: '',
+      name: '',
+      quantity: 1,
+      pricePerUnit: 0,
+      description: ''
+    }
+    showInvestmentForm.value = false
+    hideInvestmentSuggestion.value = true
+
+    // Show success message
+    // You can add a toast/notification here if available
+    
+  } catch (err) {
+    console.error('Error creating investment:', err)
+    // The error will be handled by the composable
   }
 }
 

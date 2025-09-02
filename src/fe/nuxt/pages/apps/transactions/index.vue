@@ -493,6 +493,7 @@ const getCategoryTypeName = (categoryType: number) => {
     [CategoryType.Expense]: 'Chi tiêu',
     [CategoryType.Transfer]: 'Chuyển khoản',
     [CategoryType.Fee]: 'Phí',
+    [CategoryType.Investment]: 'Đầu tư',
     [CategoryType.Other]: 'Khác'
   }
   return names[categoryType] || 'Khác'

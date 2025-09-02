@@ -29,7 +29,14 @@ TiHoMo is a comprehensive personal finance management system built with modern w
 
 ### Enhanced Development Toolkit
 
-The project leverages multiple MCP (Model Context Protocol) tools for enhanced development experience:
+The project leverages multiple MCP (Model Context Protocol) tools through **OpenCode** for enhanced development experience. Configuration files are structured as follows:
+
+- **opencode.json**: Main configuration with all MCP servers
+- **opencode.local.json**: Fallback configuration without Serena
+- **src/fe/nuxt/opencode.json**: Frontend-specific configuration
+- **src/be/opencode.json**: Backend-specific configuration
+
+The project leverages multiple MCP tools:
 
 #### Serena - Advanced Code Agent Toolkit
 **Primary coding agent** for direct codebase manipulation with intelligent project understanding:

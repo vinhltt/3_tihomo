@@ -31,6 +31,12 @@ public enum CategoryType
     Fee,
 
     /// <summary>
+    ///     Investment transaction. (EN)<br />
+    ///     Giao dịch đầu tư. (VI)
+    /// </summary>
+    Investment,
+
+    /// <summary>
     ///     Other type of transaction. (EN)<br />
     ///     Loại giao dịch khác. (VI)
     /// </summary>

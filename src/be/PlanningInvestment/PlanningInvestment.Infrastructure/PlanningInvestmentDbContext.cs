@@ -49,6 +49,12 @@ public class PlanningInvestmentDbContext : DbContext
     /// </summary>
     public DbSet<Debt> Debts { get; set; }
 
+    /// <summary>
+    ///     Gets or sets the DbSet for Investments (EN)<br />
+    ///     Lấy hoặc thiết lập DbSet cho các Đầu tư (VI)
+    /// </summary>
+    public DbSet<Investment> Investments { get; set; }
+
     // ReSharper disable once RedundantOverriddenMember
     /// <summary>
     ///     Configures the database model for the Planning Investment context (EN)<br />

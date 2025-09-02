@@ -1,6 +1,13 @@
 using Microsoft.EntityFrameworkCore;
 using PlanningInvestment.Api;
 using PlanningInvestment.Infrastructure;
+using PlanningInvestment.Application.Interfaces;
+using PlanningInvestment.Application.Services;
+using PlanningInvestment.Application.Profiles;
+using PlanningInvestment.Domain.UnitOfWorks;
+using PlanningInvestment.Infrastructure.UnitOfWorks;
+using PlanningInvestment.Domain.BaseRepositories;
+using PlanningInvestment.Infrastructure.Repositories.Base;
 
 async Task MigrateDatabaseAsync(IHost host)
 {
@@ -26,11 +33,36 @@ var builder = WebApplication.CreateBuilder(args);
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
+// Add controllers
+builder.Services.AddControllers();
+
+// Add HTTP context accessor
+builder.Services.AddHttpContextAccessor();
+
+// Add AutoMapper
+builder.Services.AddAutoMapper(typeof(InvestmentProfile));
+
 // Add database context
 // Thêm ngữ cảnh cơ sở dữ liệu
 builder.Services.AddDbContext<PlanningInvestmentDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString(PlanningInvestmentDbContext.DEFAULT_CONNECTION_STRING))
            .UseSnakeCaseNamingConvention());
+
+// Register repositories
+// Đăng ký các repository
+builder.Services.AddScoped(typeof(IBaseRepository<,>), typeof(BaseRepository<,>));
+
+// Register Unit of Work
+// Đăng ký Unit of Work
+builder.Services.AddScoped<IUnitOfWork>(provider => 
+    new UnitOfWork<PlanningInvestmentDbContext>(
+        provider.GetRequiredService<PlanningInvestmentDbContext>(),
+        provider
+    ));
+
+// Register application services
+// Đăng ký các dịch vụ ứng dụng
+builder.Services.AddScoped<IInvestmentService, InvestmentService>();
 
 // Add health checks with DbContext
 // Thêm kiểm tra sức khỏe với DbContext
@@ -43,6 +75,15 @@ var app = builder.Build();
 if (app.Environment.IsDevelopment()) app.MapOpenApi();
 
 app.UseHttpsRedirection();
+
+// Add authentication and authorization middleware
+// Thêm middleware xác thực và ủy quyền
+app.UseAuthentication();
+app.UseAuthorization();
+
+// Map controllers
+// Ánh xạ controllers
+app.MapControllers();
 
 // Add health check endpoint
 app.MapHealthChecks("/health");
@@ -74,6 +115,8 @@ app.Run();
 
 namespace PlanningInvestment.Api
 {
+    public partial class Program { } // For integration testing
+
     internal record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
     {
         public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
