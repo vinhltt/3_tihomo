@@ -149,26 +149,26 @@ jobs:
                   echo "[CREATE] Creating basic Cloudflared compose file..."
                   
                   cat > docker-compose.cloudflared.yml << 'CLOUDFLARED_EOF'
-# TiHoMo Cloudflared Tunnel Configuration
-services:
-  cloudflared:
-    image: cloudflare/cloudflared:latest
-    container_name: tihomo-cloudflared
-    restart: unless-stopped
-    command: tunnel --no-autoupdate run --token ${CLOUDFLARED_TUNNEL_TOKEN}
-    environment:
-      - TUNNEL_TOKEN=${CLOUDFLARED_TUNNEL_TOKEN}
-    networks:
-      - tihomo-network
-    healthcheck:
-      test: ["CMD-SHELL", "cloudflared tunnel info || exit 1"]
-      interval: 60s
-      timeout: 30s
-      retries: 3
-networks:
-  tihomo-network:
-    external: true
-CLOUDFLARED_EOF
+            # TiHoMo Cloudflared Tunnel Configuration
+            services:
+              cloudflared:
+                image: cloudflare/cloudflared:latest
+                container_name: tihomo-cloudflared
+                restart: unless-stopped
+                command: tunnel --no-autoupdate run --token ${CLOUDFLARED_TUNNEL_TOKEN}
+                environment:
+                  - TUNNEL_TOKEN=${CLOUDFLARED_TUNNEL_TOKEN}
+                networks:
+                  - tihomo-network
+                healthcheck:
+                  test: ["CMD-SHELL", "cloudflared tunnel info || exit 1"]
+                  interval: 60s
+                  timeout: 30s
+                  retries: 3
+            networks:
+              tihomo-network:
+                external: true
+            CLOUDFLARED_EOF
                   
                   echo "[CREATED] Basic Cloudflared compose file created"
                 fi
