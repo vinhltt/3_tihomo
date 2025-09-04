@@ -1,4 +1,4 @@
-name: Deploy Infrastructure Services
+name: Deploy Infrastructure
 
 on:
   workflow_dispatch:
