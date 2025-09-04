@@ -63,7 +63,9 @@ jobs:
       - name: "[3/8] Restore dependencies"
         run: |
           cd src/be
-          dotnet restore
+          # Clear any cached packages and restore
+          dotnet clean
+          dotnet restore --force --no-cache
 
       - name: "[4/8] Build solution"
         run: |
