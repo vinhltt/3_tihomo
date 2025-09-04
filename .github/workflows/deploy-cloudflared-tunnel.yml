@@ -1,0 +1,315 @@
+name: Deploy Cloudflared Tunnel
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'development'
+        type: choice
+        options:
+          - development
+          - staging
+          - production
+      action:
+        description: 'Action to perform'
+        required: true
+        default: 'deploy'
+        type: choice
+        options:
+          - deploy
+          - stop
+          - restart
+          - logs
+      tunnel_name:
+        description: 'Cloudflare tunnel name (optional, uses default if not specified)'
+        required: false
+        type: string
+  push:
+    branches:
+      - master
+      - develop
+    paths:
+      - 'docker-compose.cloudflared.yml'
+      - '.github/workflows/deploy-cloudflared-tunnel.yml'
+
+concurrency:
+  group: tihomo-cloudflared-${{ github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  # Deploy or manage Cloudflared tunnel
+  manage-cloudflared:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment || (github.ref == 'refs/heads/master' && 'production' || 'development') }}
+    timeout-minutes: 10
+
+    steps:
+      - name: "[1/6] Checkout code"
+        uses: actions/checkout@v4
+
+      - name: "[2/6] Setup environment variables"
+        run: |
+          CLEAN_ENV=$(echo "${{ inputs.environment || (github.ref == 'refs/heads/master' && 'production' || 'development') }}" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]//g')
+          echo "TRUENAS_DEPLOY_DIR=${{ vars.DEPLOY_PATH_ON_TRUENAS }}/deploy_${GITHUB_REF_NAME}" >> $GITHUB_ENV
+          echo "ENVIRONMENT=${CLEAN_ENV}" >> $GITHUB_ENV
+          echo "ACTION=${{ inputs.action || 'deploy' }}" >> $GITHUB_ENV
+          echo "TUNNEL_NAME=${{ inputs.tunnel_name || 'tihomo-tunnel' }}" >> $GITHUB_ENV
+
+      - name: "[3/6] Setup SSH and Cloudflared"
+        run: |
+          sudo wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -O /usr/local/bin/cloudflared
+          sudo chmod +x /usr/local/bin/cloudflared
+          
+          mkdir -p "$HOME/.ssh"
+          echo "Host truenas-cf-tunnel
+            HostName ${{ secrets.TRUENAS_SSH_HOSTNAME_THROUGH_CLOUDFLARED }}
+            ProxyCommand cloudflared access ssh --hostname %h
+            User ${{ secrets.TRUENAS_USER }}
+            StrictHostKeyChecking accept-new" > "$HOME/.ssh/config"
+          chmod 600 "$HOME/.ssh/config"
+
+      - name: "[4/6] Add SSH key"
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.TRUENAS_SSH_PRIVATE_KEY }}
+
+      - name: "[5/6] Manage Cloudflared tunnel"
+        run: |
+          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << 'EOF'
+            cd ${{ env.TRUENAS_DEPLOY_DIR }}
+            
+            # Check Docker access
+            if docker ps >/dev/null 2>&1; then
+              USE_SUDO=""
+            else
+              USE_SUDO="sudo"
+            fi
+            
+            echo "[INFO] Managing Cloudflared tunnel..."
+            echo "[INFO] Environment: ${{ env.ENVIRONMENT }}"
+            echo "[INFO] Action: ${{ env.ACTION }}"
+            echo "[INFO] Tunnel: ${{ env.TUNNEL_NAME }}"
+            
+            # Check if tunnel token is available
+            if [ ! -f .env ] || ! grep -q "CLOUDFLARED_TUNNEL_TOKEN=" .env; then
+              echo "[ERROR] CLOUDFLARED_TUNNEL_TOKEN not found in .env file"
+              echo "[INFO] Please ensure the tunnel token is properly configured"
+              echo "[DEBUG] Current .env file status:"
+              if [ -f .env ]; then
+                echo "[DEBUG] .env exists, tunnel token status:"
+                if grep -q "CLOUDFLARED_TUNNEL_TOKEN" .env; then
+                  echo "  • CLOUDFLARED_TUNNEL_TOKEN variable exists"
+                  if [ "$(grep CLOUDFLARED_TUNNEL_TOKEN .env | cut -d'=' -f2)" = "" ]; then
+                    echo "  • But token value is empty"
+                  else
+                    echo "  • Token value is set"
+                  fi
+                else
+                  echo "  • CLOUDFLARED_TUNNEL_TOKEN variable missing"
+                fi
+              else
+                echo "  • .env file not found"
+              fi
+              
+              echo "[ACTION] Adding placeholder tunnel token configuration to .env..."
+              if [ -f .env ]; then
+                if ! grep -q "CLOUDFLARED_TUNNEL_TOKEN" .env; then
+                  echo "" >> .env
+                  echo "# Cloudflare Tunnel Configuration" >> .env
+                  echo "CLOUDFLARED_TUNNEL_TOKEN=" >> .env
+                  echo "CLOUDFLARED_TUNNEL_NAME=${{ env.TUNNEL_NAME }}" >> .env
+                fi
+              else
+                echo "# Cloudflare Tunnel Configuration" > .env
+                echo "CLOUDFLARED_TUNNEL_TOKEN=" >> .env
+                echo "CLOUDFLARED_TUNNEL_NAME=${{ env.TUNNEL_NAME }}" >> .env
+              fi
+              
+              echo "[WARNING] Manual token configuration required"
+              echo "[INSTRUCTIONS] To complete tunnel setup:"
+              echo "  1. Visit: https://dash.cloudflare.com/"
+              echo "  2. Go to Zero Trust > Access > Tunnels"
+              echo "  3. Create or select tunnel: ${{ env.TUNNEL_NAME }}"
+              echo "  4. Copy the tunnel token"
+              echo "  5. Update CLOUDFLARED_TUNNEL_TOKEN in .env file on server"
+              echo "  6. Re-run this deployment"
+              
+              # Still continue with container management for now
+            fi
+            
+            case "${{ env.ACTION }}" in
+              deploy)
+                echo "[DEPLOY] Deploying Cloudflared tunnel..."
+                
+                # Check if docker-compose.cloudflared.yml exists
+                if [ ! -f docker-compose.cloudflared.yml ]; then
+                  echo "[ERROR] docker-compose.cloudflared.yml not found"
+                  echo "[CREATE] Creating basic Cloudflared compose file..."
+                  
+                  cat > docker-compose.cloudflared.yml << 'CLOUDFLARED_EOF'
+# TiHoMo Cloudflared Tunnel Configuration
+# Provides secure external access to TiHoMo services
+
+services:
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: tihomo-cloudflared
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARED_TUNNEL_TOKEN}
+    environment:
+      - TUNNEL_TOKEN=${CLOUDFLARED_TUNNEL_TOKEN}
+    networks:
+      - tihomo-network
+    depends_on:
+      - frontend-nuxt
+      - ocelot-gateway
+    healthcheck:
+      test: ["CMD-SHELL", "cloudflared tunnel info || exit 1"]
+      interval: 60s
+      timeout: 30s
+      retries: 3
+
+networks:
+  tihomo-network:
+    external: true
+
+# Note: Configure tunnel routes in Cloudflare Dashboard:
+# - Frontend: subdomain.domain.com -> http://frontend-nuxt:3000
+# - API: api.domain.com -> http://ocelot-gateway:8080  
+# - Monitoring: grafana.domain.com -> http://grafana:3000
+CLOUDFLARED_EOF
+                  
+                  echo "[CREATED] Basic Cloudflared compose file created"
+                fi
+                
+                # Start the tunnel
+                echo "[START] Starting Cloudflared tunnel..."
+                if $USE_SUDO docker compose -f docker-compose.cloudflared.yml up -d; then
+                  echo "[SUCCESS] Cloudflared tunnel started"
+                  
+                  # Wait for tunnel to connect
+                  echo "[CONNECT] Waiting for tunnel connection..."
+                  max_attempts=6
+                  attempt=1
+                  
+                  while [ $attempt -le $max_attempts ]; do
+                    if $USE_SUDO docker compose -f docker-compose.cloudflared.yml ps cloudflared | grep -q "Up"; then
+                      echo "[RUNNING] Cloudflared container is running"
+                      
+                      # Check tunnel status
+                      sleep 10
+                      echo "[CHECK] Checking tunnel connection status..."
+                      $USE_SUDO docker compose -f docker-compose.cloudflared.yml logs --tail=20 cloudflared
+                      break
+                    else
+                      echo "[WAIT] Tunnel not ready yet (attempt $attempt/$max_attempts)"
+                      sleep 15
+                      ((attempt++))
+                    fi
+                  done
+                  
+                  if [ $attempt -gt $max_attempts ]; then
+                    echo "[WARNING] Tunnel deployment may need manual verification"
+                    echo "[DEBUG] Recent tunnel logs:"
+                    $USE_SUDO docker compose -f docker-compose.cloudflared.yml logs --tail=30 cloudflared
+                  fi
+                else
+                  echo "[ERROR] Failed to start Cloudflared tunnel"
+                  echo "[DEBUG] Docker compose output and logs:"
+                  $USE_SUDO docker compose -f docker-compose.cloudflared.yml logs cloudflared
+                fi
+                ;;
+                
+              stop)
+                echo "[STOP] Stopping Cloudflared tunnel..."
+                $USE_SUDO docker compose -f docker-compose.cloudflared.yml down
+                echo "[SUCCESS] Cloudflared tunnel stopped"
+                ;;
+                
+              restart)
+                echo "[RESTART] Restarting Cloudflared tunnel..."
+                $USE_SUDO docker compose -f docker-compose.cloudflared.yml restart cloudflared
+                echo "[SUCCESS] Cloudflared tunnel restarted"
+                
+                # Show status after restart
+                sleep 10
+                echo "[STATUS] Post-restart status:"
+                $USE_SUDO docker compose -f docker-compose.cloudflared.yml ps cloudflared
+                $USE_SUDO docker compose -f docker-compose.cloudflared.yml logs --tail=15 cloudflared
+                ;;
+                
+              logs)
+                echo "[LOGS] Showing Cloudflared tunnel logs..."
+                if $USE_SUDO docker compose -f docker-compose.cloudflared.yml ps cloudflared | grep -q "Up"; then
+                  $USE_SUDO docker compose -f docker-compose.cloudflared.yml logs --tail=50 cloudflared
+                else
+                  echo "[INFO] Cloudflared tunnel is not running"
+                  echo "[HISTORY] Recent logs from stopped container:"
+                  $USE_SUDO docker compose -f docker-compose.cloudflared.yml logs --tail=20 cloudflared
+                fi
+                ;;
+                
+              *)
+                echo "[ERROR] Unknown action: ${{ env.ACTION }}"
+                echo "[HELP] Available actions: deploy, stop, restart, logs"
+                exit 1
+                ;;
+            esac
+            
+            # Final status summary
+            echo ""
+            echo "[SUMMARY] Cloudflared Tunnel Status:"
+            echo "=================================="
+            
+            if $USE_SUDO docker compose -f docker-compose.cloudflared.yml ps cloudflared | grep -q "Up"; then
+              echo "✅ Tunnel container: Running"
+              echo "📊 Container status:"
+              $USE_SUDO docker compose -f docker-compose.cloudflared.yml ps cloudflared
+              
+              echo ""
+              echo "📋 Recent activity:"
+              $USE_SUDO docker compose -f docker-compose.cloudflared.yml logs --tail=10 cloudflared
+            else
+              echo "❌ Tunnel container: Not running"
+              if [ "${{ env.ACTION }}" != "stop" ]; then
+                echo "🔍 Troubleshooting info:"
+                echo "  • Check tunnel token configuration in .env"
+                echo "  • Verify tunnel exists in Cloudflare Dashboard"
+                echo "  • Check container logs above for connection errors"
+              fi
+            fi
+            
+            echo ""
+            echo "🌐 Tunnel Configuration:"
+            echo "  • Tunnel Name: ${{ env.TUNNEL_NAME }}"
+            echo "  • Environment: ${{ env.ENVIRONMENT }}"
+            echo "  • Action: ${{ env.ACTION }}"
+            
+            if [ "${{ env.ACTION }}" = "deploy" ]; then
+              echo ""
+              echo "📝 Next Steps (if not already configured):"
+              echo "  1. Configure tunnel routes in Cloudflare Dashboard"
+              echo "  2. Set up DNS records for your domain"
+              echo "  3. Test external access to services"
+            fi
+          EOF
+
+      - name: "[6/6] Send notification"
+        if: always()
+        uses: appleboy/discord-action@v1.2.0
+        with:
+          webhook_url: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          message: |
+            ${{ job.status == 'success' && '🌐 **Cloudflared Tunnel Management SUCCESS**' || '❌ **Cloudflared Tunnel Management FAILED**' }}
+            
+            🚇 **Tunnel Info:**
+            • **Environment:** `${{ env.ENVIRONMENT }}`
+            • **Action:** `${{ env.ACTION }}`
+            • **Tunnel:** `${{ env.TUNNEL_NAME }}`
+            • **Branch:** `${{ github.ref_name }}`
+            
+            ${{ job.status == 'success' && (env.ACTION == 'deploy' && '🔗 **External access tunnel is active!**' || env.ACTION == 'stop' && '⏹️ **Tunnel stopped successfully**' || env.ACTION == 'restart' && '🔄 **Tunnel restarted successfully**' || '📋 **Logs retrieved successfully**') || '🚨 **Check tunnel configuration and logs**' }}
+            
+            💡 **Access your services externally through Cloudflare tunnel**

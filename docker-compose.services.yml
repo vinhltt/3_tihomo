@@ -1,33 +1,29 @@
-# TiHoMo GHCR Production Services Docker Compose
-# Chỉ chứa application services - infrastructure được quản lý bởi docker-compose.infras.yml
+# TiHoMo Application Services Docker Compose
+# Các services ứng dụng chính: Frontend, API Gateway, và các microservices
 
 services:
   # ================================
   # APPLICATION SERVICES
   # ================================
 
-  # Nuxt Frontend Application - GHCR Image with Local Build Fallback
+  # Nuxt Frontend Application
   frontend-nuxt:
-    image: ghcr.io/vinhltt/3_tihomo/frontend-nuxt:${FRONTEND_IMAGE_TAG:-latest}
-    pull_policy: always
     build:
       context: ./src/fe/nuxt
       dockerfile: Dockerfile
-      # Remove target since Dockerfile is single-stage
+      # Use environment variable to control build target
+      target: ${NUXT_BUILD_TARGET:-development}
     container_name: tihomo-frontend-nuxt
     restart: unless-stopped
     environment:
-      # Core Nuxt Configuration - Production optimized
-      - NODE_ENV=production
+      # Core Nuxt Configuration - environment-aware
+      - NODE_ENV=${NODE_ENV:-development}
       - NUXT_HOST=0.0.0.0
       - NUXT_PORT=3000
-      - NUXT_DEV_SSR=false
+      - NUXT_DEV_SSR=${NUXT_DEV_SSR:-true}
       
       # API Configuration
       - API_BASE_URL=http://ocelot-gateway:8080
-      - IDENTITY_SERVICE_URL=http://identity-api:8080
-      - COREFINANCE_SERVICE_URL=http://corefinance-api:8080
-      - EXCEL_SERVICE_URL=http://excel-api:8080
       
       # Authentication & Security
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
@@ -37,28 +33,32 @@ services:
       - NUXT_PUBLIC_FACEBOOK_APP_ID=${NUXT_PUBLIC_FACEBOOK_APP_ID}
       - OAUTH_REDIRECT_URI=${FRONTEND_BASE_URL}/auth/callback
       
-      # Production settings
-      - NUXT_DEBUG=false
-      - NUXT_DEV_TOOLS=false
+      # Development & Debugging - environment-aware defaults
+      - NUXT_DEBUG=${NUXT_DEBUG:-false}
+      - NUXT_DEV_TOOLS=${NUXT_DEV_TOOLS:-true}
       - NUXT_TELEMETRY_DISABLED=1
       
-      # Logging Configuration - Production
-      - LOG_LEVEL=info
-      - LOG_FORMAT=json
+      # Logging Configuration - environment-aware
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - LOG_FORMAT=${LOG_FORMAT:-dev}
       
       # Feature Toggles
       - ENABLE_PWA=${ENABLE_PWA:-false}
-      - ENABLE_ANALYTICS=${ENABLE_ANALYTICS:-true}
+      - ENABLE_ANALYTICS=${ENABLE_ANALYTICS:-false}
       
       # Performance
       - NITRO_PRESET=node-server
       - NITRO_PORT=3000
-    # ports:
-    #   - "${FRONTEND_PORT:-3500}:3000"  # No exposed ports in production
+    ports:
+      - "${FRONTEND_PORT:-3500}:3000"  # Frontend Nuxt - LOCAL DEVELOPMENT ONLY
     volumes:
-      # Only mount persistent data directories (no source code)
+      # Always mount uploads and logs directories
       - ./uploads:/app/uploads
       - ./logs/frontend:/app/logs
+      # Conditional source code mount - only in development with proper delegation
+      - ${FRONTEND_SOURCE_MOUNT:-./src/fe/nuxt}:/app:delegated
+      # Node modules volume to prevent overwrite by bind mount
+      - frontend_node_modules:/app/node_modules
     networks:
       - tihomo-network
     depends_on:
@@ -69,7 +69,7 @@ services:
       test: ["CMD-SHELL", "curl -f http://localhost:3000/api/health || curl -f http://localhost:3000/ || exit 1"]
       interval: 30s
       timeout: 15s
-      start_period: 120s  # Faster startup for pre-built images
+      start_period: ${FRONTEND_HEALTHCHECK_START_PERIOD:-300s}  # 5 minutes for production build
       retries: 10
 
   # Ocelot API Gateway
@@ -80,7 +80,7 @@ services:
     container_name: tihomo-ocelot-gateway
     restart: unless-stopped
     environment:
-      - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Production}
+      - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Development}
       - ASPNETCORE_URLS=http://+:8080
       - IsDocker=true
       - ConnectionStrings__Redis=redis:6379
@@ -105,8 +105,8 @@ services:
       - CorsSettings__AllowedHeaders__0=*
       - InternalServiceSettings__IdentityService=http://identity-api:8080
       - InternalServiceSettings__CoreFinanceService=http://corefinance-api:8080
-    # ports:
-    #   - "${GATEWAY_PORT}:8080"  # No exposed ports in production
+    ports:
+      - "${GATEWAY_PORT:-5800}:8080"  # API Gateway port - LOCAL DEVELOPMENT ONLY
     volumes:
       - ./src/be/Ocelot.Gateway/ocelot.Docker.json:/app/ocelot.json
       - ./logs/ocelot:/app/logs
@@ -117,10 +117,11 @@ services:
       - corefinance-api
       - excel-api
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
-      interval: 600s
+      test: ["CMD", "curl", "-f", "http://localhost:8080/identity/health"]
+      interval: 30s
       timeout: 10s
-      retries: 3
+      retries: 5
+      start_period: 60s
 
   # Identity API Service
   identity-api:
@@ -130,7 +131,7 @@ services:
     container_name: tihomo-identity-api
     restart: unless-stopped
     environment:
-      - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Production}
+      - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Development}
       - ASPNETCORE_URLS=http://+:8080
       - GOOGLE_CLIENT_ID=${APP_PUBLIC_GOOGLE_CLIENT_ID}
       - GoogleAuth__ClientId=${APP_PUBLIC_GOOGLE_CLIENT_ID}
@@ -143,6 +144,7 @@ services:
       - JWT__Audience=${JWT_AUDIENCE_IDENTITY_API}
       - JWT__AccessTokenExpirationMinutes=${JWT_ACCESS_TOKEN_EXPIRATION_MINUTES:-60}
       - JWT__RefreshTokenExpirationDays=${JWT_REFRESH_TOKEN_EXPIRATION_DAYS:-30}
+      # Updated connection string for unified database
       - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=identity;Username=identity_user;Password=identity_pass123
       - Redis__ConnectionString=redis:6379
       - Redis__Password=${REDIS_PASSWORD}
@@ -156,8 +158,7 @@ services:
       - ./logs/identity:/app/logs
     networks:
       - tihomo-network
-    # depends_on: 
-      # Dependencies on infrastructure services are handled externally
+    # Infrastructure dependencies removed - handled by docker-compose.infras.yml
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 30s
@@ -172,8 +173,9 @@ services:
     container_name: tihomo-corefinance-api
     restart: unless-stopped
     environment:
-      - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Production}
+      - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Development}
       - ASPNETCORE_URLS=http://+:8080
+      # Updated connection string for unified database
       - ConnectionStrings__CoreFinanceDb=Host=postgres;Port=5432;Database=corefinance;Username=corefinance_user;Password=corefinance_pass123
       - ConnectionStrings__Redis=redis:6379
       - Redis__Password=${REDIS_PASSWORD}
@@ -207,7 +209,6 @@ services:
       - tihomo-network
     depends_on:
       - identity-api
-      # Infrastructure dependencies are handled externally
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 30s
@@ -222,7 +223,7 @@ services:
     container_name: tihomo-excel-api
     restart: unless-stopped
     environment:
-      - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Production}
+      - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Development}
       - ASPNETCORE_URLS=http://+:8080
       - RabbitMQ__Host=rabbitmq
       - RabbitMQ__Username=tihomo
@@ -238,13 +239,14 @@ services:
       - ./logs/excel:/app/logs
     networks:
       - tihomo-network
-    # depends_on:
-      # Infrastructure dependencies are handled externally
+    # Infrastructure dependencies removed - handled by docker-compose.infras.yml
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 30s
       timeout: 10s
       retries: 3
+
+
 
 # ================================
 # NETWORKS
@@ -257,5 +259,14 @@ networks:
 # VOLUMES
 # ================================
 volumes:
-  # Application-specific volumes only
-  # Infrastructure volumes are managed by docker-compose.infras.yml
+  # Frontend volumes
+  frontend_node_modules:
+    driver: local
+  frontend_nuxt_cache:
+    driver: local
+  frontend_output:
+    driver: local
+  frontend_dist:
+    driver: local
+  frontend_cache:
+    driver: local
