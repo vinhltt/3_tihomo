@@ -117,27 +117,43 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: "[10/10] Extract metadata"
+      - name: "[10/10] Generate Docker tags"
         if: github.event_name != 'pull_request'
         id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ghcr.io/${{ github.repository_owner }}/tihomo-frontend-nuxt
-          tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=sha,prefix=sha-,format=short
-            type=raw,value=latest,enable={{is_default_branch}}
+        run: |
+          IMAGE_NAME="ghcr.io/${{ github.repository_owner }}/tihomo-frontend-nuxt"
+          
+          # Generate clean tags
+          BRANCH_NAME=$(echo "${{ github.ref_name }}" | sed 's/[^a-zA-Z0-9._-]/-/g')
+          COMMIT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          
+          TAGS="${IMAGE_NAME}:${BRANCH_NAME}"
+          TAGS="${TAGS},${IMAGE_NAME}:sha-${COMMIT_SHA}"
+          
+          if [ "${{ github.ref }}" = "refs/heads/master" ]; then
+            TAGS="${TAGS},${IMAGE_NAME}:latest"
+          fi
+          
+          echo "tags=${TAGS}" >> $GITHUB_OUTPUT
+          echo "image=${IMAGE_NAME}" >> $GITHUB_OUTPUT
+          
+          echo "Generated tags: ${TAGS}"
 
-      - name: "[11/10] Build and push Docker image"
+      - name: "[11/11] Build and push Docker image"
         if: github.event_name != 'pull_request'
         id: build
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: src/fe/nuxt
           push: true
           tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          labels: |
+            org.opencontainers.image.title=TiHoMo Frontend
+            org.opencontainers.image.description=Nuxt 3 Frontend for TiHoMo Application
+            org.opencontainers.image.vendor=TiHoMo Team
+            org.opencontainers.image.source=${{ github.repositoryUrl }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.created=${{ github.event.head_commit.timestamp }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           platforms: linux/amd64
