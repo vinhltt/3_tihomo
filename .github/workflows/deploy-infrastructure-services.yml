@@ -130,61 +130,61 @@ jobs:
             
             echo "[CREATE] Creating comprehensive .env file..."
             
-            cat > .env << 'ENVEOF'
-# TiHoMo Infrastructure Environment Configuration
-# Generated: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
+            # Create .env using echo statements to avoid YAML/HEREDOC conflicts
+            echo "# TiHoMo Infrastructure Environment Configuration" > .env
+            echo "# Generated: $(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> .env
+            echo "" >> .env
+            echo "# Project Configuration" >> .env
+            echo "COMPOSE_PROJECT_NAME=${{ env.COMPOSE_PROJECT_NAME }}" >> .env
+            echo "" >> .env
+            echo "# Core Infrastructure Ports" >> .env
+            echo "POSTGRES_PORT=${{ vars.POSTGRES_PORT || '5432' }}" >> .env
+            echo "REDIS_PORT=${{ vars.REDIS_PORT || '6379' }}" >> .env
+            echo "RABBITMQ_PORT=${{ vars.RABBITMQ_PORT || '5672' }}" >> .env
+            echo "RABBITMQ_MANAGEMENT_PORT=${{ vars.RABBITMQ_MANAGEMENT_PORT || '15672' }}" >> .env
 
-# Project Configuration
-COMPOSE_PROJECT_NAME=${{ env.COMPOSE_PROJECT_NAME }}
-
-# Core Infrastructure Ports
-POSTGRES_PORT=${{ vars.POSTGRES_PORT || '5432' }}
-REDIS_PORT=${{ vars.REDIS_PORT || '6379' }}
-RABBITMQ_PORT=${{ vars.RABBITMQ_PORT || '5672' }}
-RABBITMQ_MANAGEMENT_PORT=${{ vars.RABBITMQ_MANAGEMENT_PORT || '15672' }}
-
-# Monitoring Ports
-PROMETHEUS_PORT=${{ vars.PROMETHEUS_PORT || '9090' }}
-GRAFANA_PORT=${{ vars.GRAFANA_PORT || '3000' }}
-LOKI_PORT=${{ vars.LOKI_PORT || '3100' }}
-
-# Development Tools Ports
-PGADMIN_PORT=${{ vars.PGADMIN_PORT || '8080' }}
-MAILHOG_SMTP_PORT=${{ vars.MAILHOG_SMTP_PORT || '1025' }}
-MAILHOG_UI_PORT=${{ vars.MAILHOG_UI_PORT || '8025' }}
-NGINX_HTTP_PORT=${{ vars.NGINX_HTTP_PORT || '80' }}
-NGINX_HTTPS_PORT=${{ vars.NGINX_HTTPS_PORT || '443' }}
-
-# Database Configuration
-POSTGRES_SUPER_USER=${{ vars.POSTGRES_SUPER_USER || 'postgres' }}
-POSTGRES_SUPER_PASSWORD='${{ secrets.POSTGRES_SUPER_PASSWORD }}'
-
-# Redis Configuration  
-REDIS_PASSWORD='${{ secrets.REDIS_PASSWORD }}'
-REDIS_PERSISTENCE_CONFIG=${{ env.ENVIRONMENT == 'production' && '--save 900 1 --save 300 10 --save 60 10000' || '' }}
-
-# RabbitMQ Configuration
-RABBITMQ_PASSWORD='${{ secrets.RABBITMQ_PASSWORD }}'
-
-# Monitoring Configuration
-PROMETHEUS_RETENTION=${{ env.ENVIRONMENT == 'production' && '30d' || '200h' }}
-GRAFANA_ADMIN_PASSWORD='${{ secrets.GRAFANA_ADMIN_PASSWORD }}'
-GRAFANA_ANALYTICS_ENABLED=${{ env.ENVIRONMENT == 'production' && 'false' || 'true' }}
-GRAFANA_CHECK_UPDATES=${{ env.ENVIRONMENT == 'production' && 'false' || 'true' }}
-
-# Development Tools Configuration
-PGADMIN_PASSWORD='${{ secrets.PGADMIN_PASSWORD }}'
-ENABLE_DEV_TOOLS=${{ env.ENVIRONMENT == 'production' && 'none' || 'development' }}
-
-# OpenTelemetry Configuration
-OTEL_EXPORTER_OTLP_ENDPOINT=http://tempo:4317
-
-# Deployment Information
-DEPLOY_BRANCH=${{ github.ref_name }}
-DEPLOY_COMMIT=${{ github.sha }}
-DEPLOY_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-ENVIRONMENT=${{ env.ENVIRONMENT }}
-ENVEOF
+            echo "" >> .env
+            echo "# Monitoring Ports" >> .env
+            echo "PROMETHEUS_PORT=${{ vars.PROMETHEUS_PORT || '9090' }}" >> .env
+            echo "GRAFANA_PORT=${{ vars.GRAFANA_PORT || '3000' }}" >> .env
+            echo "LOKI_PORT=${{ vars.LOKI_PORT || '3100' }}" >> .env
+            echo "" >> .env
+            echo "# Development Tools Ports" >> .env
+            echo "PGADMIN_PORT=${{ vars.PGADMIN_PORT || '8080' }}" >> .env
+            echo "MAILHOG_SMTP_PORT=${{ vars.MAILHOG_SMTP_PORT || '1025' }}" >> .env
+            echo "MAILHOG_UI_PORT=${{ vars.MAILHOG_UI_PORT || '8025' }}" >> .env
+            echo "NGINX_HTTP_PORT=${{ vars.NGINX_HTTP_PORT || '80' }}" >> .env
+            echo "NGINX_HTTPS_PORT=${{ vars.NGINX_HTTPS_PORT || '443' }}" >> .env
+            echo "" >> .env
+            echo "# Database Configuration" >> .env
+            echo "POSTGRES_SUPER_USER=${{ vars.POSTGRES_SUPER_USER || 'postgres' }}" >> .env
+            echo "POSTGRES_SUPER_PASSWORD='${{ secrets.POSTGRES_SUPER_PASSWORD }}'" >> .env
+            echo "" >> .env
+            echo "# Redis Configuration" >> .env
+            echo "REDIS_PASSWORD='${{ secrets.REDIS_PASSWORD }}'" >> .env
+            echo "REDIS_PERSISTENCE_CONFIG=${{ env.ENVIRONMENT == 'production' && '--save 900 1 --save 300 10 --save 60 10000' || '' }}" >> .env
+            echo "" >> .env
+            echo "# RabbitMQ Configuration" >> .env
+            echo "RABBITMQ_PASSWORD='${{ secrets.RABBITMQ_PASSWORD }}'" >> .env
+            echo "" >> .env
+            echo "# Monitoring Configuration" >> .env
+            echo "PROMETHEUS_RETENTION=${{ env.ENVIRONMENT == 'production' && '30d' || '200h' }}" >> .env
+            echo "GRAFANA_ADMIN_PASSWORD='${{ secrets.GRAFANA_ADMIN_PASSWORD }}'" >> .env
+            echo "GRAFANA_ANALYTICS_ENABLED=${{ env.ENVIRONMENT == 'production' && 'false' || 'true' }}" >> .env
+            echo "GRAFANA_CHECK_UPDATES=${{ env.ENVIRONMENT == 'production' && 'false' || 'true' }}" >> .env
+            echo "" >> .env
+            echo "# Development Tools Configuration" >> .env
+            echo "PGADMIN_PASSWORD='${{ secrets.PGADMIN_PASSWORD }}'" >> .env
+            echo "ENABLE_DEV_TOOLS=${{ env.ENVIRONMENT == 'production' && 'none' || 'development' }}" >> .env
+            echo "" >> .env
+            echo "# OpenTelemetry Configuration" >> .env
+            echo "OTEL_EXPORTER_OTLP_ENDPOINT=http://tempo:4317" >> .env
+            echo "" >> .env
+            echo "# Deployment Information" >> .env
+            echo "DEPLOY_BRANCH=${{ github.ref_name }}" >> .env
+            echo "DEPLOY_COMMIT=${{ github.sha }}" >> .env
+            echo "DEPLOY_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> .env
+            echo "ENVIRONMENT=${{ env.ENVIRONMENT }}" >> .env
             
             echo "[SUCCESS] .env file created successfully"
             echo "[VALIDATION] Checking critical variables..."
