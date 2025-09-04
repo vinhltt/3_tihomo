@@ -27,6 +27,28 @@ on:
         required: false
         default: false
         type: boolean
+  workflow_call:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: false
+        default: 'development'
+        type: string
+      services:
+        description: 'Specific services to deploy (comma-separated: postgres,redis,rabbitmq,prometheus,grafana,loki,tempo) or "all"'
+        required: false
+        default: 'all'
+        type: string
+      force_rebuild:
+        description: 'Force rebuild images'
+        required: false
+        default: false
+        type: boolean
+      force_recreate_env:
+        description: 'Force recreate .env file'
+        required: false
+        default: false
+        type: boolean
   push:
     branches:
       - master

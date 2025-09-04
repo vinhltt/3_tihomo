@@ -17,6 +17,18 @@ on:
         required: false
         default: false
         type: boolean
+  workflow_call:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: false
+        default: 'development'
+        type: string
+      force_rebuild:
+        description: 'Force rebuild images'
+        required: false
+        default: false
+        type: boolean
   push:
     branches:
       - master

@@ -26,6 +26,22 @@ on:
         description: 'Cloudflare tunnel name (optional, uses default if not specified)'
         required: false
         type: string
+  workflow_call:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: false
+        default: 'development'
+        type: string
+      action:
+        description: 'Action to perform'
+        required: false
+        default: 'deploy'
+        type: string
+      tunnel_name:
+        description: 'Cloudflare tunnel name (optional, uses default if not specified)'
+        required: false
+        type: string
   push:
     branches:
       - master
