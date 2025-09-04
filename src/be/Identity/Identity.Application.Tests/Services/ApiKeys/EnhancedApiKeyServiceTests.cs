@@ -22,6 +22,7 @@ public class EnhancedApiKeyServiceTests
     private readonly Mock<IApiKeyHasher> _mockApiKeyHasher;
     private readonly Mock<IRateLimitingService> _mockRateLimitingService;
     private readonly Mock<IIpValidationService> _mockIpValidationService;
+    private readonly Mock<IJwtService> _mockIJwtService;
     private readonly Mock<ILogger<EnhancedApiKeyService>> _mockLogger;
     private readonly EnhancedApiKeyService _service;
 
@@ -35,6 +36,7 @@ public class EnhancedApiKeyServiceTests
         _mockApiKeyHasher = new Mock<IApiKeyHasher>();
         _mockRateLimitingService = new Mock<IRateLimitingService>();
         _mockIpValidationService = new Mock<IIpValidationService>();
+        _mockIJwtService = new Mock<IJwtService>();
         _mockLogger = new Mock<ILogger<EnhancedApiKeyService>>();
 
         _service = new EnhancedApiKeyService(
@@ -43,6 +45,7 @@ public class EnhancedApiKeyServiceTests
             _mockApiKeyHasher.Object,
             _mockRateLimitingService.Object,
             _mockIpValidationService.Object,
+            _mockIJwtService.Object,
             _mockLogger.Object);
     }
 
