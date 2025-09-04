@@ -29,7 +29,7 @@ GitHub Actions Pipeline:
 │   ├── Build from Dockerfile
 │   ├── Push to GHCR
 │   └── Tag with branch/commit info
-└── deploy-frontend.yml
+└── deploy-frontend-ghcr.yml
     ├── Sync docker-compose.ghcr.yml to TrueNAS
     ├── Pull latest image from GHCR
     └── Deploy with docker-compose
@@ -74,7 +74,7 @@ docker-compose up frontend-nuxt redis postgres
 Production deployment được handle tự động bởi GitHub Actions:
 
 1. **build-frontend.yml**: Builds và pushes image tới GHCR
-2. **deploy-frontend.yml**: Deploys từ GHCR tới TrueNAS
+2. **deploy-frontend-ghcr.yml**: Deploys từ GHCR tới TrueNAS
 
 ```bash
 # Manual production deployment (if needed)
@@ -109,7 +109,7 @@ docker-compose -f docker-compose.ghcr.yml up
 4. Push to GHCR registry
 5. Run security scan
 
-### Deployment Process (deploy-frontend.yml)
+### Deployment Process (deploy-frontend-ghcr.yml)
 1. Sync docker-compose.ghcr.yml to TrueNAS as docker-compose.yml
 2. Set FRONTEND_IMAGE_TAG based on branch
 3. Pull latest image from GHCR
@@ -154,6 +154,6 @@ Previously, TiHoMo used a single docker-compose.yml file with conditional logic.
 
 ## Related Files
 - `.github/workflows/build-frontend.yml`: Build and push to GHCR
-- `.github/workflows/deploy-frontend.yml`: Deploy from GHCR
+- `.github/workflows/deploy-frontend-ghcr.yml`: Deploy from GHCR
 - `src/fe/nuxt/Dockerfile`: Frontend build configuration
 - `.env`: Environment variables (not committed)

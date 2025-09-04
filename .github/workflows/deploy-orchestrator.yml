@@ -12,7 +12,8 @@ on:
           - infrastructure-only
           - backend-only
           - frontend-only
-          - specific-service
+          - cloudflared-only
+          - specific-services
       environment:
         description: 'Deployment environment'
         required: false
@@ -23,7 +24,7 @@ on:
           - staging
           - production
       specific_services:
-        description: 'For specific-service: comma-separated list (e.g., identity-api,frontend-nuxt)'
+        description: 'For specific-services: comma-separated list (e.g., identity-api,frontend-nuxt,postgres,cloudflared)'
         required: false
         type: string
       force_rebuild:
@@ -31,8 +32,8 @@ on:
         required: false
         default: false
         type: boolean
-      skip_health_checks:
-        description: 'Skip comprehensive health checks'
+      enable_cloudflared:
+        description: 'Deploy Cloudflared tunnel for external access'
         required: false
         default: false
         type: boolean
@@ -50,7 +51,9 @@ jobs:
       deploy-infrastructure: ${{ steps.plan.outputs.deploy-infrastructure }}
       deploy-backend: ${{ steps.plan.outputs.deploy-backend }}
       deploy-frontend: ${{ steps.plan.outputs.deploy-frontend }}
+      deploy-cloudflared: ${{ steps.plan.outputs.deploy-cloudflared }}
       backend-services: ${{ steps.plan.outputs.backend-services }}
+      infrastructure-services: ${{ steps.plan.outputs.infrastructure-services }}
       deployment-strategy: ${{ steps.plan.outputs.deployment-strategy }}
       
     steps:
@@ -59,62 +62,102 @@ jobs:
         run: |
           DEPLOYMENT_TYPE="${{ inputs.deployment_type }}"
           SPECIFIC_SERVICES="${{ inputs.specific_services }}"
+          ENABLE_CLOUDFLARED="${{ inputs.enable_cloudflared }}"
           
           echo "[PLAN] Planning deployment strategy: $DEPLOYMENT_TYPE"
+          echo "[PLAN] Enable Cloudflared: $ENABLE_CLOUDFLARED"
           
           case $DEPLOYMENT_TYPE in
             full-system)
               echo "deploy-infrastructure=true" >> $GITHUB_OUTPUT
               echo "deploy-backend=true" >> $GITHUB_OUTPUT
               echo "deploy-frontend=true" >> $GITHUB_OUTPUT
+              echo "deploy-cloudflared=$ENABLE_CLOUDFLARED" >> $GITHUB_OUTPUT
               echo "backend-services=all" >> $GITHUB_OUTPUT
-              echo "deployment-strategy=Full system deployment (Infrastructure → Backend → Frontend)" >> $GITHUB_OUTPUT
+              echo "infrastructure-services=all" >> $GITHUB_OUTPUT
+              echo "deployment-strategy=Full system deployment (Infrastructure → Backend → Frontend → Cloudflared)" >> $GITHUB_OUTPUT
               ;;
             infrastructure-only)
               echo "deploy-infrastructure=true" >> $GITHUB_OUTPUT
               echo "deploy-backend=false" >> $GITHUB_OUTPUT
               echo "deploy-frontend=false" >> $GITHUB_OUTPUT
+              echo "deploy-cloudflared=false" >> $GITHUB_OUTPUT
               echo "backend-services=" >> $GITHUB_OUTPUT
-              echo "deployment-strategy=Infrastructure only (Databases, Redis, RabbitMQ)" >> $GITHUB_OUTPUT
+              echo "infrastructure-services=all" >> $GITHUB_OUTPUT
+              echo "deployment-strategy=Infrastructure only (Database, Redis, RabbitMQ, Monitoring)" >> $GITHUB_OUTPUT
               ;;
             backend-only)
               echo "deploy-infrastructure=false" >> $GITHUB_OUTPUT
               echo "deploy-backend=true" >> $GITHUB_OUTPUT
               echo "deploy-frontend=false" >> $GITHUB_OUTPUT
+              echo "deploy-cloudflared=false" >> $GITHUB_OUTPUT
               echo "backend-services=all" >> $GITHUB_OUTPUT
+              echo "infrastructure-services=" >> $GITHUB_OUTPUT
               echo "deployment-strategy=Backend services only (APIs, Gateway)" >> $GITHUB_OUTPUT
               ;;
             frontend-only)
               echo "deploy-infrastructure=false" >> $GITHUB_OUTPUT
               echo "deploy-backend=false" >> $GITHUB_OUTPUT
               echo "deploy-frontend=true" >> $GITHUB_OUTPUT
+              echo "deploy-cloudflared=false" >> $GITHUB_OUTPUT
               echo "backend-services=" >> $GITHUB_OUTPUT
+              echo "infrastructure-services=" >> $GITHUB_OUTPUT
               echo "deployment-strategy=Frontend only (Nuxt application)" >> $GITHUB_OUTPUT
               ;;
-            specific-service)
+            cloudflared-only)
+              echo "deploy-infrastructure=false" >> $GITHUB_OUTPUT
+              echo "deploy-backend=false" >> $GITHUB_OUTPUT
+              echo "deploy-frontend=false" >> $GITHUB_OUTPUT
+              echo "deploy-cloudflared=true" >> $GITHUB_OUTPUT
+              echo "backend-services=" >> $GITHUB_OUTPUT
+              echo "infrastructure-services=" >> $GITHUB_OUTPUT
+              echo "deployment-strategy=Cloudflared tunnel only (External access)" >> $GITHUB_OUTPUT
+              ;;
+            specific-services)
               # Parse specific services to determine what to deploy
-              if [[ "$SPECIFIC_SERVICES" =~ (postgres|redis|rabbitmq) ]]; then
+              INFRA_SERVICES=""
+              BACKEND_SERVICES=""
+              DEPLOY_FRONTEND=false
+              DEPLOY_CLOUDFLARED=false
+              
+              # Check for infrastructure services
+              if [[ "$SPECIFIC_SERVICES" =~ (postgres|redis|rabbitmq|prometheus|grafana|loki|tempo|pgadmin|mailhog|nginx) ]]; then
                 echo "deploy-infrastructure=true" >> $GITHUB_OUTPUT
+                # Extract infrastructure services
+                INFRA_SERVICES=$(echo "$SPECIFIC_SERVICES" | tr ',' '
+' | grep -E "(postgres|redis|rabbitmq|prometheus|grafana|loki|tempo|pgadmin|mailhog|nginx)" | tr '
+' ',' | sed 's/,$//')
               else
                 echo "deploy-infrastructure=false" >> $GITHUB_OUTPUT
               fi
               
+              # Check for backend services
               if [[ "$SPECIFIC_SERVICES" =~ (identity-api|corefinance-api|excel-api|ocelot-gateway) ]]; then
                 echo "deploy-backend=true" >> $GITHUB_OUTPUT
-                # Extract only backend services
-                BACKEND_SERVICES=$(echo "$SPECIFIC_SERVICES" | tr ',' '\n' | grep -E "(identity-api|corefinance-api|excel-api|ocelot-gateway)" | tr '\n' ',' | sed 's/,$//')
-                echo "backend-services=$BACKEND_SERVICES" >> $GITHUB_OUTPUT
+                # Extract backend services
+                BACKEND_SERVICES=$(echo "$SPECIFIC_SERVICES" | tr ',' '
+' | grep -E "(identity-api|corefinance-api|excel-api|ocelot-gateway)" | tr '
+' ',' | sed 's/,$//')
               else
                 echo "deploy-backend=false" >> $GITHUB_OUTPUT
-                echo "backend-services=" >> $GITHUB_OUTPUT
               fi
               
+              # Check for frontend
               if [[ "$SPECIFIC_SERVICES" =~ frontend-nuxt ]]; then
                 echo "deploy-frontend=true" >> $GITHUB_OUTPUT
               else
                 echo "deploy-frontend=false" >> $GITHUB_OUTPUT
               fi
               
+              # Check for Cloudflared
+              if [[ "$SPECIFIC_SERVICES" =~ cloudflared ]]; then
+                echo "deploy-cloudflared=true" >> $GITHUB_OUTPUT
+              else
+                echo "deploy-cloudflared=false" >> $GITHUB_OUTPUT
+              fi
+              
+              echo "backend-services=$BACKEND_SERVICES" >> $GITHUB_OUTPUT
+              echo "infrastructure-services=$INFRA_SERVICES" >> $GITHUB_OUTPUT
               echo "deployment-strategy=Specific services: $SPECIFIC_SERVICES" >> $GITHUB_OUTPUT
               ;;
             *)
@@ -129,36 +172,44 @@ jobs:
   deploy-infrastructure:
     if: needs.plan-deployment.outputs.deploy-infrastructure == 'true'
     needs: [plan-deployment]
-    uses: ./.github/workflows/deploy-infrastructure.yml
+    uses: ./.github/workflows/deploy-infrastructure-services.yml
     with:
       environment: ${{ inputs.environment }}
+      services: ${{ needs.plan-deployment.outputs.infrastructure-services }}
       force_rebuild: ${{ inputs.force_rebuild }}
     secrets: inherit
 
   deploy-backend:
     if: always() && needs.plan-deployment.outputs.deploy-backend == 'true' && (needs.deploy-infrastructure.result == 'success' || needs.deploy-infrastructure.result == 'skipped')
     needs: [plan-deployment, deploy-infrastructure]
-    uses: ./.github/workflows/deploy-backend-services.yml
+    uses: ./.github/workflows/deploy-backend-apis.yml
     with:
       environment: ${{ inputs.environment }}
       services: ${{ needs.plan-deployment.outputs.backend-services }}
       force_rebuild: ${{ inputs.force_rebuild }}
-      skip_infrastructure_check: ${{ needs.plan-deployment.outputs.deploy-infrastructure == 'true' }}
     secrets: inherit
 
   deploy-frontend:
     if: always() && needs.plan-deployment.outputs.deploy-frontend == 'true' && (needs.deploy-backend.result == 'success' || needs.deploy-backend.result == 'skipped')
     needs: [plan-deployment, deploy-backend]
-    uses: ./.github/workflows/deploy-frontend.yml
+    uses: ./.github/workflows/deploy-nuxt-frontend.yml
     with:
       environment: ${{ inputs.environment }}
       force_rebuild: ${{ inputs.force_rebuild }}
-      skip_backend_check: ${{ needs.plan-deployment.outputs.deploy-backend == 'true' }}
+    secrets: inherit
+
+  deploy-cloudflared:
+    if: always() && needs.plan-deployment.outputs.deploy-cloudflared == 'true' && (needs.deploy-frontend.result == 'success' || needs.deploy-frontend.result == 'skipped')
+    needs: [plan-deployment, deploy-frontend]
+    uses: ./.github/workflows/deploy-cloudflared-tunnel.yml
+    with:
+      environment: ${{ inputs.environment }}
+      action: deploy
     secrets: inherit
 
   comprehensive-health-check:
-    if: always() && !inputs.skip_health_checks
-    needs: [plan-deployment, deploy-infrastructure, deploy-backend, deploy-frontend]
+    if: always()
+    needs: [plan-deployment, deploy-infrastructure, deploy-backend, deploy-frontend, deploy-cloudflared]
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
     timeout-minutes: 10
@@ -318,7 +369,7 @@ jobs:
 
   deployment-summary:
     if: always()
-    needs: [plan-deployment, deploy-infrastructure, deploy-backend, deploy-frontend, comprehensive-health-check]
+    needs: [plan-deployment, deploy-infrastructure, deploy-backend, deploy-frontend, deploy-cloudflared, comprehensive-health-check]
     runs-on: ubuntu-latest
     
     steps:
@@ -339,7 +390,7 @@ jobs:
             
             curl -H "Content-Type: application/json" \
                  -d "{
-                   \"content\": \"$status_emoji **$status_text**\\n\\n📋 **Deployment Summary:**\\n• **Strategy:** \\\`${{ needs.plan-deployment.outputs.deployment-strategy }}\\\`\\n• **Environment:** \\\`${{ inputs.environment }}\\\`\\n• **Branch:** \\\`${{ github.ref_name }}\\\`\\n• **Force Rebuild:** \\\`${{ inputs.force_rebuild }}\\\`\\n\\n🏗️ **Component Status:**\\n• **Infrastructure:** ${{ needs.deploy-infrastructure.result == 'success' && '✅ SUCCESS' || needs.deploy-infrastructure.result == 'skipped' && '⏭️ SKIPPED' || needs.deploy-infrastructure.result == 'failure' && '❌ FAILED' || '⏸️ NOT RUN' }}\\n• **Backend Services:** ${{ needs.deploy-backend.result == 'success' && '✅ SUCCESS' || needs.deploy-backend.result == 'skipped' && '⏭️ SKIPPED' || needs.deploy-backend.result == 'failure' && '❌ FAILED' || '⏸️ NOT RUN' }}\\n• **Frontend:** ${{ needs.deploy-frontend.result == 'success' && '✅ SUCCESS' || needs.deploy-frontend.result == 'skipped' && '⏭️ SKIPPED' || needs.deploy-frontend.result == 'failure' && '❌ FAILED' || '⏸️ NOT RUN' }}\\n• **Health Check:** ${{ needs.comprehensive-health-check.result == 'success' && '✅ PASSED' || needs.comprehensive-health-check.result == 'skipped' && '⏭️ SKIPPED' || needs.comprehensive-health-check.result == 'failure' && '❌ FAILED' || '⏸️ NOT RUN' }}\\n\\n🔗 **Access Points:**\\n• **Frontend:** \\\`http://<TRUENAS_IP>:${{ vars.FRONTEND_PORT || '3500' }}\\\`\\n• **API Gateway:** \\\`http://<TRUENAS_IP>:${{ vars.GATEWAY_PORT || '5000' }}\\\`\\n• **Monitoring:** \\\`http://<TRUENAS_IP>:${{ vars.GRAFANA_PORT || '3002' }}\\\`\\n\\n$footer_text\\n\\n[📋 View Detailed Logs](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})\"
+                   \"content\": \"$status_emoji **$status_text**\\n\\n📋 **Deployment Summary:**\\n• **Strategy:** \\\`${{ needs.plan-deployment.outputs.deployment-strategy }}\\\`\\n• **Environment:** \\\`${{ inputs.environment }}\\\`\\n• **Branch:** \\\`${{ github.ref_name }}\\\`\\n• **Force Rebuild:** \\\`${{ inputs.force_rebuild }}\\\`\\n\\n🏗️ **Component Status:**\\n• **Infrastructure:** ${{ needs.deploy-infrastructure.result == 'success' && '✅ SUCCESS' || needs.deploy-infrastructure.result == 'skipped' && '⏭️ SKIPPED' || needs.deploy-infrastructure.result == 'failure' && '❌ FAILED' || '⏸️ NOT RUN' }}\\n• **Backend APIs:** ${{ needs.deploy-backend.result == 'success' && '✅ SUCCESS' || needs.deploy-backend.result == 'skipped' && '⏭️ SKIPPED' || needs.deploy-backend.result == 'failure' && '❌ FAILED' || '⏸️ NOT RUN' }}\\n• **Frontend:** ${{ needs.deploy-frontend.result == 'success' && '✅ SUCCESS' || needs.deploy-frontend.result == 'skipped' && '⏭️ SKIPPED' || needs.deploy-frontend.result == 'failure' && '❌ FAILED' || '⏸️ NOT RUN' }}\\n• **Cloudflared:** ${{ needs.deploy-cloudflared.result == 'success' && '✅ SUCCESS' || needs.deploy-cloudflared.result == 'skipped' && '⏭️ SKIPPED' || needs.deploy-cloudflared.result == 'failure' && '❌ FAILED' || '⏸️ NOT RUN' }}\\n• **Health Check:** ${{ needs.comprehensive-health-check.result == 'success' && '✅ PASSED' || needs.comprehensive-health-check.result == 'skipped' && '⏭️ SKIPPED' || needs.comprehensive-health-check.result == 'failure' && '❌ FAILED' || '⏸️ NOT RUN' }}\\n\\n🔗 **Access Points:**\\n• **Frontend:** \\\`http://<TRUENAS_IP>:${{ vars.FRONTEND_PORT || '3500' }}\\\`\\n• **API Gateway:** \\\`http://<TRUENAS_IP>:${{ vars.GATEWAY_PORT || '5800' }}\\\`\\n• **Monitoring:** \\\`http://<TRUENAS_IP>:${{ vars.GRAFANA_PORT || '3000' }}\\\`\\n\\n$footer_text\\n\\n[📋 View Detailed Logs](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})\"
                  }" \
                  "$webhook_url" || echo "Discord notification failed"
           else

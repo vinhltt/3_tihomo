@@ -50,7 +50,7 @@ Deploy API services với dependency management:
 ```
 
 ### 4. Deploy Frontend
-**File**: `.github/workflows/deploy-frontend.yml`
+**File**: `.github/workflows/deploy-frontend-ghcr.yml`
 
 Deploy Nuxt frontend application:
 

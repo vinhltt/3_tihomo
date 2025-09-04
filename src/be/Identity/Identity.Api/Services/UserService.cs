@@ -82,6 +82,7 @@ public class UserService(IdentityDbContext context, ILogger<UserService> logger)
             {
                 Email = socialUserInfo.Email,
                 Name = socialUserInfo.Name,
+                Username = socialUserInfo.Email, // Use email as username
                 PictureUrl = socialUserInfo.PictureUrl,
                 IsActive = true,
                 CreatedAt = DateTime.UtcNow

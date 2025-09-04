@@ -1,30 +1,30 @@
 {
   "mcpServers": {
-    "context7": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@upstash/context7-mcp@latest"
-      ]
+    "mem0": {
+      "type": "sse",
+      "url": "http://0.0.0.0:8080/sse"
     },
-    "sequential-thinking": {
-      "command": "npx",
+    "MCP_DOCKER": {
+      "command": "docker",
       "args": [
-        "-y",
-        "@modelcontextprotocol/server-sequential-thinking"
-      ],
-      "env": {}
-    },
-    "openmemory-mcp": {
-      "command": "npx",
-      "args": [
-        "openmemory@latest"
+        "mcp",
+        "gateway",
+        "run"
       ],
       "env": {
-        "OPENMEMORY_API_KEY": "om-rwm0dcj32k4v9pb4dqecn4w4o14wo7dh",
-        "USER_ID": "VinhLTT"
-      },
-      "disabled": false
+        "LOCALAPPDATA": "C:\\Users\\thevi\\AppData\\Local",
+        "ProgramData": "C:\\ProgramData",
+        "ProgramFiles": "C:\\Program Files"
+      }
+    },
+    "serena": {
+      "command": "uv",
+      "args": [
+        "run",
+        "--directory",
+        "D:/Programs/serena",
+        "serena-mcp-server"
+      ]
     }
   }
 }

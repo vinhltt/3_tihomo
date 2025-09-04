@@ -23,5 +23,7 @@ public static class RepositoryExtensions
     {
         services.AddProxiedScoped<IBaseRepository<Account, Guid>, BaseRepository<Account, Guid>>();
         services.AddProxiedScoped<IBaseRepository<Transaction, Guid>, BaseRepository<Transaction, Guid>>();
+        services.AddProxiedScoped<IBaseRepository<ExpectedTransaction, Guid>, BaseRepository<ExpectedTransaction, Guid>>();
+        services.AddProxiedScoped<IBaseRepository<RecurringTransactionTemplate, Guid>, BaseRepository<RecurringTransactionTemplate, Guid>>();
     }
 }

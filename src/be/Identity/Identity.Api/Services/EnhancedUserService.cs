@@ -151,6 +151,7 @@ public class EnhancedUserService(
             Id = user.Id,
             Email = user.Email,
             Name = user.Name,
+            Username = user.Username,
             PictureUrl = user.PictureUrl,
             IsActive = user.IsActive,
             CreatedAt = user.CreatedAt ?? DateTime.UtcNow,
@@ -307,6 +308,7 @@ public class EnhancedUserService(
         {
             Email = socialUserInfo.Email,
             Name = socialUserInfo.Name,
+            Username = socialUserInfo.Email, // Use email as username
             PictureUrl = socialUserInfo.PictureUrl,
             IsActive = true,
             CreatedAt = DateTime.UtcNow,

@@ -57,8 +57,7 @@ public class SharedExpenseService(IUnitOfWork unitOfWork) : ISharedExpenseServic
     public async Task<SharedExpenseResponseDto> UpdateSharedExpenseAsync(Guid id,
         UpdateSharedExpenseRequestDto updateDto)
     {
-        var sharedExpense = await _unitOfWork.Repository<SharedExpense, Guid>().GetByIdAsync(id);
-        if (sharedExpense == null) throw new KeyNotFoundException($"SharedExpense with ID {id} not found.");
+        var sharedExpense = await _unitOfWork.Repository<SharedExpense, Guid>().GetByIdAsync(id) ?? throw new KeyNotFoundException($"SharedExpense with ID {id} not found.");
 
         // Update properties
         sharedExpense.Title = updateDto.Title;
@@ -118,9 +117,7 @@ public class SharedExpenseService(IUnitOfWork unitOfWork) : ISharedExpenseServic
     /// <inheritdoc />
     public async Task<SharedExpenseResponseDto> MarkAsSettledAsync(Guid id)
     {
-        var sharedExpense = await _unitOfWork.Repository<SharedExpense, Guid>().GetByIdAsync(id);
-        if (sharedExpense == null) throw new KeyNotFoundException($"SharedExpense with ID {id} not found.");
-
+        var sharedExpense = await _unitOfWork.Repository<SharedExpense, Guid>().GetByIdAsync(id) ?? throw new KeyNotFoundException($"SharedExpense with ID {id} not found.");
         sharedExpense.Status = SharedExpenseStatus.Settled;
         sharedExpense.SettledAmount = sharedExpense.TotalAmount;
 
@@ -171,8 +168,7 @@ public class SharedExpenseService(IUnitOfWork unitOfWork) : ISharedExpenseServic
     public async Task<SharedExpenseParticipantResponseDto> UpdateParticipantAsync(Guid id,
         UpdateSharedExpenseParticipantRequestDto updateDto)
     {
-        var participant = await _unitOfWork.Repository<SharedExpenseParticipant, Guid>().GetByIdAsync(id);
-        if (participant == null) throw new KeyNotFoundException($"SharedExpenseParticipant with ID {id} not found.");
+        SharedExpenseParticipant participant = await _unitOfWork.Repository<SharedExpenseParticipant, Guid>().GetByIdAsync(id) ?? throw new KeyNotFoundException($"SharedExpenseParticipant with ID {id} not found.");
 
         // Update properties
         participant.ParticipantName = updateDto.ParticipantName;
@@ -203,9 +199,7 @@ public class SharedExpenseService(IUnitOfWork unitOfWork) : ISharedExpenseServic
     public async Task<SharedExpenseParticipantResponseDto> RecordPaymentAsync(Guid participantId, decimal amount,
         string? paymentMethod = null)
     {
-        var participant = await _unitOfWork.Repository<SharedExpenseParticipant, Guid>().GetByIdAsync(participantId);
-        if (participant == null)
-            throw new KeyNotFoundException($"SharedExpenseParticipant with ID {participantId} not found.");
+        var participant = await _unitOfWork.Repository<SharedExpenseParticipant, Guid>().GetByIdAsync(participantId) ?? throw new KeyNotFoundException($"SharedExpenseParticipant with ID {participantId} not found.");
 
         // Update payment information
         participant.PaidAmount = Math.Min(participant.PaidAmount + amount, participant.ShareAmount);
@@ -242,14 +236,11 @@ public class SharedExpenseService(IUnitOfWork unitOfWork) : ISharedExpenseServic
     /// <inheritdoc />
     public async Task<EqualSplitCalculationDto> CalculateEqualSplitAsync(Guid sharedExpenseId)
     {
-        var sharedExpense = await _unitOfWork.Repository<SharedExpense, Guid>().GetByIdAsync(sharedExpenseId);
-        if (sharedExpense == null)
-            throw new KeyNotFoundException($"SharedExpense with ID {sharedExpenseId} not found.");
-
+        var sharedExpense = await _unitOfWork.Repository<SharedExpense, Guid>().GetByIdAsync(sharedExpenseId) ?? throw new KeyNotFoundException($"SharedExpense with ID {sharedExpenseId} not found.");
         var participants = await _unitOfWork.Repository<SharedExpenseParticipant, Guid>().GetAllAsync();
         var expenseParticipants = participants.Where(p => p.SharedExpenseId == sharedExpenseId).ToList();
 
-        if (!expenseParticipants.Any())
+        if (expenseParticipants.Count == 0)
             throw new InvalidOperationException("No participants found for this shared expense.");
 
         var splitAmount = sharedExpense.TotalAmount / expenseParticipants.Count;
@@ -259,24 +250,21 @@ public class SharedExpenseService(IUnitOfWork unitOfWork) : ISharedExpenseServic
             TotalAmount = sharedExpense.TotalAmount,
             OwedAmount = sharedExpense.TotalAmount,
             ParticipantCount = expenseParticipants.Count,
-            Participants = expenseParticipants.Select(p => new ParticipantSplitDto
+            Participants = [.. expenseParticipants.Select(p => new ParticipantSplitDto
             {
                 ParticipantId = p.Id,
                 ParticipantName = p.ParticipantName ?? "Unknown",
                 RecommendedShareAmount = splitAmount,
                 CurrentShareAmount = p.ShareAmount,
                 Difference = splitAmount - p.ShareAmount
-            }).ToList()
+            })]
         };
     }
 
     /// <inheritdoc />
     public async Task<SharedExpenseSummaryDto> GetExpenseSummaryAsync(Guid sharedExpenseId)
     {
-        var sharedExpense = await _unitOfWork.Repository<SharedExpense, Guid>().GetByIdAsync(sharedExpenseId);
-        if (sharedExpense == null)
-            throw new KeyNotFoundException($"SharedExpense with ID {sharedExpenseId} not found.");
-
+        var sharedExpense = await _unitOfWork.Repository<SharedExpense, Guid>().GetByIdAsync(sharedExpenseId) ?? throw new KeyNotFoundException($"SharedExpense with ID {sharedExpenseId} not found.");
         var participants = await _unitOfWork.Repository<SharedExpenseParticipant, Guid>().GetAllAsync();
         var expenseParticipants = participants.Where(p => p.SharedExpenseId == sharedExpenseId).ToList();
 

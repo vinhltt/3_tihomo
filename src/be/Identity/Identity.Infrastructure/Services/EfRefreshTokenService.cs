@@ -195,7 +195,7 @@ public class EfRefreshTokenService(
                 .Where(rt => rt.UserId == userId && !rt.IsRevoked)
                 .ToListAsync(cancellationToken);
 
-            if (!activeTokens.Any())
+            if (activeTokens.Count == 0)
             {
                 Logger.LogInformation("No active refresh tokens found for user {UserId}", userId);
                 return 0;
@@ -237,7 +237,7 @@ public class EfRefreshTokenService(
                 .Where(rt => rt.ExpiresAt <= DateTime.UtcNow || rt.IsRevoked)
                 .ToListAsync(cancellationToken);
 
-            if (!expiredTokens.Any())
+            if (expiredTokens.Count == 0)
             {
                 Logger.LogInformation("No expired refresh tokens to clean up");
                 return 0;

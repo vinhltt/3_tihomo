@@ -2,14 +2,14 @@
   "Routes": [
     {
       "DownstreamPathTemplate": "/api/{everything}",
-      "DownstreamScheme": "https",
+      "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [
         {
-          "Host": "localhost",
-          "Port": "${IDENTITY_API_PORT}"
+          "Host": "identity-api",
+          "Port": 8080
         }
       ],
-      "UpstreamPathTemplate": "/identity/{everything}",
+      "UpstreamPathTemplate": "/api/identity/{everything}",
       "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE", "OPTIONS" ],
       "RouteClaimsRequirement": {},
       "RateLimitOptions": {
@@ -22,11 +22,11 @@
     },
     {
       "DownstreamPathTemplate": "/api/users/{everything}",
-      "DownstreamScheme": "https",
+      "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [
         {
-          "Host": "localhost",
-          "Port": "${IDENTITY_API_PORT}"
+          "Host": "identity-api",
+          "Port": 8080
         }
       ],
       "UpstreamPathTemplate": "/api/users/{everything}",
@@ -46,11 +46,11 @@
     },
     {
       "DownstreamPathTemplate": "/api/admin/{everything}",
-      "DownstreamScheme": "https",
+      "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [
         {
-          "Host": "localhost",
-          "Port": "${IDENTITY_API_PORT}"
+          "Host": "identity-api",
+          "Port": 8080
         }
       ],
       "UpstreamPathTemplate": "/api/admin/{everything}",
@@ -69,39 +69,14 @@
         "PeriodTimespan": 60,
         "Limit": 200
       }
-    },    {
-      "DownstreamPathTemplate": "/{everything}",
-      "DownstreamScheme": "https",
+    },
+    {
+      "DownstreamPathTemplate": "/api/{everything}",
+      "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [
         {
-          "Host": "localhost",
-          "Port": "${COREFINANCE_API_PORT}"
-        }
-      ],
-      "UpstreamPathTemplate": "/api/core-finance/{everything}",
-      "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE", "OPTIONS" ],
-      "AuthenticationOptions": {
-        "AuthenticationProviderKeys": [ "Bearer", "ApiKey" ],
-        "AllowedScopes": []
-      },
-      "RouteClaimsRequirement": {},
-      "LoadBalancerOptions": {
-        "Type": "RoundRobin"
-      },
-      "RateLimitOptions": {
-        "ClientWhitelist": [],
-        "EnableRateLimiting": true,
-        "Period": "1m",
-        "PeriodTimespan": 60,
-        "Limit": 200
-      }
-    },    {
-      "DownstreamPathTemplate": "/{everything}",
-      "DownstreamScheme": "https",
-      "DownstreamHostAndPorts": [
-        {
-          "Host": "localhost",
-          "Port": "${MONEYMANAGEMENT_API_PORT}"
+          "Host": "moneymanagement-api",
+          "Port": 8080
         }
       ],
       "UpstreamPathTemplate": "/api/money-management/{everything}",
@@ -120,13 +95,15 @@
         "Period": "1m",
         "PeriodTimespan": 60,
         "Limit": 200
-      }    },    {
-      "DownstreamPathTemplate": "/{everything}",
-      "DownstreamScheme": "https",
+      }
+    },
+    {
+      "DownstreamPathTemplate": "/api/{everything}",
+      "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [
         {
-          "Host": "localhost",
-          "Port": "${EXCEL_API_PORT}"
+          "Host": "excel-api",
+          "Port": 8080
         }
       ],
       "UpstreamPathTemplate": "/api/excel/{everything}",
@@ -146,13 +123,14 @@
         "PeriodTimespan": 60,
         "Limit": 150
       }
-    },    {
-      "DownstreamPathTemplate": "/{everything}",
-      "DownstreamScheme": "https",
+    },
+    {
+      "DownstreamPathTemplate": "/api/{everything}",
+      "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [
         {
-          "Host": "localhost",
-          "Port": "${PLANNINGINVESTMENT_API_PORT}"
+          "Host": "planninginvestment-api",
+          "Port": 8080
         }
       ],
       "UpstreamPathTemplate": "/api/planning-investment/{everything}",
@@ -175,11 +153,11 @@
     },
     {
       "DownstreamPathTemplate": "/health",
-      "DownstreamScheme": "https",
+      "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [
         {
-          "Host": "localhost",
-          "Port": "${IDENTITY_API_PORT}"
+          "Host": "identity-api",
+          "Port": 8080
         }
       ],
       "UpstreamPathTemplate": "/identity/health",
@@ -187,11 +165,11 @@
     },
     {
       "DownstreamPathTemplate": "/health",
-      "DownstreamScheme": "https",
+      "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [
         {
-          "Host": "localhost",
-          "Port": "${COREFINANCE_API_PORT}"
+          "Host": "corefinance-api",
+          "Port": 8080
         }
       ],
       "UpstreamPathTemplate": "/health/core-finance",
@@ -199,11 +177,11 @@
     },
     {
       "DownstreamPathTemplate": "/health",
-      "DownstreamScheme": "https",
+      "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [
         {
-          "Host": "localhost",
-          "Port": "${EXCEL_API_PORT}"
+          "Host": "excel-api",
+          "Port": 8080
         }
       ],
       "UpstreamPathTemplate": "/health/excel",
@@ -211,11 +189,11 @@
     },
     {
       "DownstreamPathTemplate": "/health",
-      "DownstreamScheme": "https",
+      "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [
         {
-          "Host": "localhost",
-          "Port": "${MONEYMANAGEMENT_API_PORT}"
+          "Host": "moneymanagement-api",
+          "Port": 8080
         }
       ],
       "UpstreamPathTemplate": "/health/money-management",
@@ -223,11 +201,11 @@
     },
     {
       "DownstreamPathTemplate": "/health",
-      "DownstreamScheme": "https",
+      "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [
         {
-          "Host": "localhost",
-          "Port": "${PLANNINGINVESTMENT_API_PORT}"
+          "Host": "planninginvestment-api",
+          "Port": 8080
         }
       ],
       "UpstreamPathTemplate": "/health/planning-investment",
@@ -235,7 +213,7 @@
     }
   ],
   "GlobalConfiguration": {
-    "BaseUrl": "https://localhost:${GATEWAY_PORT}",
+    "BaseUrl": "http://localhost:5800",
     "RateLimitOptions": {
       "DisableRateLimitHeaders": false,
       "QuotaExceededMessage": "Rate limit exceeded. Please try again later.",

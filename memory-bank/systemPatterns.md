@@ -1,19 +1,21 @@
 # systemPatterns.md
 
 ## Kiến trúc hệ thống
-- Microservices kết hợp với workflow engine (n8n).
-- Mỗi bounded context là một service độc lập, có database riêng (PostgreSQL), giao tiếp qua API Gateway (Ocelot) và message bus (RabbitMQ).
-- Sử dụng Docker để triển khai và mở rộng, Kubernetes cho production.
-- Tích hợp file storage (MinIO) cho import/export dữ liệu.
+- Microservices với Clean Architecture pattern, Domain-Driven Design.
+- Mỗi bounded context là một service độc lập, có database riêng (PostgreSQL), giao tiếp qua API Gateway (Ocelot).
+- Sử dụng Docker để triển khai, TrueNAS cho production environment.
+- Enhanced observability với OpenTelemetry, Prometheus, và Grafana monitoring.
+- GitHub Actions CI/CD với automated deployment, security scanning, và health checks.
 
 ## Quyết định kỹ thuật chính
-- Ưu tiên tích hợp qua API REST, Webhook, hoặc message bus.
-- Sử dụng môi trường tách biệt cho phát triển, staging, production.
-- Tất cả giao tiếp giữa các service phải qua API Gateway hoặc RabbitMQ (không gọi trực tiếp giữa các service).
-- **✅ API Gateway Security Pattern (December 28, 2024): Tất cả API services (Identity, CoreFinance, Excel) không expose ports ra bên ngoài, chỉ có thể truy cập qua API Gateway để tăng cường bảo mật.**
-- Sử dụng event-driven cho đồng bộ dữ liệu, ưu tiên publish/subscribe, CDC, dual-write pattern với fallback.
-- Authentication: OpenID Connect, JWT, OAuth2, RBAC, policy-based authorization.
-- Logging tập trung (ELK/EFK), metrics Prometheus, dashboard Grafana, correlation ID.
+- Ưu tiên tích hợp qua API REST với comprehensive OpenAPI documentation.
+- Sử dụng môi trường tách biệt cho phát triển, staging, production với TrueNAS deployment.
+- Tất cả giao tiếp giữa các service phải qua API Gateway để tăng cường bảo mật.
+- **✅ Enhanced Security Pattern (July 2025): JWT + OAuth 2.0 + API Keys với social login, Trivy security scanning, SSH security hardening.**
+- **✅ Resilience Patterns (July 2025): Polly v8 circuit breaker, retry với exponential backoff, timeout protection.**
+- **✅ CI/CD Pipeline (July 2025): GitHub Actions với rolling deployment, automatic backup, health validation.**
+- Authentication: JWT + OAuth 2.0/OIDC + API Keys với Google/Facebook social login.
+- Comprehensive observability: OpenTelemetry tracing, Prometheus metrics, Serilog structured logging.
 
 ## Pattern thiết kế
 - Modular workflow: mỗi workflow là một module độc lập, có thể mở rộng.
@@ -28,22 +30,20 @@
   - **Tăng tính linh hoạt trong việc thiết kế API và business logic**
 
 ## Quan hệ thành phần
-- n8n là trung tâm điều phối workflow.
-- Các dịch vụ nghiệp vụ chính:
-  - Identity & Access: AuthService, UserService, RoleService
-  - **Core Finance: AccountService, TransactionService, StatementService, RecurringTransactionTemplateService, ExpectedTransactionService**
-  - Money Management: BudgetService, JarService, SharedExpenseService
-  - Planning & Investment: DebtService, GoalService, InvestmentService
-  - Reporting & Integration: ReportingService, NotificationService, IntegrationService
-  - **ExcelApi: Excel processing services (đã di chuyển vào src/BE/ExcelApi)**
-- Mỗi service gắn với database riêng, không chia sẻ schema.
-- File storage (MinIO) dùng cho import/export statement.
-- **✅ MoneyManagement Services Implementation Status (Updated June 10, 2025):**
-  - **BudgetService**: ✅ Complete với business logic, DTOs, validators
-  - **JarService**: ✅ Complete với 6 Jars method implementation (fixed 12 interface errors June 9, 2025)
-  - **SharedExpenseService**: 🚧 Next priority for implementation
-  - **Infrastructure**: ✅ Complete BaseRepository, UnitOfWork, DbContext implementation
-  - **Build Status**: ✅ 0 errors, 3 warnings - Production ready (achieved June 9, 2025)
+- API Gateway (Ocelot) là trung tâm điều phối requests.
+- Các dịch vụ nghiệp vụ chính (Production Status):
+  - **✅ Identity & Access (100% Complete)**: AuthService, UserService, RoleService, ApiKeyService với social login
+  - **✅ Core Finance (100% Complete)**: AccountService, TransactionService, RecurringTransactionTemplateService, ExpectedTransactionService
+  - **✅ Money Management (100% Complete)**: BudgetService, JarService, SharedExpenseService implementation
+  - **✅ Excel API (100% Complete)**: Excel processing services trong src/be/ExcelApi
+  - **🚧 Planning & Investment (Structure Ready)**: DebtService, GoalService, InvestmentService cần implementation
+  - **📋 Reporting & Integration (Planned)**: ReportingService, NotificationService, IntegrationService
+- Mỗi service gắn với database riêng (PostgreSQL với snake_case naming), không chia sẻ schema.
+- **✅ Current Development Status (July 2025):**
+  - **Build Success Rate**: 100% across all implemented services
+  - **Test Coverage**: Comprehensive với xUnit + FluentAssertions
+  - **Deployment**: TrueNAS production environment với GitHub Actions
+  - **Monitoring**: Full observability stack với health checks
 
 **Backend Organization:**
 - **Tất cả backend services** được tổ chức trong `src/BE/` folder

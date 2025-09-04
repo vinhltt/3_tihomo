@@ -1,0 +1,332 @@
+name: Deploy Backend APIs
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'development'
+        type: choice
+        options:
+          - development
+          - staging
+          - production
+      services:
+        description: 'Specific services to deploy (comma-separated: identity-api,corefinance-api,excel-api,ocelot-gateway) or "all"'
+        required: false
+        default: 'all'
+        type: string
+      force_rebuild:
+        description: 'Force rebuild images'
+        required: false
+        default: false
+        type: boolean
+  push:
+    branches:
+      - master
+      - develop
+    paths:
+      - 'src/be/**'
+      - '.github/workflows/deploy-backend-apis.yml'
+      - 'docker-compose.services.yml'
+      - 'docker-compose.ghcr.yml'
+  pull_request:
+    branches:
+      - master
+      - develop
+    paths:
+      - 'src/be/**'
+
+concurrency:
+  group: tihomo-backend-${{ github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  # Build and test backend services
+  build-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      matrix:
+        service: [identity-api, corefinance-api, excel-api, ocelot-gateway]
+    
+    steps:
+      - name: "[1/8] Checkout code"
+        uses: actions/checkout@v4
+
+      - name: "[2/8] Setup .NET"
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: "[3/8] Restore dependencies"
+        run: |
+          cd src/be
+          # Clear any cached packages and restore
+          dotnet clean
+          dotnet restore --force --no-cache
+
+      - name: "[4/8] Build solution"
+        run: |
+          cd src/be
+          dotnet build --no-restore --configuration Release
+
+      - name: "[5/8] Run tests"
+        run: |
+          cd src/be
+          # Run tests for the specific service if test project exists
+          case "${{ matrix.service }}" in
+            identity-api)
+              if [ -d "Identity.Tests" ]; then
+                dotnet test Identity.Tests --no-build --configuration Release --verbosity normal
+              else
+                echo "No tests found for Identity service"
+              fi
+              ;;
+            corefinance-api)
+              if [ -d "CoreFinance.Tests" ]; then
+                dotnet test CoreFinance.Tests --no-build --configuration Release --verbosity normal
+              else
+                echo "No tests found for CoreFinance service"
+              fi
+              ;;
+            excel-api)
+              if [ -d "ExcelApi.Tests" ]; then
+                dotnet test ExcelApi.Tests --no-build --configuration Release --verbosity normal
+              else
+                echo "No tests found for ExcelApi service"
+              fi
+              ;;
+            ocelot-gateway)
+              if [ -d "Ocelot.Gateway.Tests" ]; then
+                dotnet test Ocelot.Gateway.Tests --no-build --configuration Release --verbosity normal
+              else
+                echo "No tests found for Ocelot Gateway service"
+              fi
+              ;;
+          esac
+
+      - name: "[6/8] Setup Docker Buildx"
+        if: github.event_name != 'pull_request'
+        uses: docker/setup-buildx-action@v3
+
+      - name: "[7/8] Login to GitHub Container Registry"
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: "[8/8] Build and push Docker images"
+        if: github.event_name != 'pull_request'
+        run: |
+          cd src/be
+          
+          case "${{ matrix.service }}" in
+            identity-api)
+              echo "Building Identity API..."
+              docker build -f Identity/Dockerfile -t ghcr.io/${{ github.repository_owner }}/tihomo-identity-api:${{ github.ref_name }} .
+              docker push ghcr.io/${{ github.repository_owner }}/tihomo-identity-api:${{ github.ref_name }}
+              ;;
+            corefinance-api)
+              echo "Building CoreFinance API..."
+              docker build -f CoreFinance/Dockerfile -t ghcr.io/${{ github.repository_owner }}/tihomo-corefinance-api:${{ github.ref_name }} .
+              docker push ghcr.io/${{ github.repository_owner }}/tihomo-corefinance-api:${{ github.ref_name }}
+              ;;
+            excel-api)
+              echo "Building Excel API..."
+              docker build -f ExcelApi/Dockerfile -t ghcr.io/${{ github.repository_owner }}/tihomo-excel-api:${{ github.ref_name }} .
+              docker push ghcr.io/${{ github.repository_owner }}/tihomo-excel-api:${{ github.ref_name }}
+              ;;
+            ocelot-gateway)
+              echo "Building Ocelot Gateway..."
+              docker build -f Ocelot.Gateway/Dockerfile -t ghcr.io/${{ github.repository_owner }}/tihomo-ocelot-gateway:${{ github.ref_name }} .
+              docker push ghcr.io/${{ github.repository_owner }}/tihomo-ocelot-gateway:${{ github.ref_name }}
+              ;;
+          esac
+
+  # Deploy to TrueNAS
+  deploy:
+    if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/develop' || github.event_name == 'workflow_dispatch')
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment || (github.ref == 'refs/heads/master' && 'production' || 'development') }}
+    timeout-minutes: 20
+
+    steps:
+      - name: "[1/6] Checkout code"
+        uses: actions/checkout@v4
+
+      - name: "[2/6] Setup environment variables"
+        run: |
+          CLEAN_ENV=$(echo "${{ inputs.environment || (github.ref == 'refs/heads/master' && 'production' || 'development') }}" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]//g')
+          echo "TRUENAS_DEPLOY_DIR=${{ vars.DEPLOY_PATH_ON_TRUENAS }}/deploy_${GITHUB_REF_NAME}" >> $GITHUB_ENV
+          echo "ENVIRONMENT=${CLEAN_ENV}" >> $GITHUB_ENV
+          
+          # Parse services to deploy
+          SERVICES="${{ inputs.services || 'all' }}"
+          if [ "$SERVICES" = "all" ]; then
+            SERVICES="identity-api,corefinance-api,excel-api,ocelot-gateway"
+          fi
+          echo "SERVICES_TO_DEPLOY=${SERVICES}" >> $GITHUB_ENV
+
+      - name: "[3/6] Setup SSH and Cloudflared"
+        run: |
+          sudo wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -O /usr/local/bin/cloudflared
+          sudo chmod +x /usr/local/bin/cloudflared
+          
+          mkdir -p "$HOME/.ssh"
+          echo "Host truenas-cf-tunnel
+            HostName ${{ secrets.TRUENAS_SSH_HOSTNAME_THROUGH_CLOUDFLARED }}
+            ProxyCommand cloudflared access ssh --hostname %h
+            User ${{ secrets.TRUENAS_USER }}
+            StrictHostKeyChecking accept-new" > "$HOME/.ssh/config"
+          chmod 600 "$HOME/.ssh/config"
+
+      - name: "[4/6] Add SSH key"
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.TRUENAS_SSH_PRIVATE_KEY }}
+
+      - name: "[5/6] Deploy Backend APIs"
+        run: |
+          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << 'EOF'
+            cd ${{ env.TRUENAS_DEPLOY_DIR }}
+            
+            # Check Docker access
+            if docker ps >/dev/null 2>&1; then
+              USE_SUDO=""
+            else
+              USE_SUDO="sudo"
+            fi
+            
+            echo "[INFO] Deploying Backend APIs..."
+            echo "[INFO] Environment: ${{ env.ENVIRONMENT }}"
+            echo "[INFO] Services: ${{ env.SERVICES_TO_DEPLOY }}"
+            
+            # Choose compose file based on environment
+            if [ "${{ env.ENVIRONMENT }}" = "production" ]; then
+              COMPOSE_FILE="docker-compose.ghcr.yml"
+              echo "[INFO] Using production compose file: $COMPOSE_FILE"
+            else
+              COMPOSE_FILE="docker-compose.services.yml"
+              echo "[INFO] Using development compose file: $COMPOSE_FILE"
+            fi
+            
+            # Parse and deploy services
+            IFS=',' read -ra SERVICES <<< "${{ env.SERVICES_TO_DEPLOY }}"
+            DEPLOYED_SERVICES=()
+            FAILED_SERVICES=()
+            
+            # Pull images first (for production)
+            if [ "${{ env.ENVIRONMENT }}" = "production" ]; then
+              echo "[PULL] Pulling latest backend images..."
+              for service in "${SERVICES[@]}"; do
+                case "$service" in
+                  identity-api)
+                    $USE_SUDO docker pull ghcr.io/${{ github.repository_owner }}/tihomo-identity-api:${{ github.ref_name }} || true
+                    ;;
+                  corefinance-api)
+                    $USE_SUDO docker pull ghcr.io/${{ github.repository_owner }}/tihomo-corefinance-api:${{ github.ref_name }} || true
+                    ;;
+                  excel-api)
+                    $USE_SUDO docker pull ghcr.io/${{ github.repository_owner }}/tihomo-excel-api:${{ github.ref_name }} || true
+                    ;;
+                  ocelot-gateway)
+                    $USE_SUDO docker pull ghcr.io/${{ github.repository_owner }}/tihomo-ocelot-gateway:${{ github.ref_name }} || true
+                    ;;
+                esac
+              done
+            fi
+            
+            # Deploy services one by one
+            for service in "${SERVICES[@]}"; do
+              service=$(echo "$service" | xargs) # trim whitespace
+              echo "[DEPLOY] Deploying $service..."
+              
+              if $USE_SUDO docker compose -f $COMPOSE_FILE config --services | grep -q "^$service$"; then
+                $USE_SUDO docker compose -f $COMPOSE_FILE up -d --no-deps --force-recreate $service
+                
+                # Wait for service to be ready
+                echo "[HEALTH] Waiting for $service to be ready..."
+                max_attempts=10
+                attempt=1
+                service_ready=false
+                
+                while [ $attempt -le $max_attempts ]; do
+                  if $USE_SUDO docker compose -f $COMPOSE_FILE ps $service | grep -q "Up"; then
+                    echo "[RUNNING] $service container is running"
+                    
+                    # Additional health check for APIs
+                    sleep 10
+                    if $USE_SUDO docker compose -f $COMPOSE_FILE exec -T $service curl -f http://localhost:8080/health >/dev/null 2>&1; then
+                      echo "[SUCCESS] $service health check passed"
+                      service_ready=true
+                      break
+                    else
+                      echo "[INFO] $service container running but health endpoint not ready yet"
+                    fi
+                  else
+                    echo "[WAIT] $service not ready yet (attempt $attempt/$max_attempts)"
+                  fi
+                  
+                  sleep 15
+                  ((attempt++))
+                done
+                
+                if [ "$service_ready" = true ]; then
+                  DEPLOYED_SERVICES+=("$service")
+                else
+                  echo "[WARNING] $service deployment may need more time"
+                  echo "[DEBUG] Recent logs for $service:"
+                  $USE_SUDO docker compose -f $COMPOSE_FILE logs --tail=10 $service
+                  FAILED_SERVICES+=("$service")
+                fi
+              else
+                echo "[ERROR] Service $service not found in compose file"
+                FAILED_SERVICES+=("$service")
+              fi
+            done
+            
+            # Deployment summary
+            echo ""
+            echo "[SUMMARY] Backend API Deployment Results:"
+            echo "========================================="
+            
+            if [ ${#DEPLOYED_SERVICES[@]} -gt 0 ]; then
+              echo "✅ Successfully deployed:"
+              for service in "${DEPLOYED_SERVICES[@]}"; do
+                echo "   • $service"
+              done
+            fi
+            
+            if [ ${#FAILED_SERVICES[@]} -gt 0 ]; then
+              echo "❌ Failed or needs attention:"
+              for service in "${FAILED_SERVICES[@]}"; do
+                echo "   • $service"
+              done
+            fi
+            
+            # Final service status check
+            echo ""
+            echo "[STATUS] Final service status:"
+            $USE_SUDO docker compose -f $COMPOSE_FILE ps
+          EOF
+
+      - name: "[6/6] Send notification"
+        if: always()
+        uses: appleboy/discord-action@v1.2.0
+        with:
+          webhook_url: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          message: |
+            ${{ job.status == 'success' && '⚙️ **Backend APIs Deployment SUCCESS**' || '❌ **Backend APIs Deployment FAILED**' }}
+            
+            🔧 **Backend Info:**
+            • **Environment:** `${{ env.ENVIRONMENT }}`
+            • **Branch:** `${{ github.ref_name }}`
+            • **Services:** `${{ env.SERVICES_TO_DEPLOY }}`
+            • **Gateway:** `http://<TRUENAS_IP>:${{ vars.GATEWAY_PORT || '5800' }}`
+            
+            ${{ job.status == 'success' && '🚀 **APIs are ready to serve requests!**' || '🚨 **Check deployment logs for details**' }}

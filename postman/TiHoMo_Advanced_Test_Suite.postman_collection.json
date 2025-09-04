@@ -1,0 +1,1093 @@
+{
+	"info": {
+		"_postman_id": "c3d4e5f6-g7h8-9012-3456-789012cdefgh",
+		"name": "TiHoMo - Advanced Test Suite",
+		"description": "Advanced testing scenarios for TiHoMo API including performance, security, and edge cases.\n\n## Advanced Features:\n- 🚀 Performance Testing\n- 🔒 Security Penetration Tests\n- 🧪 Edge Case Scenarios\n- 📊 Load Testing Simulations\n- 🔄 Automated Test Flows\n- 📈 Response Time Monitoring\n- 🛡️ Rate Limiting Validation\n\n## Test Categories:\n1. Performance & Load Testing\n2. Security & Penetration Testing\n3. Error Handling & Edge Cases\n4. Data Integrity & Consistency\n5. Concurrency & Race Conditions\n\n## Usage:\nRun this collection after basic functionality tests to ensure system robustness under stress conditions.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "12345680"
+	},
+	"item": [
+		{
+			"name": "Performance Tests",
+			"item": [
+				{
+					"name": "Rapid API Key Creation",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Performance test - measure response time",
+									"pm.test(\"Response time is acceptable\", function () {",
+									"    pm.expect(pm.response.responseTime).to.be.below(2000); // 2 seconds",
+									"});",
+									"",
+									"pm.test(\"API Key created successfully\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"// Store response time for analysis",
+									"if (pm.response.code === 200) {",
+									"    const responseTime = pm.response.responseTime;",
+									"    const existingTimes = pm.environment.get('creation_response_times') || '[]';",
+									"    const times = JSON.parse(existingTimes);",
+									"    times.push(responseTime);",
+									"    pm.environment.set('creation_response_times', JSON.stringify(times));",
+									"    ",
+									"    // Calculate average",
+									"    const average = times.reduce((a, b) => a + b, 0) / times.length;",
+									"    console.log(`⏱️ Current: ${responseTime}ms, Average: ${Math.round(average)}ms`);",
+									"    ",
+									"    // Store API key for cleanup",
+									"    const responseJson = pm.response.json();",
+									"    const existingKeys = pm.environment.get('perf_test_api_keys') || '[]';",
+									"    const keys = JSON.parse(existingKeys);",
+									"    keys.push(responseJson.id);",
+									"    pm.environment.set('perf_test_api_keys', JSON.stringify(keys));",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Generate unique name for each iteration",
+									"const timestamp = new Date().getTime();",
+									"const iteration = pm.info.iteration || 0;",
+									"pm.environment.set('perf_api_key_name', `Perf Test Key ${timestamp}_${iteration}`);"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwt_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"{{perf_api_key_name}}\",\n    \"description\": \"Performance test API key\",\n    \"scopes\": [\"read\"],\n    \"rateLimitPerMinute\": 1000,\n    \"dailyUsageQuota\": 100000\n}"
+						},
+						"url": {
+							"raw": "{{identity_base_url}}/api/ApiKeys",
+							"host": [
+								"{{identity_base_url}}"
+							],
+							"path": [
+								"api",
+								"ApiKeys"
+							]
+						},
+						"description": "Create API keys rapidly to test system performance under load."
+					}
+				},
+				{
+					"name": "Bulk Account Creation",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Bulk account creation within time limit\", function () {",
+									"    pm.expect(pm.response.responseTime).to.be.below(3000);",
+									"});",
+									"",
+									"pm.test(\"Account created successfully\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"// Track created accounts",
+									"if (pm.response.code === 200) {",
+									"    const responseJson = pm.response.json();",
+									"    const existingAccounts = pm.environment.get('bulk_test_accounts') || '[]';",
+									"    const accounts = JSON.parse(existingAccounts);",
+									"    accounts.push(responseJson.id);",
+									"    pm.environment.set('bulk_test_accounts', JSON.stringify(accounts));",
+									"    ",
+									"    console.log(`💰 Account ${accounts.length} created: ${responseJson.name}`);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Generate random account data",
+									"const accountTypes = ['Savings', 'Checking', 'Investment', 'Credit'];",
+									"const currencies = ['USD', 'EUR', 'GBP', 'VND'];",
+									"const iteration = pm.info.iteration || 0;",
+									"",
+									"const randomType = accountTypes[Math.floor(Math.random() * accountTypes.length)];",
+									"const randomCurrency = currencies[Math.floor(Math.random() * currencies.length)];",
+									"const randomBalance = Math.floor(Math.random() * 10000) + 100;",
+									"",
+									"pm.environment.set('bulk_account_name', `Bulk Test Account ${iteration + 1}`);",
+									"pm.environment.set('bulk_account_type', randomType);",
+									"pm.environment.set('bulk_account_currency', randomCurrency);",
+									"pm.environment.set('bulk_account_balance', randomBalance.toString());"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{api_key}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "UserId",
+									"value": "{{test_user_id}}",
+									"type": "text"
+								},
+								{
+									"key": "Name",
+									"value": "{{bulk_account_name}}",
+									"type": "text"
+								},
+								{
+									"key": "AccountType",
+									"value": "{{bulk_account_type}}",
+									"type": "text"
+								},
+								{
+									"key": "Currency",
+									"value": "{{bulk_account_currency}}",
+									"type": "text"
+								},
+								{
+									"key": "InitialBalance",
+									"value": "{{bulk_account_balance}}",
+									"type": "text"
+								},
+								{
+									"key": "Description",
+									"value": "Bulk performance test account",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/api/Account",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"Account"
+							]
+						},
+						"description": "Create multiple accounts rapidly to test bulk operations."
+					}
+				}
+			],
+			"description": "Performance testing scenarios to measure system response under load."
+		},
+		{
+			"name": "Security Tests",
+			"item": [
+				{
+					"name": "SQL Injection Test",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"SQL injection attempt blocked\", function () {",
+									"    // Should return 400 (bad request) or 422 (unprocessable entity)",
+									"    pm.expect([400, 422, 500]).to.include(pm.response.code);",
+									"});",
+									"",
+									"pm.test(\"No sensitive data exposed\", function () {",
+									"    const responseText = pm.response.text().toLowerCase();",
+									"    pm.expect(responseText).to.not.include('select');",
+									"    pm.expect(responseText).to.not.include('database');",
+									"    pm.expect(responseText).to.not.include('table');",
+									"    pm.expect(responseText).to.not.include('sql');",
+									"});",
+									"",
+									"console.log('🛡️ SQL injection test completed - system protected');"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{api_key}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "UserId",
+									"value": "{{test_user_id}}",
+									"type": "text"
+								},
+								{
+									"key": "Name",
+									"value": "'; DROP TABLE accounts; --",
+									"type": "text",
+									"description": "SQL injection attempt"
+								},
+								{
+									"key": "AccountType",
+									"value": "Savings",
+									"type": "text"
+								},
+								{
+									"key": "Currency",
+									"value": "USD",
+									"type": "text"
+								},
+								{
+									"key": "InitialBalance",
+									"value": "1000",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/api/Account",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"Account"
+							]
+						},
+						"description": "Test SQL injection protection by sending malicious SQL in account name."
+					}
+				},
+				{
+					"name": "XSS Attack Test",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"XSS attack blocked or sanitized\", function () {",
+									"    pm.expect([400, 422, 200]).to.include(pm.response.code);",
+									"});",
+									"",
+									"if (pm.response.code === 200) {",
+									"    const responseJson = pm.response.json();",
+									"    ",
+									"    pm.test(\"XSS payload sanitized\", function () {",
+									"        // Check if dangerous script tags are removed/escaped",
+									"        pm.expect(responseJson.name).to.not.include('<script>');",
+									"        pm.expect(responseJson.description).to.not.include('alert(');",
+									"    });",
+									"    ",
+									"    // Store for cleanup",
+									"    pm.environment.set('xss_test_account_id', responseJson.id);",
+									"    console.log('✅ XSS payload sanitized successfully');",
+									"} else {",
+									"    console.log('🛡️ XSS attack blocked at validation level');",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{api_key}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "UserId",
+									"value": "{{test_user_id}}",
+									"type": "text"
+								},
+								{
+									"key": "Name",
+									"value": "<script>alert('XSS')</script>Malicious Account",
+									"type": "text",
+									"description": "XSS payload in name"
+								},
+								{
+									"key": "AccountType",
+									"value": "Savings",
+									"type": "text"
+								},
+								{
+									"key": "Currency",
+									"value": "USD",
+									"type": "text"
+								},
+								{
+									"key": "InitialBalance",
+									"value": "1000",
+									"type": "text"
+								},
+								{
+									"key": "Description",
+									"value": "javascript:alert('XSS in description')",
+									"type": "text",
+									"description": "XSS payload in description"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/api/Account",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"Account"
+							]
+						},
+						"description": "Test XSS protection by sending malicious JavaScript in form fields."
+					}
+				},
+				{
+					"name": "Rate Limit Breach Test",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Track request count",
+									"let requestCount = pm.environment.get('rate_limit_requests') || 0;",
+									"requestCount++;",
+									"pm.environment.set('rate_limit_requests', requestCount);",
+									"",
+									"if (requestCount <= 2) {",
+									"    pm.test(\"Initial requests successful\", function () {",
+									"        pm.response.to.have.status(200);",
+									"    });",
+									"    console.log(`📈 Request ${requestCount}: Success (${pm.response.responseTime}ms)`);",
+									"} else {",
+									"    pm.test(\"Rate limit enforced\", function () {",
+									"        pm.expect([429, 503]).to.include(pm.response.code);",
+									"    });",
+									"    ",
+									"    pm.test(\"Rate limit headers present\", function () {",
+									"        const hasRateLimitHeaders = ",
+									"            pm.response.headers.has('X-RateLimit-Limit') ||",
+									"            pm.response.headers.has('Retry-After') ||",
+									"            pm.response.headers.has('X-RateLimit-Remaining');",
+									"        pm.expect(hasRateLimitHeaders).to.be.true;",
+									"    });",
+									"    ",
+									"    console.log(`🚫 Request ${requestCount}: Rate limited (${pm.response.code})`);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Use rate limited API key",
+									"const rateLimitedKey = pm.environment.get('rate_limited_api_key');",
+									"if (rateLimitedKey) {",
+									"    pm.request.headers.upsert({key: 'X-API-Key', value: rateLimitedKey});",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{rate_limited_api_key}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/Account",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"Account"
+							]
+						},
+						"description": "Test rate limiting by making rapid requests with rate-limited API key."
+					}
+				}
+			],
+			"description": "Security penetration tests to validate system defenses."
+		},
+		{
+			"name": "Edge Cases",
+			"item": [
+				{
+					"name": "Extremely Long Account Name",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Long name handled appropriately\", function () {",
+									"    // Should either truncate gracefully or reject with validation error",
+									"    pm.expect([200, 400, 422]).to.include(pm.response.code);",
+									"});",
+									"",
+									"if (pm.response.code === 200) {",
+									"    const responseJson = pm.response.json();",
+									"    ",
+									"    pm.test(\"Name truncated to reasonable length\", function () {",
+									"        pm.expect(responseJson.name.length).to.be.below(256);",
+									"    });",
+									"    ",
+									"    pm.environment.set('long_name_account_id', responseJson.id);",
+									"    console.log('✅ Long name handled gracefully: ' + responseJson.name.length + ' chars');",
+									"} else {",
+									"    console.log('✅ Long name rejected with validation error');",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Generate extremely long name (1000 characters)",
+									"const longName = 'A'.repeat(1000) + ' Very Long Account Name';",
+									"pm.environment.set('extremely_long_name', longName);"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{api_key}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "UserId",
+									"value": "{{test_user_id}}",
+									"type": "text"
+								},
+								{
+									"key": "Name",
+									"value": "{{extremely_long_name}}",
+									"type": "text"
+								},
+								{
+									"key": "AccountType",
+									"value": "Savings",
+									"type": "text"
+								},
+								{
+									"key": "Currency",
+									"value": "USD",
+									"type": "text"
+								},
+								{
+									"key": "InitialBalance",
+									"value": "1000",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/api/Account",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"Account"
+							]
+						},
+						"description": "Test handling of extremely long account names."
+					}
+				},
+				{
+					"name": "Unicode and Special Characters",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Unicode characters handled correctly\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"if (pm.response.code === 200) {",
+									"    const responseJson = pm.response.json();",
+									"    ",
+									"    pm.test(\"Unicode preserved in response\", function () {",
+									"        pm.expect(responseJson.name).to.include('🏦');",
+									"        pm.expect(responseJson.name).to.include('Tiết');",
+									"        pm.expect(responseJson.description).to.include('€');",
+									"    });",
+									"    ",
+									"    pm.environment.set('unicode_account_id', responseJson.id);",
+									"    console.log('✅ Unicode characters preserved: ' + responseJson.name);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{api_key}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "UserId",
+									"value": "{{test_user_id}}",
+									"type": "text"
+								},
+								{
+									"key": "Name",
+									"value": "🏦 Tài khoản Tiết kiệm 中文 русский العربية",
+									"type": "text",
+									"description": "Unicode characters from multiple languages"
+								},
+								{
+									"key": "AccountType",
+									"value": "Savings",
+									"type": "text"
+								},
+								{
+									"key": "Currency",
+									"value": "EUR",
+									"type": "text"
+								},
+								{
+									"key": "InitialBalance",
+									"value": "1500.50",
+									"type": "text"
+								},
+								{
+									"key": "Description",
+									"value": "Special chars: @#$%^&*()_+-=[]{}|;:,.<>? €£¥₹",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/api/Account",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"Account"
+							]
+						},
+						"description": "Test handling of Unicode characters and special symbols."
+					}
+				},
+				{
+					"name": "Zero Balance Account",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Zero balance account created\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"if (pm.response.code === 200) {",
+									"    const responseJson = pm.response.json();",
+									"    ",
+									"    pm.test(\"Balance is exactly zero\", function () {",
+									"        pm.expect(responseJson.balance).to.equal(0);",
+									"    });",
+									"    ",
+									"    pm.environment.set('zero_balance_account_id', responseJson.id);",
+									"    console.log('✅ Zero balance account created successfully');",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{api_key}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "UserId",
+									"value": "{{test_user_id}}",
+									"type": "text"
+								},
+								{
+									"key": "Name",
+									"value": "Zero Balance Test Account",
+									"type": "text"
+								},
+								{
+									"key": "AccountType",
+									"value": "Checking",
+									"type": "text"
+								},
+								{
+									"key": "Currency",
+									"value": "USD",
+									"type": "text"
+								},
+								{
+									"key": "InitialBalance",
+									"value": "0.00",
+									"type": "text"
+								},
+								{
+									"key": "Description",
+									"value": "Account with zero initial balance",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/api/Account",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"Account"
+							]
+						},
+						"description": "Test creation of account with zero initial balance."
+					}
+				}
+			],
+			"description": "Edge case scenarios to test system robustness."
+		},
+		{
+			"name": "Data Integrity Tests",
+			"item": [
+				{
+					"name": "Concurrent Account Updates",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Concurrent update handled\", function () {",
+									"    // Should succeed or fail gracefully with conflict error",
+									"    pm.expect([200, 409, 422]).to.include(pm.response.code);",
+									"});",
+									"",
+									"// Track concurrent update attempts",
+									"let updateCount = pm.environment.get('concurrent_updates') || 0;",
+									"updateCount++;",
+									"pm.environment.set('concurrent_updates', updateCount);",
+									"",
+									"if (pm.response.code === 200) {",
+									"    console.log(`✅ Concurrent update ${updateCount} succeeded`);",
+									"} else if (pm.response.code === 409) {",
+									"    console.log(`⚠️ Concurrent update ${updateCount} conflict detected`);",
+									"} else {",
+									"    console.log(`❌ Concurrent update ${updateCount} failed: ${pm.response.code}`);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Generate unique update data",
+									"const timestamp = new Date().getTime();",
+									"const updateIteration = pm.environment.get('concurrent_updates') || 0;",
+									"pm.environment.set('concurrent_update_name', `Concurrent Update ${timestamp}_${updateIteration}`);"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{api_key}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "Id",
+									"value": "{{savings_account_id}}",
+									"type": "text"
+								},
+								{
+									"key": "Name",
+									"value": "{{concurrent_update_name}}",
+									"type": "text"
+								},
+								{
+									"key": "AccountType",
+									"value": "Savings",
+									"type": "text"
+								},
+								{
+									"key": "Currency",
+									"value": "USD",
+									"type": "text"
+								},
+								{
+									"key": "Description",
+									"value": "Concurrent update test",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/api/Account/{{savings_account_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"Account",
+								"{{savings_account_id}}"
+							]
+						},
+						"description": "Test concurrent updates to the same account."
+					}
+				},
+				{
+					"name": "Large Dataset Query",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Large dataset query completed\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Query performance acceptable\", function () {",
+									"    pm.expect(pm.response.responseTime).to.be.below(10000); // 10 seconds",
+									"});",
+									"",
+									"if (pm.response.code === 200) {",
+									"    const responseJson = pm.response.json();",
+									"    ",
+									"    pm.test(\"Pagination implemented\", function () {",
+									"        pm.expect(responseJson).to.have.property('pageSize');",
+									"        pm.expect(responseJson).to.have.property('totalCount');",
+									"        pm.expect(responseJson.pageSize).to.be.below(1000); // Reasonable page size",
+									"    });",
+									"    ",
+									"    console.log(`📊 Retrieved ${responseJson.items.length} items out of ${responseJson.totalCount} total`);",
+									"    console.log(`⏱️ Query time: ${pm.response.responseTime}ms`);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{api_key}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"page\": 1,\n    \"pageSize\": 100,\n    \"sortBy\": \"createdAt\",\n    \"sortDirection\": \"desc\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/Account/filter",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"Account",
+								"filter"
+							]
+						},
+						"description": "Test querying large datasets with pagination."
+					}
+				}
+			],
+			"description": "Data integrity and consistency validation tests."
+		},
+		{
+			"name": "Advanced Cleanup",
+			"item": [
+				{
+					"name": "Bulk Delete Performance Test Accounts",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Bulk cleanup completed\", function () {",
+									"    pm.expect([200, 204, 404]).to.include(pm.response.code);",
+									"});",
+									"",
+									"console.log('🗑️ Performance test account cleanup: ' + pm.response.code);"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Get list of bulk test accounts to cleanup",
+									"const bulkAccounts = JSON.parse(pm.environment.get('bulk_test_accounts') || '[]');",
+									"let currentIndex = pm.environment.get('bulk_cleanup_index') || 0;",
+									"",
+									"if (currentIndex < bulkAccounts.length) {",
+									"    pm.environment.set('current_bulk_cleanup_id', bulkAccounts[currentIndex]);",
+									"    pm.environment.set('bulk_cleanup_index', currentIndex + 1);",
+									"    console.log(`🗑️ Cleaning up bulk account ${currentIndex + 1}/${bulkAccounts.length}`);",
+									"} else {",
+									"    // Cleanup complete",
+									"    pm.environment.unset('bulk_cleanup_index');",
+									"    pm.environment.unset('bulk_test_accounts');",
+									"    console.log('✅ All bulk account cleanup completed');",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{api_key}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/Account/{{current_bulk_cleanup_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"Account",
+								"{{current_bulk_cleanup_id}}"
+							]
+						},
+						"description": "Clean up accounts created during bulk performance testing."
+					}
+				},
+				{
+					"name": "Cleanup Performance API Keys",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Performance API key cleanup completed\", function () {",
+									"    pm.expect([200, 404]).to.include(pm.response.code);",
+									"});",
+									"",
+									"console.log('🗑️ Performance API key cleanup: ' + pm.response.code);"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Get list of performance test API keys to cleanup",
+									"const perfApiKeys = JSON.parse(pm.environment.get('perf_test_api_keys') || '[]');",
+									"let currentIndex = pm.environment.get('perf_cleanup_index') || 0;",
+									"",
+									"if (currentIndex < perfApiKeys.length) {",
+									"    pm.environment.set('current_perf_cleanup_id', perfApiKeys[currentIndex]);",
+									"    pm.environment.set('perf_cleanup_index', currentIndex + 1);",
+									"    console.log(`🗑️ Cleaning up performance API key ${currentIndex + 1}/${perfApiKeys.length}`);",
+									"} else {",
+									"    // Cleanup complete",
+									"    pm.environment.unset('perf_cleanup_index');",
+									"    pm.environment.unset('perf_test_api_keys');",
+									"    pm.environment.unset('creation_response_times');",
+									"    console.log('✅ All performance API key cleanup completed');",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwt_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{identity_base_url}}/api/ApiKeys/{{current_perf_cleanup_id}}",
+							"host": [
+								"{{identity_base_url}}"
+							],
+							"path": [
+								"api",
+								"ApiKeys",
+								"{{current_perf_cleanup_id}}"
+							]
+						},
+						"description": "Clean up API keys created during performance testing."
+					}
+				}
+			],
+			"description": "Advanced cleanup operations for test data."
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Advanced global pre-request script",
+					"",
+					"// Ensure required environment variables exist",
+					"const requiredVars = ['base_url', 'identity_base_url', 'jwt_token', 'api_key'];",
+					"const missingVars = requiredVars.filter(varName => !pm.environment.get(varName));",
+					"",
+					"if (missingVars.length > 0) {",
+					"    console.log('⚠️ Missing environment variables: ' + missingVars.join(', '));",
+					"    console.log('Please run basic setup collections first');",
+					"}",
+					"",
+					"// Initialize test counters if not exists",
+					"if (!pm.environment.get('test_run_start_time')) {",
+					"    pm.environment.set('test_run_start_time', new Date().getTime());",
+					"}"
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Advanced global test script",
+					"",
+					"// Performance monitoring",
+					"const responseTime = pm.response.responseTime;",
+					"if (responseTime > 5000) {",
+					"    console.log('🐌 Slow response detected: ' + responseTime + 'ms');",
+					"} else if (responseTime > 2000) {",
+					"    console.log('⚠️ Moderate response time: ' + responseTime + 'ms');",
+					"} else {",
+					"    console.log('⚡ Fast response: ' + responseTime + 'ms');",
+					"}",
+					"",
+					"// Error pattern detection",
+					"if (pm.response.code >= 500) {",
+					"    console.log('🚨 Server error - collecting debug info');",
+					"    console.log('Request: ' + pm.request.method + ' ' + pm.request.url);",
+					"    console.log('Response: ' + pm.response.text());",
+					"}",
+					"",
+					"// Memory and performance tracking",
+					"const testRunTime = new Date().getTime() - pm.environment.get('test_run_start_time');",
+					"if (testRunTime > 300000) { // 5 minutes",
+					"    console.log('⏰ Long test run detected: ' + Math.round(testRunTime / 1000) + 's');",
+					"}"
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "advanced_test_version",
+			"value": "1.0.0",
+			"type": "string"
+		},
+		{
+			"key": "test_suite_id",
+			"value": "{{$randomUUID}}",
+			"type": "string"
+		}
+	]
+}

@@ -1,17 +1,29 @@
-using System.Text.Json;
+using System.Diagnostics;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.Extensions.DependencyInjection;
 using Ocelot.DependencyInjection;
 using Ocelot.Gateway.Configuration;
 using Ocelot.Gateway.Extensions;
 using Ocelot.Gateway.Middleware;
 using Ocelot.Middleware;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
+using OpenTelemetry.Exporter.Prometheus;
 using Serilog;
+using System.Text.Json;
 
 // Configure Serilog
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
     .WriteTo.File("logs/gateway-.txt", rollingInterval: RollingInterval.Day)
     .CreateLogger();
+
+JsonSerializerOptions options = new()
+{
+    PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+    WriteIndented = true
+};
 
 try
 {
@@ -22,15 +34,16 @@ try
     builder.Configuration
         .SetBasePath(builder.Environment.ContentRootPath)
         .AddJsonFile("appsettings.json", false, true)
-        .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", true, true)        .AddEnvironmentVariables();
+        .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", true, true)
+        .AddEnvironmentVariables();
 
     // TEMPORARY: Simplified config loading for debugging
     // Just load the Development config directly
     builder.Configuration.AddJsonFile($"ocelot.{builder.Environment.EnvironmentName}.json", false, true);
 
     // Read service ports configuration
-    // var servicePorts = builder.Configuration.GetSection("ServicePorts").Get<Dictionary<string, int>>() ??
-    //                    new Dictionary<string, int>();
+    var servicePorts = builder.Configuration.GetSection("ServicePorts").Get<Dictionary<string, int>>() ??
+                       [];
 
     // Read ocelot.json and replace environment variables with actual port values
     // var ocelotConfig = File.ReadAllText(Path.Combine(builder.Environment.ContentRootPath, "ocelot.json"));
@@ -50,12 +63,16 @@ try
                        new CorsSettings();
     var rateLimitSettings = builder.Configuration.GetSection(RateLimitSettings.SectionName).Get<RateLimitSettings>() ??
                             new RateLimitSettings();
+    var internalServiceSettings = builder.Configuration.GetSection(InternalServiceSettings.SectionName).Get<InternalServiceSettings>() ??
+                            new InternalServiceSettings();
 
     // Configure settings as services
     builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection(JwtSettings.SectionName));
     builder.Services.Configure<ApiKeySettings>(builder.Configuration.GetSection(ApiKeySettings.SectionName));
     builder.Services.Configure<CorsSettings>(builder.Configuration.GetSection(CorsSettings.SectionName));
     builder.Services.Configure<RateLimitSettings>(builder.Configuration.GetSection(RateLimitSettings.SectionName));
+    builder.Services.Configure<InternalServiceSettings>(builder.Configuration.GetSection(InternalServiceSettings.SectionName));
+    builder.Services.Configure<ApiKeyToJwtSettings>(builder.Configuration.GetSection(ApiKeyToJwtSettings.SectionName));
 
     // Add services to the container
     builder.Services.AddControllers()
@@ -66,7 +83,7 @@ try
         });
 
     // Add authentication and authorization
-    builder.Services.AddJwtAuthentication(jwtSettings);
+    builder.Services.AddAuthentication(jwtSettings);
     builder.Services.AddAuthorizationPolicies();
 
     // Add CORS
@@ -78,8 +95,79 @@ try
     // Add memory cache
     builder.Services.AddMemoryCache();
 
-    // Add Ocelot
+    // Add HttpContextAccessor for delegating handlers
+    builder.Services.AddHttpContextAccessor();
+
+    // Add auth metrics service
+    builder.Services.AddSingleton<Ocelot.Gateway.Services.AuthMetricsService>();
+
+    // Add HttpClient for Identity service communication with resilience policies
+    var apiKeyToJwtSettings = builder.Configuration.GetSection(ApiKeyToJwtSettings.SectionName).Get<ApiKeyToJwtSettings>() ?? new ApiKeyToJwtSettings();
+    builder.Services.AddHttpClient("IdentityService", client =>
+    {
+        client.BaseAddress = new Uri(internalServiceSettings.IdentityService!); // Identity service URL (corrected port)
+        client.Timeout = TimeSpan.FromMilliseconds(apiKeyToJwtSettings.TimeoutMs);
+        client.DefaultRequestHeaders.Add("User-Agent", "TiHoMo-Gateway/1.0");
+    })
+    .AddPolicyHandler(ResilienceExtensions.GetRetryPolicy())
+    .AddPolicyHandler(ResilienceExtensions.GetCircuitBreakerPolicy())
+    .AddPolicyHandler(ResilienceExtensions.GetTimeoutPolicy(apiKeyToJwtSettings.TimeoutMs));
+
+    // Note: CoreFinanceProxyMiddleware is added directly to pipeline, no DI registration needed
+    
+    // Add Ocelot without delegating handlers (using custom proxy middleware instead)
     builder.Services.AddOcelot(builder.Configuration);
+
+    // ✅ Configure OtelSettings from appsettings.json
+    // Cấu hình OtelSettings từ appsettings.json
+    var otelSettings = builder.Configuration.GetSection("OtelSettings").Get<OtelSettings>() ?? new OtelSettings
+    {
+        ServiceName = "TiHoMo.Gateway",
+        ServiceVersion = "1.0.0",
+        ExporterOtlpEndpoint = "http://tempo:4317",
+        TracesSampler = "traceidratio",
+        TracesSamplerArg = "1.0"
+    };
+
+    // ✅ Configure ActivitySource for distributed tracing
+    // Cấu hình ActivitySource cho distributed tracing
+    var activitySource = new ActivitySource(otelSettings.ServiceName);
+    builder.Services.AddSingleton(activitySource);
+
+    // ✅ Add OpenTelemetry for comprehensive observability
+    // Thêm OpenTelemetry cho observability toàn diện
+    builder.Services.AddOpenTelemetry()
+        .ConfigureResource(resource => resource
+            .AddService(otelSettings.ServiceName, otelSettings.ServiceVersion)
+            .AddAttributes(otelSettings.GetResourceAttributesDictionary())
+            .AddAttributes(new Dictionary<string, object>
+            {
+                ["service.namespace"] = "TiHoMo",
+                ["service.instance.id"] = Environment.MachineName,
+                ["deployment.environment"] = builder.Environment.EnvironmentName,
+                ["service.type"] = "gateway"
+            }))
+        .WithTracing(tracing => tracing
+            .SetSampler(new TraceIdRatioBasedSampler(otelSettings.GetSamplingRatio()))
+            .AddAspNetCoreInstrumentation(options =>
+            {
+                options.RecordException = true;
+                options.Filter = httpContext => !httpContext.Request.Path.StartsWithSegments("/health");
+            })
+            .AddHttpClientInstrumentation(options => { options.RecordException = true; })
+            .AddSource(otelSettings.ServiceName)
+            .AddOtlpExporter(otlpOptions =>
+            {
+                otlpOptions.Endpoint = new Uri(otelSettings.ExporterOtlpEndpoint);
+            })
+            .AddConsoleExporter())
+        .WithMetrics(metrics => metrics
+            .AddAspNetCoreInstrumentation()
+            .AddHttpClientInstrumentation()
+            .AddRuntimeInstrumentation()
+            .AddMeter(otelSettings.ServiceName)
+            .AddMeter("TiHoMo.Gateway.Auth") // Add auth metrics
+            .AddPrometheusExporter());
 
     // Add OpenAPI/Swagger
     builder.Services.AddEndpointsApiExplorer();
@@ -89,6 +177,10 @@ try
 
     // Configure the HTTP request pipeline
     app.UseGlobalExceptionHandling();
+
+    // ✅ Add CorrelationMiddleware for correlation ID tracking and structured logging
+    // Thêm CorrelationMiddleware cho correlation ID tracking và structured logging
+    app.UseMiddleware<CorrelationMiddleware>();
 
     if (app.Environment.IsDevelopment())
     {
@@ -104,13 +196,24 @@ try
 
     app.UseRequestLogging();
 
+    // ✅ Add TracingMiddleware for distributed tracing
+    // Thêm TracingMiddleware cho distributed tracing
+    app.UseDistributedTracing();
+
     app.UseCors(corsSettings.PolicyName);
 
+    // Add simple API Key to JWT middleware BEFORE authentication (converts API Key to JWT Bearer token)
+    app.UseMiddleware<ApiKeyToJwtMiddleware>();
+
     app.UseAuthentication();
+    
     app.UseAuthorization();
 
     // Handle local routes first
     app.MapControllers();
+
+    // Note: Gateway metrics are exposed via OpenTelemetry Prometheus exporter
+    // No need for explicit MapMetrics() endpoint in Gateway
 
     // Map health check endpoints
     app.MapHealthChecks("/health", new HealthCheckOptions
@@ -132,34 +235,11 @@ try
                 }),
                 Timestamp = DateTime.UtcNow
             };
-            await context.Response.WriteAsync(JsonSerializer.Serialize(response, new JsonSerializerOptions
-            {
-                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-                WriteIndented = true
-            }));        }
+            await context.Response.WriteAsync(JsonSerializer.Serialize(response, options));        }
     }); 
     
-    // Use middleware to conditionally apply Ocelot
-    app.UseWhen(context =>
-        {
-            var path = context.Request.Path.Value?.ToLower();
-            // Only use Ocelot for specific API paths that need to be proxied
-            return path != null &&
-                   !path.Equals("/health") &&  // Exclude only the exact /health path, not paths that start with /health
-                   !path.StartsWith("/swagger") &&
-                   !path.StartsWith("/api/health") &&
-                   (path.StartsWith("/identity") ||
-                    path.StartsWith("/sso") ||
-                    path.StartsWith("/auth") ||
-                    path.StartsWith("/api/users") ||
-                    path.StartsWith("/api/admin") ||
-                    path.StartsWith("/api/core-finance") ||
-                    path.StartsWith("/api/money-management") ||
-                    path.StartsWith("/api/planning-investment") ||
-                    path.StartsWith("/api/excel") ||
-                    path.StartsWith("/health/"));  // Explicitly include health sub-paths for Ocelot routing
-        },
-        appBuilder => { appBuilder.UseOcelot().Wait(); });
+    // Use Ocelot for all requests (now with JWT Bearer tokens)
+    app.UseOcelot().Wait();
 
     Log.Information("Ocelot Gateway started successfully on {BaseUrl}",
         builder.Configuration["GlobalConfiguration:BaseUrl"] ?? "http://localhost:5000");

@@ -1,5 +1,6 @@
 using Shared.EntityFramework.DTOs;
 using CoreFinance.Domain.Enums;
+using CoreFinance.Application.Interfaces;
 
 namespace CoreFinance.Application.DTOs.Account;
 
@@ -7,7 +8,7 @@ namespace CoreFinance.Application.DTOs.Account;
 ///     Represents a request to create a new account. (EN)<br />
 ///     Đại diện cho request tạo tài khoản mới. (VI)
 /// </summary>
-public class AccountCreateRequest : BaseCreateRequest
+public class AccountCreateRequest : BaseCreateRequest, IUserRequest
 {
     /// <summary>
     ///     The ID of the user who owns the account (optional). (EN)<br />

@@ -106,20 +106,6 @@ public class ExpectedTransactionViewModel : BaseViewModel<Guid>
     public DateTime? ProcessedAt { get; set; }
 
     /// <summary>
-    ///     The creation date and time of the expected transaction. (EN)<br />
-    ///     Ngày và giờ tạo giao dịch dự kiến. (VI)
-    /// </summary>
-    public DateTime CreatedAt { get; set; }
-
-    /// <summary>
-    ///     The last update date and time of the expected transaction. (EN)<br />
-    ///     Ngày và giờ cập nhật cuối cùng của giao dịch dự kiến. (VI)
-    /// </summary>
-    public DateTime UpdatedAt { get; set; }
-
-    // Navigation properties
-
-    /// <summary>
     ///     The name of the recurring transaction template this expected transaction is based on. (EN)<br />
     ///     Tên của mẫu giao dịch định kỳ mà giao dịch dự kiến này dựa trên. (VI)
     /// </summary>

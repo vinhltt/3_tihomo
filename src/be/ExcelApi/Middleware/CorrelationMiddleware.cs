@@ -11,10 +11,12 @@ public class CorrelationMiddleware(RequestDelegate next, ILogger<CorrelationMidd
 {
     public async Task InvokeAsync(HttpContext context)
     {
-        var correlationId = GetOrCreateCorrelationId(context);
-
-        // Add to Serilog context for all logs in this request
-        using (LogContext.PushProperty("CorrelationId", correlationId))
+        // Use TraceId as primary correlation identifier - more standards-compliant
+        // Sử dụng TraceId làm identifier chính - tuân thủ chuẩn W3C
+        var traceId = GetOrCreateTraceId(context);
+        
+        // Add TraceId to Serilog context for all logs in this request
+        using (LogContext.PushProperty("TraceId", traceId))
         using (LogContext.PushProperty("RequestPath", context.Request.Path))
         using (LogContext.PushProperty("RequestMethod", context.Request.Method))
         using (LogContext.PushProperty("UserAgent", context.Request.Headers.UserAgent.ToString()))
@@ -49,25 +51,34 @@ public class CorrelationMiddleware(RequestDelegate next, ILogger<CorrelationMidd
         }
     }
 
-    private string GetOrCreateCorrelationId(HttpContext context)
+    private string GetOrCreateTraceId(HttpContext context)
     {
-        // Try to get correlation ID from header
-        if (context.Request.Headers.TryGetValue("X-Correlation-ID", out var headerValue))
+        // First try to get TraceId from current OpenTelemetry Activity
+        var currentTraceId = Activity.Current?.TraceId.ToString();
+        if (!string.IsNullOrEmpty(currentTraceId) && currentTraceId != "00000000000000000000000000000000")
         {
-            var correlationId = headerValue.FirstOrDefault();
-            if (!string.IsNullOrEmpty(correlationId))
+            // Add to response header for client reference
+            context.Response.Headers["X-Trace-ID"] = currentTraceId;
+            return currentTraceId;
+        }
+
+        // Try to get from incoming header (for external clients)
+        if (context.Request.Headers.TryGetValue("X-Trace-ID", out var headerValue))
+        {
+            var traceId = headerValue.FirstOrDefault();
+            if (!string.IsNullOrEmpty(traceId))
             {
                 // Add to response header
-                context.Response.Headers["X-Correlation-ID"] = correlationId;
-                return correlationId;
+                context.Response.Headers["X-Trace-ID"] = traceId;
+                return traceId;
             }
         }
 
-        // Generate new correlation ID
-        var newCorrelationId = Guid.NewGuid().ToString();
-        context.Response.Headers["X-Correlation-ID"] = newCorrelationId;
-        context.Items["CorrelationId"] = newCorrelationId;
+        // Generate new TraceId as fallback
+        var newTraceId = Guid.NewGuid().ToString("N"); // 32 chars hex, similar to OpenTelemetry format
+        context.Response.Headers["X-Trace-ID"] = newTraceId;
+        context.Items["TraceId"] = newTraceId;
 
-        return newCorrelationId;
+        return newTraceId;
     }
 }

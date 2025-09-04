@@ -5,6 +5,21 @@ namespace Identity.Contracts;
 #region Request DTOs
 
 /// <summary>
+/// Simple request model for API key creation (end users) (EN)<br/>
+/// Model yêu cầu đơn giản để tạo API key cho end users (VI)
+/// </summary>
+public class CreateSimpleApiKeyRequest
+{
+    /// <summary>
+    /// Name - Tên API key (EN)<br/>
+    /// Tên API key (VI)
+    /// </summary>
+    [Required]
+    [StringLength(100, MinimumLength = 1)]
+    public string Name { get; set; } = string.Empty;
+}
+
+/// <summary>
 /// Enhanced request model for API key creation with security features (EN)<br/>
 /// Model yêu cầu nâng cao để tạo API key với tính năng bảo mật (VI)
 /// </summary>
@@ -504,6 +519,12 @@ public class VerifyApiKeyResponse
     public Guid? UserId { get; set; }
     
     /// <summary>
+    /// User Email - Email của user (EN)<br/>
+    /// Email của người dùng (VI)
+    /// </summary>
+    public string? UserEmail { get; set; }
+    
+    /// <summary>
     /// API Key ID - ID của API key (EN)<br/>
     /// ID của khóa API (VI)
     /// </summary>
@@ -526,6 +547,43 @@ public class VerifyApiKeyResponse
     /// Thông báo lỗi (VI)
     /// </summary>
     public string? ErrorMessage { get; set; }
+}
+
+/// <summary>
+/// Response model for API key exchange to JWT token (EN)<br/>
+/// Model phản hồi cho trao đổi API key thành JWT token (VI)
+/// </summary>
+public class ApiKeyExchangeResponse
+{
+    /// <summary>
+    /// Access Token - JWT token (EN)<br/>
+    /// Access Token - JWT token (VI)
+    /// </summary>
+    public string AccessToken { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// Expires At - Thời gian hết hạn (EN)<br/>
+    /// Thời gian hết hạn (VI)
+    /// </summary>
+    public DateTime ExpiresAt { get; set; }
+    
+    /// <summary>
+    /// Token Type - Loại token (EN)<br/>
+    /// Loại token (VI)
+    /// </summary>
+    public string TokenType { get; set; } = "Bearer";
+    
+    /// <summary>
+    /// User ID - ID của user (EN)<br/>
+    /// ID của người dùng (VI)
+    /// </summary>
+    public Guid UserId { get; set; }
+    
+    /// <summary>
+    /// User Email - Email của user (EN)<br/>
+    /// Email của người dùng (VI)
+    /// </summary>
+    public string UserEmail { get; set; } = string.Empty;
 }
 
 /// <summary>

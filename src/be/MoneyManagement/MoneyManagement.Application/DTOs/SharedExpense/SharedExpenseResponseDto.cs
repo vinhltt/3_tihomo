@@ -79,7 +79,7 @@ public class SharedExpenseResponseDto
     ///     Currency code (EN)<br />
     ///     Mã tiền tệ (VI)
     /// </summary>
-    public string CurrencyCode { get; set; } = "VND";
+    public string? CurrencyCode { get; set; } = "VND";
 
     /// <summary>
     ///     Receipt or proof image URL (EN)<br />

@@ -1,109 +1,5 @@
 <template>
   <div class="api-key-list">
-    <!-- Header với Create Button và View Toggle (Tiêu đề với nút tạo và toggle xem) -->
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-      <div class="flex items-center space-x-3">
-        <icon-key class="h-6 w-6 text-primary" />
-        <h2 class="text-xl font-semibold text-gray-900 dark:text-white">
-          {{ $t('apiKey.management.title') }}
-        </h2>
-        <div v-if="!loading" class="text-sm text-gray-500 dark:text-gray-400">
-          ({{ filteredApiKeys.length }} {{ $t('apiKey.management.keys') }})
-        </div>
-      </div>
-      
-      <div class="flex items-center space-x-3">
-        <!-- View Mode Toggle -->
-        <div class="flex rounded-lg bg-gray-100 dark:bg-gray-800 p-1">
-          <button
-            v-for="mode in viewModes"
-            :key="mode.value"
-            @click="viewMode = mode.value"
-            :class="[
-              'px-3 py-1.5 text-sm font-medium rounded-md transition-all duration-200',
-              viewMode === mode.value
-                ? 'bg-white dark:bg-gray-700 text-primary shadow-sm'
-                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-            ]"
-          >
-            <component :is="mode.icon" class="h-4 w-4" />
-          </button>
-        </div>
-        
-        <!-- Advanced Columns Toggle -->
-        <button
-          @click="showAdvancedColumns = !showAdvancedColumns"
-          :class="[
-            'inline-flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors',
-            showAdvancedColumns
-              ? 'bg-primary text-white'
-              : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
-          ]"
-        >
-          <icon-adjustments-horizontal class="h-4 w-4 mr-2" />
-          {{ $t('apiKey.list.advancedColumns') }}
-        </button>
-        
-        <!-- Create Button -->
-        <button
-          @click="$emit('create-key')"
-          class="inline-flex items-center px-4 py-2 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary-dark transition-colors"
-        >
-          <icon-plus class="h-4 w-4 mr-2" />
-          {{ $t('apiKey.actions.create') }}
-        </button>
-      </div>
-    </div>
-
-    <!-- Filters Section (Phần bộ lọc) -->
-    <div class="panel mb-6 p-4">
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <!-- Search Filter -->
-        <div class="relative">
-          <icon-magnifying-glass class="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-          <input
-            v-model="filters.search"
-            type="text"
-            :placeholder="$t('apiKey.filters.searchPlaceholder')"
-            class="pl-10 form-input w-full"
-          />
-        </div>
-        
-        <!-- Status Filter -->
-        <select
-          v-model="filters.status"
-          class="form-select"
-        >
-          <option value="">{{ $t('apiKey.filters.allStatuses') }}</option>
-          <option value="active">{{ $t('apiKey.status.active') }}</option>
-          <option value="revoked">{{ $t('apiKey.status.revoked') }}</option>
-          <option value="expired">{{ $t('apiKey.status.expired') }}</option>
-        </select>
-        
-        <!-- Scope Filter -->
-        <select
-          v-model="filters.scope"
-          class="form-select"
-        >
-          <option value="">{{ $t('apiKey.filters.allScopes') }}</option>
-          <option v-for="scope in availableScopes" :key="scope" :value="scope">
-            {{ $t(`apiKey.scopes.${scope}`) }}
-          </option>
-        </select>
-        
-        <!-- Sort Options -->
-        <select
-          v-model="sortBy"
-          class="form-select"
-        >
-          <option value="name">{{ $t('apiKey.sorting.name') }}</option>
-          <option value="createdAt">{{ $t('apiKey.sorting.created') }}</option>
-          <option value="lastUsedAt">{{ $t('apiKey.sorting.lastUsed') }}</option>
-          <option value="usageCount">{{ $t('apiKey.sorting.usage') }}</option>
-        </select>
-      </div>
-    </div>
-
     <!-- Table Container (Container bảng) -->
     <div class="panel">
       <!-- Loading Overlay -->
@@ -128,9 +24,7 @@
                 </button>
               </th>
               <th scope="col" class="table-header">{{ $t('apiKey.table.keyPrefix') }}</th>
-              <th scope="col" class="table-header">{{ $t('apiKey.table.scopes') }}</th>
               <th scope="col" class="table-header">{{ $t('apiKey.table.status') }}</th>
-              <th scope="col" class="table-header">{{ $t('apiKey.table.usage') }}</th>
               <th v-if="showAdvancedColumns" scope="col" class="table-header">
                 <button @click="toggleSort('createdAt')" class="flex items-center space-x-1 group">
                   <span>{{ $t('apiKey.table.created') }}</span>
@@ -179,88 +73,34 @@
                 </div>
               </td>
               
-              <!-- Scopes Column -->
-              <td class="table-cell">
-                <div class="flex flex-wrap gap-1">
-                  <ScopeBadge
-                    v-for="scope in apiKey.scopes.slice(0, 2)"
-                    :key="scope"
-                    :scope="scope"
-                    size="sm"
-                  />
-                  <span
-                    v-if="apiKey.scopes.length > 2"
-                    class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300"
-                  >
-                    +{{ apiKey.scopes.length - 2 }}
-                  </span>
-                </div>
-              </td>
-              
               <!-- Status Column -->
               <td class="table-cell">
                 <StatusBadge :status="apiKey.status" :expires-at="apiKey.expiresAt" />
-              </td>
-              
-              <!-- Usage Column -->
-              <td class="table-cell">
-                <UsageIndicator
-                  :current="apiKey.todayUsageCount"
-                  :limit="apiKey.dailyUsageQuota"
-                  :rate-limit="apiKey.rateLimitPerMinute"
-                  variant="compact"
-                  size="sm"
-                />
-              </td>
-              
-              <!-- Created Column (Advanced) -->
-              <td v-if="showAdvancedColumns" class="table-cell">
-                <div class="text-sm text-gray-600 dark:text-gray-400">
-                  <time :datetime="apiKey.createdAt" :title="formatFullDate(apiKey.createdAt)">
-                    {{ formatRelativeTime(apiKey.createdAt) }}
-                  </time>
-                </div>
-              </td>
-              
-              <!-- Expires Column (Advanced) -->
-              <td v-if="showAdvancedColumns" class="table-cell">
-                <div v-if="apiKey.expiresAt" class="text-sm">
-                  <time 
-                    :datetime="apiKey.expiresAt"
-                    :title="formatFullDate(apiKey.expiresAt)"
-                    :class="getExpiryClasses(apiKey.expiresAt)"
-                  >
-                    {{ formatRelativeTime(apiKey.expiresAt) }}
-                  </time>
-                </div>
-                <span v-else class="text-sm text-gray-500 dark:text-gray-400">
-                  {{ $t('apiKey.expiry.never') }}
-                </span>
               </td>
               
               <!-- Actions Column -->
               <td class="table-cell text-right">
                 <div class="flex items-center justify-end space-x-2">
                   <button
-                    @click.stop="$emit('edit-key', apiKey.id)"
-                    class="p-1.5 text-gray-400 hover:text-primary transition-colors"
-                    :title="$t('common.edit')"
+                    @click.stop="$emit('copy-key-prefix', apiKey)"
+                    class="p-1.5 text-gray-400 hover:text-info transition-colors"
+                    title="Copy API Key Prefix"
                   >
-                    <icon-pencil class="h-4 w-4" />
+                    <icon-copy class="h-4 w-4" />
                   </button>
                   
                   <button
                     @click.stop="$emit('regenerate-key', apiKey.id)"
                     class="p-1.5 text-gray-400 hover:text-warning transition-colors"
-                    :title="$t('apiKey.actions.regenerate')"
+                    title="Regenerate API Key"
                   >
-                    <icon-arrow-path class="h-4 w-4" />
+                    <icon-refresh class="h-4 w-4" />
                   </button>
                   
                   <button
                     @click.stop="$emit('revoke-key', apiKey.id)"
                     class="p-1.5 text-gray-400 hover:text-danger transition-colors"
-                    :title="$t('apiKey.actions.revoke')"
+                    title="Revoke API Key"
                     :disabled="apiKey.status === 'revoked'"
                   >
                     <icon-trash class="h-4 w-4" />
@@ -343,16 +183,16 @@
               </div>
               <div class="flex items-center space-x-1">
                 <button
-                  @click.stop="$emit('edit-key', apiKey.id)"
-                  class="p-1.5 text-gray-400 hover:text-primary transition-colors"
+                  @click.stop="$emit('copy-key-prefix', apiKey)"
+                  class="p-1.5 text-gray-400 hover:text-info transition-colors"
                 >
-                  <icon-pencil class="h-4 w-4" />
+                  <icon-copy class="h-4 w-4" />
                 </button>
                 <button
                   @click.stop="$emit('regenerate-key', apiKey.id)"
                   class="p-1.5 text-gray-400 hover:text-warning transition-colors"
                 >
-                  <icon-arrow-path class="h-4 w-4" />
+                  <icon-refresh class="h-4 w-4" />
                 </button>
                 <button
                   @click.stop="$emit('revoke-key', apiKey.id)"
@@ -369,7 +209,7 @@
 
       <!-- Empty State (Trạng thái trống) -->
       <div v-if="!loading && filteredApiKeys.length === 0" class="text-center py-12">
-        <icon-key class="mx-auto h-12 w-12 text-gray-400" />
+        <icon-lock class="mx-auto h-12 w-12 text-gray-400" />
         <h3 class="mt-4 text-lg font-medium text-gray-900 dark:text-white">
           {{ hasFilters ? $t('apiKey.empty.noResults') : $t('apiKey.empty.noKeys') }}
         </h3>

@@ -1,0 +1,445 @@
+name: Deploy Infrastructure Services
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'development'
+        type: choice
+        options:
+          - development
+          - staging
+          - production
+      services:
+        description: 'Specific services to deploy (comma-separated: postgres,redis,rabbitmq,prometheus,grafana,loki,tempo) or "all"'
+        required: false
+        default: 'all'
+        type: string
+      force_rebuild:
+        description: 'Force rebuild images'
+        required: false
+        default: false
+        type: boolean
+      force_recreate_env:
+        description: 'Force recreate .env file'
+        required: false
+        default: false
+        type: boolean
+  push:
+    branches:
+      - master
+      - develop
+    paths:
+      - 'config/**'
+      - 'scripts/**'
+      - 'docker-compose.infras.yml'
+      - '.github/workflows/deploy-infrastructure-services.yml'
+
+concurrency:
+  group: tihomo-infrastructure-${{ github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  # Deploy infrastructure services
+  deploy-infrastructure:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment || (github.ref == 'refs/heads/master' && 'production' || 'development') }}
+    timeout-minutes: 25
+    outputs:
+      deployment-status: ${{ steps.deploy.outputs.status }}
+      
+    steps:
+      - name: "[1/8] Checkout code"
+        uses: actions/checkout@v4
+
+      - name: "[2/8] Setup environment variables"
+        run: |
+          CLEAN_ENV=$(echo "${{ inputs.environment || (github.ref == 'refs/heads/master' && 'production' || 'development') }}" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]//g')
+          echo "TRUENAS_DEPLOY_DIR=${{ vars.DEPLOY_PATH_ON_TRUENAS }}/deploy_${GITHUB_REF_NAME}" >> $GITHUB_ENV
+          echo "COMPOSE_PROJECT_NAME=tihomo_${CLEAN_ENV}" >> $GITHUB_ENV
+          echo "ENVIRONMENT=${CLEAN_ENV}" >> $GITHUB_ENV
+          
+          # Parse services to deploy
+          SERVICES="${{ inputs.services || 'all' }}"
+          if [ "$SERVICES" = "all" ]; then
+            SERVICES="postgres,redis,rabbitmq,prometheus,grafana,loki,tempo,pgadmin,mailhog,nginx"
+          fi
+          echo "SERVICES_TO_DEPLOY=${SERVICES}" >> $GITHUB_ENV
+          
+          echo "[INFO] Deploy directory: ${{ vars.DEPLOY_PATH_ON_TRUENAS }}/deploy_${GITHUB_REF_NAME}"
+          echo "[INFO] Project name: tihomo_${CLEAN_ENV}"
+          echo "[INFO] Services: ${SERVICES}"
+
+      - name: "[3/8] Setup SSH and Cloudflared"
+        run: |
+          sudo wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -O /usr/local/bin/cloudflared
+          sudo chmod +x /usr/local/bin/cloudflared
+          
+          mkdir -p "$HOME/.ssh"
+          echo "Host truenas-cf-tunnel
+            HostName ${{ secrets.TRUENAS_SSH_HOSTNAME_THROUGH_CLOUDFLARED }}
+            ProxyCommand cloudflared access ssh --hostname %h
+            User ${{ secrets.TRUENAS_USER }}
+            StrictHostKeyChecking accept-new" > "$HOME/.ssh/config"
+          chmod 600 "$HOME/.ssh/config"
+
+      - name: "[4/8] Add SSH key"
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.TRUENAS_SSH_PRIVATE_KEY }}
+
+      - name: "[5/8] Create and validate environment file"
+        run: |
+          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << 'EOF'
+            # Create deployment directory if it doesn't exist
+            mkdir -p ${{ env.TRUENAS_DEPLOY_DIR }}
+            cd ${{ env.TRUENAS_DEPLOY_DIR }}
+            
+            echo "[INFO] Working in directory: $(pwd)"
+            
+            # Handle .env file creation/recreation
+            if [ "${{ inputs.force_recreate_env }}" = "true" ]; then
+              echo "[FORCE] Force recreate .env requested"
+              if [ -f .env ]; then
+                cp .env .env.backup.$(date +%Y%m%d_%H%M%S)
+                echo "[BACKUP] Created backup before force recreate"
+              fi
+              rm -f .env
+            elif [ -f .env ]; then
+              echo "[CHECK] .env file exists, validating required variables..."
+              required_vars="COMPOSE_PROJECT_NAME POSTGRES_SUPER_PASSWORD REDIS_PASSWORD RABBITMQ_PASSWORD GRAFANA_ADMIN_PASSWORD"
+              missing_vars=""
+              
+              for var in $required_vars; do
+                if ! grep -q "^${var}=" .env; then
+                  missing_vars="$missing_vars $var"
+                fi
+              done
+              
+              if [ -z "$missing_vars" ]; then
+                echo "[OK] Existing .env file is valid"
+                exit 0
+              else
+                echo "[WARNING] Missing variables: $missing_vars, recreating .env"
+                cp .env .env.backup.$(date +%Y%m%d_%H%M%S)
+                rm -f .env
+              fi
+            fi
+            
+            echo "[CREATE] Creating comprehensive .env file..."
+            
+            cat > .env << 'ENVEOF'
+# TiHoMo Infrastructure Environment Configuration
+# Generated: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+# Project Configuration
+COMPOSE_PROJECT_NAME=${{ env.COMPOSE_PROJECT_NAME }}
+
+# Core Infrastructure Ports
+POSTGRES_PORT=${{ vars.POSTGRES_PORT || '5432' }}
+REDIS_PORT=${{ vars.REDIS_PORT || '6379' }}
+RABBITMQ_PORT=${{ vars.RABBITMQ_PORT || '5672' }}
+RABBITMQ_MANAGEMENT_PORT=${{ vars.RABBITMQ_MANAGEMENT_PORT || '15672' }}
+
+# Monitoring Ports
+PROMETHEUS_PORT=${{ vars.PROMETHEUS_PORT || '9090' }}
+GRAFANA_PORT=${{ vars.GRAFANA_PORT || '3000' }}
+LOKI_PORT=${{ vars.LOKI_PORT || '3100' }}
+
+# Development Tools Ports
+PGADMIN_PORT=${{ vars.PGADMIN_PORT || '8080' }}
+MAILHOG_SMTP_PORT=${{ vars.MAILHOG_SMTP_PORT || '1025' }}
+MAILHOG_UI_PORT=${{ vars.MAILHOG_UI_PORT || '8025' }}
+NGINX_HTTP_PORT=${{ vars.NGINX_HTTP_PORT || '80' }}
+NGINX_HTTPS_PORT=${{ vars.NGINX_HTTPS_PORT || '443' }}
+
+# Database Configuration
+POSTGRES_SUPER_USER=${{ vars.POSTGRES_SUPER_USER || 'postgres' }}
+POSTGRES_SUPER_PASSWORD='${{ secrets.POSTGRES_SUPER_PASSWORD }}'
+
+# Redis Configuration  
+REDIS_PASSWORD='${{ secrets.REDIS_PASSWORD }}'
+REDIS_PERSISTENCE_CONFIG=${{ env.ENVIRONMENT == 'production' && '--save 900 1 --save 300 10 --save 60 10000' || '' }}
+
+# RabbitMQ Configuration
+RABBITMQ_PASSWORD='${{ secrets.RABBITMQ_PASSWORD }}'
+
+# Monitoring Configuration
+PROMETHEUS_RETENTION=${{ env.ENVIRONMENT == 'production' && '30d' || '200h' }}
+GRAFANA_ADMIN_PASSWORD='${{ secrets.GRAFANA_ADMIN_PASSWORD }}'
+GRAFANA_ANALYTICS_ENABLED=${{ env.ENVIRONMENT == 'production' && 'false' || 'true' }}
+GRAFANA_CHECK_UPDATES=${{ env.ENVIRONMENT == 'production' && 'false' || 'true' }}
+
+# Development Tools Configuration
+PGADMIN_PASSWORD='${{ secrets.PGADMIN_PASSWORD }}'
+ENABLE_DEV_TOOLS=${{ env.ENVIRONMENT == 'production' && 'none' || 'development' }}
+
+# OpenTelemetry Configuration
+OTEL_EXPORTER_OTLP_ENDPOINT=http://tempo:4317
+
+# Deployment Information
+DEPLOY_BRANCH=${{ github.ref_name }}
+DEPLOY_COMMIT=${{ github.sha }}
+DEPLOY_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+ENVIRONMENT=${{ env.ENVIRONMENT }}
+ENVEOF
+            
+            echo "[SUCCESS] .env file created successfully"
+            echo "[VALIDATION] Checking critical variables..."
+            
+            critical_vars=("POSTGRES_SUPER_PASSWORD" "REDIS_PASSWORD" "RABBITMQ_PASSWORD" "GRAFANA_ADMIN_PASSWORD")
+            missing_vars=()
+            
+            for var in "${critical_vars[@]}"; do
+              if ! grep -q "^${var}=" .env || [ "$(grep "^${var}=" .env | cut -d'=' -f2 | tr -d "'")" = "" ]; then
+                missing_vars+=("$var")
+              fi
+            done
+            
+            if [ ${#missing_vars[@]} -gt 0 ]; then
+              echo "[ERROR] Missing critical variables: ${missing_vars[*]}"
+              exit 1
+            else
+              echo "[OK] All critical variables are set"
+            fi
+          EOF
+
+      - name: "[6/8] Deploy infrastructure services"
+        id: deploy
+        run: |
+          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << 'EOF'
+            cd ${{ env.TRUENAS_DEPLOY_DIR }}
+            
+            # Check Docker access
+            if docker ps >/dev/null 2>&1; then
+              USE_SUDO=""
+            else
+              USE_SUDO="sudo"
+            fi
+            
+            echo "[INFO] Deploying infrastructure services..."
+            echo "[INFO] Environment: ${{ env.ENVIRONMENT }}"
+            echo "[INFO] Services: ${{ env.SERVICES_TO_DEPLOY }}"
+            
+            # Parse services to deploy
+            IFS=',' read -ra SERVICES <<< "${{ env.SERVICES_TO_DEPLOY }}"
+            DEPLOYED_SERVICES=()
+            FAILED_SERVICES=()
+            
+            # Create network first
+            echo "[NETWORK] Creating tihomo-network..."
+            $USE_SUDO docker network create tihomo-network 2>/dev/null || echo "[INFO] Network already exists"
+            
+            # Deploy services in order of dependency
+            SERVICE_GROUPS=(
+              "postgres"
+              "redis rabbitmq"
+              "prometheus loki tempo"
+              "grafana"
+              "pgadmin mailhog nginx"
+            )
+            
+            for group in "${SERVICE_GROUPS[@]}"; do
+              group_services=($group)
+              for service in "${group_services[@]}"; do
+                # Check if service is in the deploy list
+                if [[ " ${SERVICES[*]} " =~ " ${service} " ]]; then
+                  echo "[DEPLOY] Deploying $service..."
+                  
+                  if $USE_SUDO docker compose -f docker-compose.infras.yml config --services | grep -q "^$service$"; then
+                    $USE_SUDO docker compose -f docker-compose.infras.yml up -d --no-deps --force-recreate $service
+                    
+                    # Wait for service to be ready
+                    echo "[HEALTH] Waiting for $service to be ready..."
+                    max_attempts=8
+                    attempt=1
+                    service_ready=false
+                    
+                    while [ $attempt -le $max_attempts ]; do
+                      if $USE_SUDO docker compose -f docker-compose.infras.yml ps $service | grep -q "Up"; then
+                        echo "[RUNNING] $service container is running"
+                        
+                        # Service-specific health checks
+                        case $service in
+                          postgres)
+                            sleep 15
+                            if $USE_SUDO docker compose -f docker-compose.infras.yml exec -T postgres pg_isready -U postgres >/dev/null 2>&1; then
+                              service_ready=true
+                            fi
+                            ;;
+                          redis)
+                            sleep 5
+                            if $USE_SUDO docker compose -f docker-compose.infras.yml exec -T redis redis-cli -a "$REDIS_PASSWORD" ping 2>/dev/null | grep -q "PONG"; then
+                              service_ready=true
+                            fi
+                            ;;
+                          rabbitmq)
+                            sleep 20
+                            if $USE_SUDO docker compose -f docker-compose.infras.yml exec -T rabbitmq rabbitmq-diagnostics ping >/dev/null 2>&1; then
+                              service_ready=true
+                            fi
+                            ;;
+                          prometheus|grafana|loki|tempo)
+                            sleep 10
+                            service_ready=true  # Assume ready if container is up
+                            ;;
+                          *)
+                            sleep 5
+                            service_ready=true  # Assume ready for other services
+                            ;;
+                        esac
+                        
+                        if [ "$service_ready" = true ]; then
+                          echo "[SUCCESS] $service health check passed"
+                          break
+                        else
+                          echo "[INFO] $service container running but not ready yet"
+                        fi
+                      else
+                        echo "[WAIT] $service not ready yet (attempt $attempt/$max_attempts)"
+                      fi
+                      
+                      sleep 10
+                      ((attempt++))
+                    done
+                    
+                    if [ "$service_ready" = true ]; then
+                      DEPLOYED_SERVICES+=("$service")
+                    else
+                      echo "[WARNING] $service deployment may need more time"
+                      echo "[DEBUG] Recent logs for $service:"
+                      $USE_SUDO docker compose -f docker-compose.infras.yml logs --tail=15 $service
+                      FAILED_SERVICES+=("$service")
+                    fi
+                  else
+                    echo "[ERROR] Service $service not found in compose file"
+                    FAILED_SERVICES+=("$service")
+                  fi
+                fi
+              done
+              
+              # Wait between groups for stability
+              if [ ${#group_services[@]} -gt 0 ]; then
+                echo "[INFO] Waiting for service group to stabilize..."
+                sleep 10
+              fi
+            done
+            
+            # Deployment summary
+            echo ""
+            echo "[SUMMARY] Infrastructure Deployment Results:"
+            echo "==========================================="
+            
+            if [ ${#DEPLOYED_SERVICES[@]} -gt 0 ]; then
+              echo "✅ Successfully deployed:"
+              for service in "${DEPLOYED_SERVICES[@]}"; do
+                echo "   • $service"
+              done
+            fi
+            
+            if [ ${#FAILED_SERVICES[@]} -gt 0 ]; then
+              echo "❌ Failed or needs attention:"
+              for service in "${FAILED_SERVICES[@]}"; do
+                echo "   • $service"
+              done
+            fi
+            
+            # Final status check
+            echo ""
+            echo "[STATUS] Final infrastructure status:"
+            $USE_SUDO docker compose -f docker-compose.infras.yml ps
+            
+            # Export status for next steps
+            if [ ${#FAILED_SERVICES[@]} -eq 0 ]; then
+              echo "status=success" >> $GITHUB_OUTPUT
+            else
+              echo "status=partial" >> $GITHUB_OUTPUT
+            fi
+          EOF
+
+      - name: "[7/8] Infrastructure health check"
+        if: always()
+        run: |
+          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << 'EOF'
+            cd ${{ env.TRUENAS_DEPLOY_DIR }}
+            
+            # Check Docker access
+            if docker ps >/dev/null 2>&1; then
+              USE_SUDO=""
+            else
+              USE_SUDO="sudo"
+            fi
+            
+            echo "[HEALTH] Comprehensive infrastructure health check..."
+            
+            # Check network
+            if $USE_SUDO docker network inspect tihomo-network >/dev/null 2>&1; then
+              echo "[OK] Network tihomo-network exists"
+            else
+              echo "[WARNING] Network tihomo-network not found"
+            fi
+            
+            # Check core services
+            CORE_SERVICES=("postgres" "redis" "rabbitmq")
+            HEALTHY_SERVICES=()
+            UNHEALTHY_SERVICES=()
+            
+            for service in "${CORE_SERVICES[@]}"; do
+              if $USE_SUDO docker compose -f docker-compose.infras.yml ps $service | grep -q "Up"; then
+                case $service in
+                  postgres)
+                    if $USE_SUDO docker compose -f docker-compose.infras.yml exec -T postgres pg_isready -U postgres >/dev/null 2>&1; then
+                      HEALTHY_SERVICES+=("$service")
+                    else
+                      UNHEALTHY_SERVICES+=("$service")
+                    fi
+                    ;;
+                  redis)
+                    if $USE_SUDO docker compose -f docker-compose.infras.yml exec -T redis redis-cli ping >/dev/null 2>&1; then
+                      HEALTHY_SERVICES+=("$service")
+                    else
+                      UNHEALTHY_SERVICES+=("$service")
+                    fi
+                    ;;
+                  rabbitmq)
+                    if $USE_SUDO docker compose -f docker-compose.infras.yml exec -T rabbitmq rabbitmq-diagnostics ping >/dev/null 2>&1; then
+                      HEALTHY_SERVICES+=("$service")
+                    else
+                      UNHEALTHY_SERVICES+=("$service")
+                    fi
+                    ;;
+                esac
+              else
+                UNHEALTHY_SERVICES+=("$service (not running)")
+              fi
+            done
+            
+            echo "[HEALTH] Health check results:"
+            if [ ${#HEALTHY_SERVICES[@]} -gt 0 ]; then
+              echo "✅ Healthy services: ${HEALTHY_SERVICES[*]}"
+            fi
+            if [ ${#UNHEALTHY_SERVICES[@]} -gt 0 ]; then
+              echo "❌ Unhealthy services: ${UNHEALTHY_SERVICES[*]}"
+            fi
+            
+            echo "[INFO] Infrastructure deployment completed"
+          EOF
+
+      - name: "[8/8] Send notification"
+        if: always()
+        uses: appleboy/discord-action@v1.2.0
+        with:
+          webhook_url: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          message: |
+            ${{ job.status == 'success' && '🏗️ **Infrastructure Deployment SUCCESS**' || '❌ **Infrastructure Deployment FAILED**' }}
+            
+            🔧 **Infrastructure Info:**
+            • **Environment:** `${{ env.ENVIRONMENT }}`
+            • **Branch:** `${{ github.ref_name }}`
+            • **Services:** `${{ env.SERVICES_TO_DEPLOY }}`
+            • **Database:** `${{ vars.POSTGRES_PORT || '5432' }}`
+            • **Monitoring:** `${{ vars.GRAFANA_PORT || '3000' }}`
+            
+            ${{ job.status == 'success' && '⚡ **Infrastructure ready for applications!**' || '🚨 **Check deployment logs for details**' }}

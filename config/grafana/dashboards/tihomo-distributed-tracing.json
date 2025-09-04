@@ -1,0 +1,177 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": "-- Grafana --",
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "target": {
+          "limit": 100,
+          "matchAny": false,
+          "tags": [],
+          "type": "dashboard"
+        },
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "datasource": {
+        "type": "jaeger",
+        "uid": "jaeger"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "vis": false
+            }
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 12,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 1,
+      "options": {
+        "displayMode": "table",
+        "showTime": true,
+        "sortOrder": "Newest"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "jaeger",
+            "uid": "jaeger"
+          },
+          "limit": 100,
+          "operation": "search",
+          "refId": "A",
+          "service": "",
+          "spanName": ""
+        }
+      ],
+      "title": "Distributed Traces",
+      "type": "traces"
+    },
+    {
+      "datasource": {
+        "type": "jaeger",
+        "uid": "jaeger"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "vis": false
+            }
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 12
+      },
+      "id": 2,
+      "options": {
+        "displayMode": "table"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "jaeger",
+            "uid": "jaeger"
+          },
+          "operation": "search",
+          "refId": "A",
+          "service": "TiHoMo.Identity"
+        }
+      ],
+      "title": "Identity Service Traces",
+      "type": "traces"
+    },
+    {
+      "datasource": {
+        "type": "jaeger",
+        "uid": "jaeger"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "vis": false
+            }
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 12
+      },
+      "id": 3,
+      "options": {
+        "displayMode": "table"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "jaeger",
+            "uid": "jaeger"
+          },
+          "operation": "search",
+          "refId": "A",
+          "service": "TiHoMo.CoreFinance"
+        }
+      ],
+      "title": "CoreFinance Service Traces",
+      "type": "traces"
+    }
+  ],
+  "refresh": "5s",
+  "schemaVersion": 36,
+  "style": "dark",
+  "tags": [
+    "tihomo",
+    "distributed-tracing",
+    "microservices"
+  ],
+  "templating": {
+    "list": []
+  },
+  "time": {
+    "from": "now-15m",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "",
+  "title": "TiHoMo - Distributed Tracing Dashboard",
+  "uid": "tihomo-distributed-tracing",
+  "version": 1,
+  "weekStart": ""
+}

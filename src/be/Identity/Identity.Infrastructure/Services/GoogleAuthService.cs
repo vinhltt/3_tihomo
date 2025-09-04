@@ -7,7 +7,7 @@ namespace Identity.Infrastructure.Services;
 
 public class GoogleAuthService(IConfiguration configuration) : IGoogleAuthService
 {
-    private readonly string _googleClientId = configuration["Google:ClientId"] ??
+    private readonly string _googleClientId = configuration["GoogleAuth:ClientId"] ??
                                               throw new InvalidOperationException("Google Client ID not configured");
 
     public async Task<GoogleUserInfo> VerifyGoogleTokenAsync(string idToken)

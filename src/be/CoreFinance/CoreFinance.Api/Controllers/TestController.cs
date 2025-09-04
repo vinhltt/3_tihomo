@@ -21,8 +21,8 @@ public class TestController(IPublishEndpoint publishEndpoint, ILogger<TestContro
     {
         var correlationId = Guid.NewGuid();
         var fileName = $"test-file-{DateTime.Now:yyyyMMdd-HHmmss}.xlsx";
-        
-        logger.LogInformation("Publishing test message - CorrelationId: {CorrelationId}, FileName: {FileName}", 
+
+        logger.LogInformation("Publishing test message - CorrelationId: {CorrelationId}, FileName: {FileName}",
             correlationId, fileName);
 
         // Create a test message with sample transaction data
@@ -31,8 +31,9 @@ public class TestController(IPublishEndpoint publishEndpoint, ILogger<TestContro
             CorrelationId = correlationId,
             FileName = fileName,
             UploadedAt = DateTime.UtcNow,
-            TransactionData = new List<TransactionDataRow>
-            {                new()
+            TransactionData =
+            [                
+                new()
                 {
                     Description = "Test Transaction 1 - Coffee Shop",
                     Amount = -25.50m,
@@ -49,7 +50,7 @@ public class TestController(IPublishEndpoint publishEndpoint, ILogger<TestContro
                     Description = "Test Transaction 2 - Salary Deposit",
                     Amount = 3500.00m,
                     TransactionDate = DateTime.Today.AddDays(-3),
-                    Reference = "TEST002", 
+                    Reference = "TEST002",
                     RawData = new Dictionary<string, string>
                     {
                         { "Original_Description", "SALARY DIRECT DEPOSIT" },
@@ -68,35 +69,35 @@ public class TestController(IPublishEndpoint publishEndpoint, ILogger<TestContro
                         { "Location", "MAIN STREET" }
                     }
                 }
-            }
+            ]
         };
 
         try
         {
             // Publish the message to RabbitMQ
             await publishEndpoint.Publish(testMessage);
-            
-            logger.LogInformation("Test message published successfully - CorrelationId: {CorrelationId}, TransactionCount: {TransactionCount}", 
+
+            logger.LogInformation("Test message published successfully - CorrelationId: {CorrelationId}, TransactionCount: {TransactionCount}",
                 correlationId, testMessage.TransactionData.Count);
 
             return Ok(new
             {
                 success = true,
-                correlationId = correlationId,
-                fileName = fileName,
+                correlationId,
+                fileName,
                 transactionCount = testMessage.TransactionData.Count,
                 message = "Test message published successfully. Check RabbitMQ management UI and Grafana logs."
             });
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to publish test message - CorrelationId: {CorrelationId}, Error: {ErrorMessage}", 
+            logger.LogError(ex, "Failed to publish test message - CorrelationId: {CorrelationId}, Error: {ErrorMessage}",
                 correlationId, ex.Message);
-            
+
             return StatusCode(500, new
             {
                 success = false,
-                correlationId = correlationId,
+                correlationId,
                 error = ex.Message,
                 message = "Failed to publish test message"
             });
@@ -111,7 +112,7 @@ public class TestController(IPublishEndpoint publishEndpoint, ILogger<TestContro
     public IActionResult GenerateTestLogs()
     {
         var correlationId = Guid.NewGuid();
-        
+
         using (Serilog.Context.LogContext.PushProperty("CorrelationId", correlationId))
         using (Serilog.Context.LogContext.PushProperty("MessageType", "TestLogMessage"))
         using (Serilog.Context.LogContext.PushProperty("ConsumerType", "TestController"))
@@ -120,7 +121,7 @@ public class TestController(IPublishEndpoint publishEndpoint, ILogger<TestContro
             logger.LogDebug("This is a DEBUG level log message for testing");
             logger.LogInformation("This is an INFO level log message for testing - CorrelationId: {CorrelationId}", correlationId);
             logger.LogWarning("This is a WARNING level log message for testing - CorrelationId: {CorrelationId}", correlationId);
-            
+
             try
             {
                 // Simulate an error scenario
@@ -128,7 +129,7 @@ public class TestController(IPublishEndpoint publishEndpoint, ILogger<TestContro
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "This is an ERROR level log message for testing - CorrelationId: {CorrelationId}, Error: {ErrorMessage}", 
+                logger.LogError(ex, "This is an ERROR level log message for testing - CorrelationId: {CorrelationId}, Error: {ErrorMessage}",
                     correlationId, ex.Message);
             }
         }
@@ -136,7 +137,7 @@ public class TestController(IPublishEndpoint publishEndpoint, ILogger<TestContro
         return Ok(new
         {
             success = true,
-            correlationId = correlationId,
+            correlationId,
             message = "Test logs generated successfully. Check console output, log files, and Grafana/Loki."
         });
     }

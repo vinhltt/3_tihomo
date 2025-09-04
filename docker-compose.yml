@@ -202,6 +202,8 @@ services:
       - GF_USERS_ALLOW_SIGN_UP=false
       - GF_ANALYTICS_REPORTING_ENABLED=${GRAFANA_ANALYTICS_ENABLED:-true}
       - GF_ANALYTICS_CHECK_FOR_UPDATES=${GRAFANA_CHECK_UPDATES:-true}
+      - GF_FEATURE_TOGGLES_ENABLE=traceToLogs,correlations,traces,nodeGraph,tracing
+      - GF_PLUGINS_ENABLE_ALPHA=true
     ports:
       - "${GRAFANA_PORT}:3000"
     volumes:
@@ -213,6 +215,7 @@ services:
     depends_on:
       - prometheus
       - loki
+      - tempo
     healthcheck:
       test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost:3000/api/health || exit 1"]
       interval: 30s
@@ -234,6 +237,31 @@ services:
       - tihomo-network
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3100/ready"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Grafana Tempo for Distributed Tracing
+  tempo:
+    image: grafana/tempo:latest
+    container_name: tihomo-tempo
+    restart: unless-stopped
+    user: root
+    command: [ "-config.file=/etc/tempo/tempo.yaml" ]
+    volumes:
+      - ./config/tempo.yml:/etc/tempo/tempo.yaml
+      - tempo_data:/tmp/tempo
+    ports:
+      - "3200:3200"   # Tempo HTTP API
+      - "4317:4317"   # OTLP gRPC receiver  
+      - "4318:4318"   # OTLP HTTP receiver
+      - "9411:9411"   # Zipkin receiver
+      - "14268:14268" # Jaeger HTTP receiver (for compatibility)
+      - "14250:14250" # Jaeger gRPC receiver (for compatibility)
+    networks:
+      - tihomo-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3200/ready"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -305,7 +333,10 @@ services:
       
       # Authentication & Security
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
-      - OAUTH_GOOGLE_CLIENT_ID=${APP_PUBLIC_GOOGLE_CLIENT_ID}
+      - NUXT_PUBLIC_API_BASE=${PUBLIC_API_BASE_URL:-http://ocelot-gateway:8080}
+      - NUXT_PUBLIC_APP_BASE=${FRONTEND_BASE_URL}
+      - NUXT_PUBLIC_GOOGLE_CLIENT_ID=${APP_PUBLIC_GOOGLE_CLIENT_ID}
+      - NUXT_PUBLIC_FACEBOOK_APP_ID=${NUXT_PUBLIC_FACEBOOK_APP_ID}
       - OAUTH_REDIRECT_URI=${FRONTEND_BASE_URL}/auth/callback
       
       # Development & Debugging - environment-aware defaults
@@ -370,10 +401,26 @@ services:
       - IsDocker=true
       - ConnectionStrings__Redis=redis:6379
       - Redis__Password=${REDIS_PASSWORD}
-      - JWT__SecretKey=${JWT_SECRET_KEY}
-      - JWT__Issuer=${JWT_ISSUER}
-      - JWT__Audience=${JWT_AUDIENCE_OCELOT_GATEWAY}
+      - JwtSettings__SecretKey=${JWT_SECRET_KEY}
+      - JwtSettings__Issuer=${JWT_ISSUER}
+      - JwtSettings__Audience=${JWT_AUDIENCE_OCELOT_GATEWAY}
+      - JwtSettings__AccessTokenExpirationMinutes=${JWT_ACCESS_TOKEN_EXPIRATION_MINUTES:-60}
+      - JwtSettings__RefreshTokenExpirationDays=${JWT_REFRESH_TOKEN_EXPIRATION_DAYS:-30}
       - Logging__LogLevel__Default=${API_LOG_LEVEL:-Information}
+      # OtelSettings are now configured in appsettings.json
+      - OtelSettings__ExporterOtlpEndpoint=${OTEL_EXPORTER_OTLP_ENDPOINT:-http://tempo:4317}
+      - CorsSettings__AllowedOrigins__0=${CORS_ALLOWED_ORIGINS_0:-*}
+      - CorsSettings__AllowedOrigins__1=${CORS_ALLOWED_ORIGINS_1:-}
+      - CorsSettings__AllowedOrigins__2=${CORS_ALLOWED_ORIGINS_2:-}
+      - CorsSettings__AllowedOrigins__3=${CORS_ALLOWED_ORIGINS_3:-}
+      - CorsSettings__AllowedMethods__0=GET
+      - CorsSettings__AllowedMethods__1=POST
+      - CorsSettings__AllowedMethods__2=PUT
+      - CorsSettings__AllowedMethods__3=DELETE
+      - CorsSettings__AllowedMethods__4=OPTIONS
+      - CorsSettings__AllowedHeaders__0=*
+      - InternalServiceSettings__IdentityService=http://identity-api:8080
+      - InternalServiceSettings__CoreFinanceService=http://corefinance-api:8080
     ports:
       - "${GATEWAY_PORT}:8080"  # API Gateway port - Docker Dev environment
     volumes:
@@ -388,7 +435,7 @@ services:
       - excel-api
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
-      interval: 30s
+      interval: 600s
       timeout: 10s
       retries: 3
 
@@ -402,19 +449,28 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Development}
       - ASPNETCORE_URLS=http://+:8080
-      - ConnectionStrings__DefaultConnection=Host=identity-postgres;Port=5432;Database=identity;Username=${IDENTITY_DB_USERNAME};Password=${IDENTITY_DB_PASSWORD}
-      - Redis__ConnectionString=redis:6379
-      - Redis__Password=${REDIS_PASSWORD}
+      - GOOGLE_CLIENT_ID=${APP_PUBLIC_GOOGLE_CLIENT_ID}
+      - GoogleAuth__ClientId=${APP_PUBLIC_GOOGLE_CLIENT_ID}
+      - FACEBOOK_APP_ID=${FACEBOOK_APP_ID}
+      - FACEBOOK_APP_SECRET=${FACEBOOK_APP_SECRET}
+      - FacebookAuth__AppId=${FACEBOOK_APP_ID}
+      - FacebookAuth__AppSecret=${FACEBOOK_APP_SECRET}
       - JWT__SecretKey=${JWT_SECRET_KEY}
       - JWT__Issuer=${JWT_ISSUER}
       - JWT__Audience=${JWT_AUDIENCE_IDENTITY_API}
-      - OAuth__Google__ClientId=${APP_PUBLIC_GOOGLE_CLIENT_ID}
+      - JWT__AccessTokenExpirationMinutes=${JWT_ACCESS_TOKEN_EXPIRATION_MINUTES:-60}
+      - JWT__RefreshTokenExpirationDays=${JWT_REFRESH_TOKEN_EXPIRATION_DAYS:-30}
+      - ConnectionStrings__DefaultConnection=Host=identity-postgres;Port=5432;Database=identity;Username=${IDENTITY_DB_USERNAME};Password=${IDENTITY_DB_PASSWORD}
+      - Redis__ConnectionString=redis:6379
+      - Redis__Password=${REDIS_PASSWORD}
       - RabbitMQ__Host=rabbitmq
       - RabbitMQ__Username=tihomo
       - RabbitMQ__Password=${RABBITMQ_PASSWORD}
       - Logging__LogLevel__Default=${API_LOG_LEVEL:-Information}
-    # ports:
-    #   - "${IDENTITY_API_PORT}:8080"  # Identity API port - Closed, access via API Gateway only
+      # OtelSettings are now configured in appsettings.json
+      - OtelSettings__ExporterOtlpEndpoint=${OTEL_EXPORTER_OTLP_ENDPOINT:-http://tempo:4317}
+    ports:
+      - "${IDENTITY_API_PORT}:8080"  # Identity API port - Closed, access via API Gateway only
     volumes:
       - ./logs/identity:/app/logs
     networks:
@@ -453,15 +509,24 @@ services:
       - RabbitMQ__Password=${RABBITMQ_PASSWORD}
       - IdentityService__BaseUrl=http://identity-api:8080
       - Logging__LogLevel__Default=${API_LOG_LEVEL:-Information}
-      # CORS Configuration
+      # OtelSettings are now configured in appsettings.json
+      - OtelSettings__ExporterOtlpEndpoint=${OTEL_EXPORTER_OTLP_ENDPOINT:-http://tempo:4317}
+      # CORS Configuration with multiple origins support
       - CorsOptions__PolicyName=${CORS_POLICY_NAME:-DefaultCorsPolicy}
-      - CorsOptions__AllowedOrigins__0=${CORS_ALLOWED_ORIGINS:-*}
-      - CorsOptions__AllowedMethods__0=${CORS_ALLOWED_METHODS:-*}
-      - CorsOptions__AllowedHeaders__0=${CORS_ALLOWED_HEADERS:-*}
+      - CorsOptions__AllowedOrigins__0=${CORS_ALLOWED_ORIGINS_0:-*}
+      - CorsOptions__AllowedOrigins__1=${CORS_ALLOWED_ORIGINS_1:-}
+      - CorsOptions__AllowedOrigins__2=${CORS_ALLOWED_ORIGINS_2:-}
+      - CorsOptions__AllowedOrigins__3=${CORS_ALLOWED_ORIGINS_3:-}
+      - CorsOptions__AllowedMethods__0=GET
+      - CorsOptions__AllowedMethods__1=POST
+      - CorsOptions__AllowedMethods__2=PUT
+      - CorsOptions__AllowedMethods__3=DELETE
+      - CorsOptions__AllowedMethods__4=OPTIONS
+      - CorsOptions__AllowedHeaders__0=*
       - CorsOptions__ExposedHeaders__0=${CORS_EXPOSED_HEADERS:-Token-Expired}
       - CorsOptions__PreflightMaxAgeInMinutes=${CORS_PREFLIGHT_MAX_AGE:-10}
-    # ports:
-    #   - "${COREFINANCE_API_PORT}:8080"  # CoreFinance API port - Closed, access via API Gateway only
+    ports:
+      - "${COREFINANCE_API_PORT}:8080"  # CoreFinance API port - Closed, access via API Gateway only
     volumes:
       - ./logs/corefinance:/app/logs
     networks:
@@ -498,6 +563,8 @@ services:
       - Redis__Password=${REDIS_PASSWORD}
       - UploadPath=/app/uploads
       - Logging__LogLevel__Default=${API_LOG_LEVEL:-Information}
+      # OtelSettings are now configured in appsettings.json
+      - OtelSettings__ExporterOtlpEndpoint=${OTEL_EXPORTER_OTLP_ENDPOINT:-http://tempo:4317}
     # ports:
     #   - "${EXCEL_API_PORT}:8080"  # Excel API port - Closed, access via API Gateway only
     volumes:
@@ -578,6 +645,8 @@ volumes:
   grafana_data:
     driver: local
   loki_data:
+    driver: local
+  tempo_data:
     driver: local
   
   # Development tools volumes

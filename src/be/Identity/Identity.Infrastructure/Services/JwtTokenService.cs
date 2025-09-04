@@ -29,7 +29,7 @@ public class JwtTokenService(IConfiguration configuration) : IJwtTokenService
     public string GenerateAccessToken(UserProfile user)
     {
         var tokenHandler = new JwtSecurityTokenHandler();
-        var key = Encoding.ASCII.GetBytes(_secretKey);
+        var key = Encoding.UTF8.GetBytes(_secretKey);
 
         var claims = new List<Claim>
         {
@@ -67,7 +67,7 @@ public class JwtTokenService(IConfiguration configuration) : IJwtTokenService
     public async Task<string?> ValidateTokenAsync(string token)
     {
         var tokenHandler = new JwtSecurityTokenHandler();
-        var key = Encoding.ASCII.GetBytes(_secretKey);
+        var key = Encoding.UTF8.GetBytes(_secretKey);
 
         try
         {

@@ -11,5 +11,6 @@ public class RefreshToken : BaseEntity<Guid>
     public string? RevokedBy { get; set; }
     public DateTime? RevokedAt { get; set; }
 
+    [System.Text.Json.Serialization.JsonIgnore]
     public virtual User User { get; set; } = null!;
 }

@@ -10,7 +10,7 @@ import { createApiProxy } from '~/server/utils/apiProxy'
 
 export default defineEventHandler(async (event) => {
   return await createApiProxy(event, {
-    basePath: 'identity',
+    basePath: 'api/identity',
     serviceName: 'identity service'
   })
 })

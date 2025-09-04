@@ -157,7 +157,7 @@ public class ResilientTokenVerificationService : ITokenVerificationService
             }
 
             // Last resort: try local JWT parsing for basic info
-            if (provider.ToLower() == "google") return TryLocalGoogleTokenParsing(token);
+            if (provider.Equals("google", StringComparison.CurrentCultureIgnoreCase)) return TryLocalGoogleTokenParsing(token);
 
             _logger.LogWarning("No fallback available for {Provider} token verification", provider);
             return null;
@@ -217,8 +217,7 @@ public class ResilientTokenVerificationService : ITokenVerificationService
     /// </summary>
     private static string ComputeHash(string input)
     {
-        using var sha256 = SHA256.Create();
-        var hash = sha256.ComputeHash(Encoding.UTF8.GetBytes(input));
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(input));
         return Convert.ToBase64String(hash);
     }
 

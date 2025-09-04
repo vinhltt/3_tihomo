@@ -1,13 +1,13 @@
 # syntax=docker/dockerfile:1
-# OPTIMIZED Dockerfile for TiHoMo Nuxt Frontend - Build time optimized
+# Multi-stage Dockerfile for TiHoMo Nuxt Frontend
 
 # Build arguments for metadata
 ARG BUILDTIME
 ARG VERSION  
 ARG COMMIT_SHA
 
-# Single-stage optimized build
-FROM node:20-alpine AS build
+# Base stage with common dependencies
+FROM node:20-alpine AS base
 
 WORKDIR /app
 
@@ -31,6 +31,31 @@ RUN --mount=type=cache,target=/root/.npm \
 
 # Copy source code
 COPY . .
+
+# Create non-root user
+RUN addgroup -g 1001 -S nuxt && \
+    adduser -S nuxt -u 1001 -G nuxt
+
+# Development stage
+FROM base AS development
+
+ENV NODE_ENV=development \
+    NUXT_DEV_SSR=true \
+    NUXT_DEV_TOOLS=true \
+    NUXT_DEBUG=true
+
+# Set ownership for development
+RUN chown -R nuxt:nuxt /app
+
+USER nuxt
+
+EXPOSE 3000
+
+# Development command - run dev server
+CMD ["npm", "run", "dev"]
+
+# Production build stage
+FROM base AS build
 
 # Build application with build arguments
 ARG BUILDTIME
@@ -56,14 +81,25 @@ RUN npm prune --omit=dev && \
     npm cache clean --force && \
     rm -rf /tmp/* /var/tmp/* /root/.npm
 
-# Create non-root user
-RUN addgroup -g 1001 -S nuxt && \
-    adduser -S nuxt -u 1001 -G nuxt
+# Production stage
+FROM base AS production
+
+# Copy built application from build stage
+COPY --from=build /app/.output /app/.output
+COPY --from=build /app/package*.json /app/
+
+# Install only production dependencies and skip postinstall scripts
+RUN npm ci --omit=dev --legacy-peer-deps --ignore-scripts && \
+    npm cache clean --force
 
 # Set ownership
 RUN chown -R nuxt:nuxt /app
 
 # Add build metadata labels
+ARG BUILDTIME
+ARG VERSION
+ARG COMMIT_SHA
+
 LABEL org.opencontainers.image.title="TiHoMo Frontend" \
       org.opencontainers.image.description="Nuxt 3 Frontend for TiHoMo Application" \
       org.opencontainers.image.version=${VERSION} \

@@ -6,7 +6,7 @@ namespace CoreFinance.Application.Services.Base;
 // ReSharper disable once UnusedTypeParameter
 public interface IBaseService<TEntity, TCreateRequest, in TUpdateRequest, TViewModel,
     in TKey>
-    where TEntity : BaseEntity<TKey>?, new()
+    where TEntity : UserOwnedEntity<TKey>?, new()
     where TCreateRequest : BaseCreateRequest, new()
     where TUpdateRequest : BaseUpdateRequest<TKey>, new()
     where TViewModel : BaseViewModel<TKey>, new()

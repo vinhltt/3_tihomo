@@ -1,0 +1,965 @@
+{
+	"info": {
+		"_postman_id": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
+		"name": "TiHoMo - API Key Management",
+		"description": "Comprehensive API Key management testing for TiHoMo Identity service.\n\n## Features Tested:\n- 🔐 JWT Authentication\n- 🔑 API Key CRUD Operations\n- ✅ Input Validation\n- 🛡️ Security Features\n- 📊 Rate Limiting\n- 🌐 IP Whitelisting\n\n## Prerequisites:\n1. TiHoMo Identity API running on localhost:5801\n2. Valid user account for JWT token generation\n3. Postman environment variables configured\n\n## Usage:\n1. Run \"Setup - Login User\" to get JWT token\n2. Execute API Key operations in sequence\n3. Check test results in Test Results tab",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "12345678"
+	},
+	"item": [
+		{
+			"name": "Setup",
+			"item": [
+				{
+					"name": "Login User",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Test response status",
+									"pm.test(\"Login successful\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"// Extract and save JWT token",
+									"if (pm.response.code === 200) {",
+									"    const responseJson = pm.response.json();",
+									"    ",
+									"    pm.test(\"Response contains access token\", function () {",
+									"        pm.expect(responseJson).to.have.property('accessToken');",
+									"        pm.expect(responseJson.accessToken).to.be.a('string');",
+									"        pm.expect(responseJson.accessToken.length).to.be.greaterThan(0);",
+									"    });",
+									"    ",
+									"    // Save JWT token to environment",
+									"    pm.environment.set('jwt_token', responseJson.accessToken);",
+									"    ",
+									"    // Save user info if available",
+									"    if (responseJson.user) {",
+									"        pm.environment.set('user_id', responseJson.user.id);",
+									"        pm.environment.set('user_email', responseJson.user.email);",
+									"    }",
+									"    ",
+									"    console.log('✅ JWT token saved to environment');",
+									"    console.log('🔐 Token: ' + responseJson.accessToken.substring(0, 20) + '...');",
+									"} else {",
+									"    console.log('❌ Login failed with status: ' + pm.response.code);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Clear any existing tokens",
+									"pm.environment.unset('jwt_token');",
+									"pm.environment.unset('api_key');",
+									"",
+									"console.log('🔄 Starting login process...');"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"{{test_user_email}}\",\n    \"password\": \"{{test_user_password}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/identity/auth/login",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"identity",
+								"auth",
+								"login"
+							]
+						},
+						"description": "Login with test user credentials to obtain JWT token for API Key operations."
+					}
+				},
+				{
+					"name": "Verify JWT Token",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Test JWT token format",
+									"const jwtToken = pm.environment.get('jwt_token');",
+									"",
+									"pm.test(\"JWT token exists in environment\", function () {",
+									"    pm.expect(jwtToken).to.not.be.undefined;",
+									"    pm.expect(jwtToken).to.not.be.null;",
+									"    pm.expect(jwtToken).to.be.a('string');",
+									"});",
+									"",
+									"pm.test(\"JWT token has valid format\", function () {",
+									"    const parts = jwtToken.split('.');",
+									"    pm.expect(parts).to.have.lengthOf(3);",
+									"});",
+									"",
+									"pm.test(\"Token verification successful\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"console.log('✅ JWT token verified successfully');"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwt_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/identity/users/me",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"identity", 
+								"users",
+								"me"
+							]
+						},
+						"description": "Verify that the JWT token is valid by accessing a protected endpoint."
+					}
+				}
+			],
+			"description": "Setup requests to authenticate and prepare for API Key testing."
+		},
+		{
+			"name": "API Key CRUD",
+			"item": [
+				{
+					"name": "Create API Key",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Test successful creation",
+									"pm.test(\"API Key created successfully\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"// Validate response structure",
+									"if (pm.response.code === 200) {",
+									"    const responseJson = pm.response.json();",
+									"    ",
+									"    pm.test(\"Response contains required fields\", function () {",
+									"        pm.expect(responseJson).to.have.property('id');",
+									"        pm.expect(responseJson).to.have.property('name');",
+									"        pm.expect(responseJson).to.have.property('apiKey');",
+									"        pm.expect(responseJson).to.have.property('keyPrefix');",
+									"    });",
+									"    ",
+									"    pm.test(\"API Key has valid format\", function () {",
+									"        pm.expect(responseJson.apiKey).to.be.a('string');",
+									"        pm.expect(responseJson.apiKey).to.match(/^tihomo_/);",
+									"        pm.expect(responseJson.apiKey.length).to.be.greaterThan(40);",
+									"    });",
+									"    ",
+									"    pm.test(\"API Key name matches request\", function () {",
+									"        const requestBody = JSON.parse(pm.request.body.raw);",
+									"        pm.expect(responseJson.name).to.equal(requestBody.name);",
+									"    });",
+									"    ",
+									"    // Save API key for subsequent tests",
+									"    pm.environment.set('api_key', responseJson.apiKey);",
+									"    pm.environment.set('api_key_id', responseJson.id);",
+									"    pm.environment.set('api_key_prefix', responseJson.keyPrefix);",
+									"    ",
+									"    console.log('✅ API Key created successfully');",
+									"    console.log('🔑 API Key ID: ' + responseJson.id);",
+									"    console.log('🔑 API Key: ' + responseJson.apiKey.substring(0, 20) + '...');",
+									"} else {",
+									"    console.log('❌ API Key creation failed with status: ' + pm.response.code);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Generate unique API key name",
+									"const timestamp = new Date().getTime();",
+									"const apiKeyName = `Test API Key ${timestamp}`;",
+									"pm.environment.set('current_api_key_name', apiKeyName);",
+									"",
+									"console.log('🔄 Creating API Key: ' + apiKeyName);"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwt_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"{{current_api_key_name}}\",\n    \"description\": \"API Key created for Postman testing\",\n    \"scopes\": [\"read\", \"write\"],\n    \"expiresAt\": \"{{$isoTimestamp}}\",\n    \"rateLimitPerMinute\": 100,\n    \"dailyUsageQuota\": 10000,\n    \"allowedIpAddresses\": [\"127.0.0.1\", \"::1\"]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/identity/apikeys",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"apikeys"
+							]
+						},
+						"description": "Create a new API key with comprehensive security settings including rate limiting and IP whitelisting."
+					}
+				},
+				{
+					"name": "Get All API Keys",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Test successful retrieval",
+									"pm.test(\"API Keys retrieved successfully\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"// Validate response is array",
+									"if (pm.response.code === 200) {",
+									"    const responseJson = pm.response.json();",
+									"    ",
+									"    pm.test(\"Response is an array\", function () {",
+									"        pm.expect(responseJson).to.be.an('array');",
+									"    });",
+									"    ",
+									"    if (responseJson.length > 0) {",
+									"        pm.test(\"API Keys contain required fields\", function () {",
+									"            const firstKey = responseJson[0];",
+									"            pm.expect(firstKey).to.have.property('id');",
+									"            pm.expect(firstKey).to.have.property('name');",
+									"            pm.expect(firstKey).to.have.property('keyPrefix');",
+									"            pm.expect(firstKey).to.have.property('isActive');",
+									"        });",
+									"        ",
+									"        pm.test(\"Created API Key exists in list\", function () {",
+									"            const currentKeyId = pm.environment.get('api_key_id');",
+									"            const foundKey = responseJson.find(key => key.id === currentKeyId);",
+									"            pm.expect(foundKey).to.not.be.undefined;",
+									"        });",
+									"        ",
+									"        console.log('✅ Found ' + responseJson.length + ' API Keys');",
+									"    } else {",
+									"        console.log('ℹ️ No API Keys found');",
+									"    }",
+									"} else {",
+									"    console.log('❌ Failed to retrieve API Keys: ' + pm.response.code);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwt_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/identity/apikeys",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"apikeys"
+							]
+						},
+						"description": "Retrieve all API keys for the current authenticated user."
+					}
+				},
+				{
+					"name": "Get API Key by ID",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Test successful retrieval",
+									"pm.test(\"API Key retrieved successfully\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"// Validate response structure",
+									"if (pm.response.code === 200) {",
+									"    const responseJson = pm.response.json();",
+									"    const expectedId = pm.environment.get('api_key_id');",
+									"    ",
+									"    pm.test(\"Response contains correct API Key\", function () {",
+									"        pm.expect(responseJson).to.have.property('id');",
+									"        pm.expect(responseJson.id).to.equal(expectedId);",
+									"    });",
+									"    ",
+									"    pm.test(\"API Key info is complete\", function () {",
+									"        pm.expect(responseJson).to.have.property('name');",
+									"        pm.expect(responseJson).to.have.property('description');",
+									"        pm.expect(responseJson).to.have.property('scopes');",
+									"        pm.expect(responseJson).to.have.property('rateLimitPerMinute');",
+									"        pm.expect(responseJson).to.have.property('dailyUsageQuota');",
+									"    });",
+									"    ",
+									"    console.log('✅ API Key details retrieved: ' + responseJson.name);",
+									"} else if (pm.response.code === 404) {",
+									"    console.log('❌ API Key not found');",
+									"} else {",
+									"    console.log('❌ Failed to retrieve API Key: ' + pm.response.code);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwt_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/identity/apikeys/{{api_key_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"apikeys",
+								"{{api_key_id}}"
+							]
+						},
+						"description": "Retrieve detailed information about a specific API key by its ID."
+					}
+				},
+				{
+					"name": "Validate API Key",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Test successful validation",
+									"pm.test(\"API Key validation successful\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"// Validate response structure",
+									"if (pm.response.code === 200) {",
+									"    const responseJson = pm.response.json();",
+									"    ",
+									"    pm.test(\"API Key is valid\", function () {",
+									"        pm.expect(responseJson).to.have.property('valid');",
+									"        pm.expect(responseJson.valid).to.be.true;",
+									"    });",
+									"    ",
+									"    pm.test(\"User information returned\", function () {",
+									"        pm.expect(responseJson).to.have.property('userId');",
+									"        pm.expect(responseJson).to.have.property('email');",
+									"        pm.expect(responseJson).to.have.property('name');",
+									"    });",
+									"    ",
+									"    console.log('✅ API Key validation successful');",
+									"    console.log('👤 User: ' + responseJson.email);",
+									"} else if (pm.response.code === 401) {",
+									"    console.log('❌ API Key is invalid or expired');",
+									"} else {",
+									"    console.log('❌ API Key validation failed: ' + pm.response.code);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "\"{{api_key}}\""
+						},
+						"url": {
+							"raw": "{{base_url}}/api/identity/apikeys/validate",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"apikeys",
+								"validate"
+							]
+						},
+						"description": "Validate the created API key to ensure it works correctly."
+					}
+				},
+				{
+					"name": "Revoke API Key",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Test successful revocation",
+									"pm.test(\"API Key revoked successfully\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"// Validate response message",
+									"if (pm.response.code === 200) {",
+									"    const responseJson = pm.response.json();",
+									"    ",
+									"    pm.test(\"Revocation message received\", function () {",
+									"        pm.expect(responseJson).to.have.property('message');",
+									"        pm.expect(responseJson.message).to.include('revoked');",
+									"    });",
+									"    ",
+									"    console.log('✅ API Key revoked successfully');",
+									"    ",
+									"    // Clear the API key from environment since it's now invalid",
+									"    pm.environment.unset('api_key');",
+									"} else if (pm.response.code === 404) {",
+									"    console.log('❌ API Key not found for revocation');",
+									"} else {",
+									"    console.log('❌ API Key revocation failed: ' + pm.response.code);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwt_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/identity/apikeys/{{api_key_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"apikeys",
+								"{{api_key_id}}"
+							]
+						},
+						"description": "Revoke the created API key to test the deletion functionality."
+					}
+				}
+			],
+			"description": "Complete CRUD operations for API Key management including creation, retrieval, validation, and revocation."
+		},
+		{
+			"name": "Validation Tests",
+			"item": [
+				{
+					"name": "Create API Key - Invalid Data",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Test validation failure",
+									"pm.test(\"Validation failed as expected\", function () {",
+									"    pm.response.to.have.status(400);",
+									"});",
+									"",
+									"// Check error message",
+									"if (pm.response.code === 400) {",
+									"    console.log('✅ Validation correctly rejected invalid data');",
+									"} else {",
+									"    console.log('❌ Unexpected response: ' + pm.response.code);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwt_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"\",\n    \"description\": \"Invalid API key with empty name\",\n    \"rateLimitPerMinute\": -1,\n    \"dailyUsageQuota\": -1000\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/identity/apikeys",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"apikeys"
+							]
+						},
+						"description": "Test API key creation with invalid data to ensure proper validation."
+					}
+				},
+				{
+					"name": "Validate Invalid API Key",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Test validation failure for invalid key",
+									"pm.test(\"Invalid API Key rejected\", function () {",
+									"    pm.response.to.have.status(401);",
+									"});",
+									"",
+									"console.log('✅ Invalid API Key correctly rejected');"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "\"invalid_api_key_12345\""
+						},
+						"url": {
+							"raw": "{{base_url}}/api/identity/apikeys/validate",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"apikeys",
+								"validate"
+							]
+						},
+						"description": "Test validation with an invalid API key to ensure proper rejection."
+					}
+				},
+				{
+					"name": "Access Without JWT Token",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Test unauthorized access",
+									"pm.test(\"Unauthorized access blocked\", function () {",
+									"    pm.response.to.have.status(401);",
+									"});",
+									"",
+									"console.log('✅ Unauthorized access correctly blocked');"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/identity/apikeys",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"apikeys"
+							]
+						},
+						"description": "Test access to API Key endpoints without JWT authentication."
+					}
+				}
+			],
+			"description": "Validation and security tests to ensure proper error handling and authentication."
+		},
+		{
+			"name": "Security Tests",
+			"item": [
+				{
+					"name": "Create Rate Limited API Key",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Test rate limited key creation",
+									"pm.test(\"Rate limited API Key created\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"if (pm.response.code === 200) {",
+									"    const responseJson = pm.response.json();",
+									"    ",
+									"    pm.test(\"Rate limit settings applied\", function () {",
+									"        pm.expect(responseJson).to.have.property('rateLimitPerMinute');",
+									"        pm.expect(responseJson.rateLimitPerMinute).to.equal(1);",
+									"    });",
+									"    ",
+									"    // Save for rate limit testing",
+									"    pm.environment.set('rate_limited_api_key', responseJson.apiKey);",
+									"    pm.environment.set('rate_limited_api_key_id', responseJson.id);",
+									"    ",
+									"    console.log('✅ Rate limited API Key created (1 req/min)');",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwt_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Rate Limited Test Key\",\n    \"description\": \"API Key with very low rate limit for testing\",\n    \"scopes\": [\"read\"],\n    \"rateLimitPerMinute\": 1,\n    \"dailyUsageQuota\": 100,\n    \"allowedIpAddresses\": [\"127.0.0.1\"]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/identity/apikeys",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"apikeys"
+							]
+						},
+						"description": "Create an API key with very restrictive rate limits for security testing."
+					}
+				},
+				{
+					"name": "Create IP Restricted API Key",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Test IP restricted key creation",
+									"pm.test(\"IP restricted API Key created\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"if (pm.response.code === 200) {",
+									"    const responseJson = pm.response.json();",
+									"    ",
+									"    pm.test(\"IP restrictions applied\", function () {",
+									"        pm.expect(responseJson).to.have.property('allowedIpAddresses');",
+									"        pm.expect(responseJson.allowedIpAddresses).to.be.an('array');",
+									"        pm.expect(responseJson.allowedIpAddresses).to.include('192.168.1.1');",
+									"    });",
+									"    ",
+									"    // Save for IP restriction testing  ",
+									"    pm.environment.set('ip_restricted_api_key', responseJson.apiKey);",
+									"    pm.environment.set('ip_restricted_api_key_id', responseJson.id);",
+									"    ",
+									"    console.log('✅ IP restricted API Key created');",
+									"    console.log('🌐 Allowed IPs: ' + responseJson.allowedIpAddresses.join(', '));",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwt_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"IP Restricted Test Key\",\n    \"description\": \"API Key restricted to specific IP addresses\",\n    \"scopes\": [\"read\", \"write\"],\n    \"rateLimitPerMinute\": 100,\n    \"dailyUsageQuota\": 1000,\n    \"allowedIpAddresses\": [\"192.168.1.1\", \"10.0.0.1\"]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/identity/apikeys",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"apikeys"
+							]
+						},
+						"description": "Create an API key with IP address restrictions for security testing."
+					}
+				}
+			],
+			"description": "Security-focused tests including rate limiting and IP restrictions."
+		},
+		{
+			"name": "Cleanup",
+			"item": [
+				{
+					"name": "Cleanup - Delete Rate Limited Key",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Rate limited key deleted\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"if (pm.response.code === 200) {",
+									"    pm.environment.unset('rate_limited_api_key');",
+									"    pm.environment.unset('rate_limited_api_key_id');",
+									"    console.log('✅ Rate limited API Key cleaned up');",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwt_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/identity/apikeys/{{rate_limited_api_key_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"apikeys",
+								"{{rate_limited_api_key_id}}"
+							]
+						},
+						"description": "Clean up the rate limited API key created for testing."
+					}
+				},
+				{
+					"name": "Cleanup - Delete IP Restricted Key",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"IP restricted key deleted\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"if (pm.response.code === 200) {",
+									"    pm.environment.unset('ip_restricted_api_key');",
+									"    pm.environment.unset('ip_restricted_api_key_id');",
+									"    console.log('✅ IP restricted API Key cleaned up');",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwt_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/identity/apikeys/{{ip_restricted_api_key_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"apikeys",
+								"{{ip_restricted_api_key_id}}"
+							]
+						},
+						"description": "Clean up the IP restricted API key created for testing."
+					}
+				}
+			],
+			"description": "Cleanup requests to remove test data and reset environment."
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Global pre-request script",
+					"",
+					"// Ensure base_url is set",
+					"if (!pm.environment.get('base_url')) {",
+					"    pm.environment.set('base_url', 'http://localhost:5801');",
+					"}",
+					"",
+					"// Set dynamic expiration date (30 days from now)",
+					"const expirationDate = new Date();",
+					"expirationDate.setDate(expirationDate.getDate() + 30);",
+					"pm.environment.set('api_key_expiration', expirationDate.toISOString());"
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Global test script",
+					"",
+					"// Log response time",
+					"console.log('⏱️ Response time: ' + pm.response.responseTime + 'ms');",
+					"",
+					"// Check for common error patterns",
+					"if (pm.response.code >= 500) {",
+					"    console.log('🚨 Server error detected: ' + pm.response.code);",
+					"    console.log('Response: ' + pm.response.text());",
+					"}"
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "collection_version",
+			"value": "1.0.0",
+			"type": "string"
+		},
+		{
+			"key": "test_run_id",
+			"value": "{{$randomUUID}}",
+			"type": "string"
+		}
+	]
+}

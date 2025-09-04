@@ -2,18 +2,11 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
+using Identity.Application.Common.Interfaces;
 using Identity.Domain.Entities;
 using Microsoft.IdentityModel.Tokens;
 
 namespace Identity.Api.Services;
-
-public interface IJwtService
-{
-    string GenerateAccessToken(User user);
-    string GenerateRefreshToken();
-    ClaimsPrincipal? ValidateToken(string token, bool validateLifetime = true);
-    DateTime GetTokenExpiration();
-}
 
 public class JwtService : IJwtService
 {
@@ -41,7 +34,7 @@ public class JwtService : IJwtService
     public string GenerateAccessToken(User user)
     {
         var tokenHandler = new JwtSecurityTokenHandler();
-        var key = Encoding.ASCII.GetBytes(_secretKey);
+        var key = Encoding.UTF8.GetBytes(_secretKey);
 
         var claims = new List<Claim>
         {
@@ -83,7 +76,7 @@ public class JwtService : IJwtService
         try
         {
             var tokenHandler = new JwtSecurityTokenHandler();
-            var key = Encoding.ASCII.GetBytes(_secretKey);
+            var key = Encoding.UTF8.GetBytes(_secretKey);
 
             var validationParameters = new TokenValidationParameters
             {

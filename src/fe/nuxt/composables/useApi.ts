@@ -25,8 +25,6 @@ export const useApi = () => {
       // Add authentication headers if user is authenticated
       if (authStore.isAuthenticated && authStore.token) {
         headers['Authorization'] = `Bearer ${authStore.token}`
-        // Also add API key header for Ocelot Gateway
-        headers['X-API-Key'] = authStore.token
       }
 
       let body = options.body
@@ -54,24 +52,36 @@ export const useApi = () => {
           Object.keys(options.query).forEach(key => {
             url.searchParams.append(key, options.query![key])
           })
-        }        const response = await fetch(url.toString(), {
+        }
+        const response = await fetch(url.toString(), {
           method: options.method || 'GET',
           body,
           headers: {
             'Accept': 'application/json',
             // Add authentication headers for FormData requests too
             ...(authStore.isAuthenticated && authStore.token ? {
-              'Authorization': `Bearer ${authStore.token}`,
-              'X-API-Key': authStore.token
+              'Authorization': `Bearer ${authStore.token}`
             } : {})
             // Don't set Content-Type for FormData
           }
         })
 
         if (!response.ok) {
+          // Check for 401 Unauthorized - token expired
+          if (response.status === 401) {
+            console.log('🔐 401 Unauthorized detected (FormData) - clearing auth and redirecting to login')
+
+            // Clear authentication state
+            const authStore = useAuthStore()
+            await authStore.clearAuthState()
+
+            // Redirect to login page
+            await navigateTo('/auth/login')
+          }
+
           const errorData = await response.json().catch(() => ({}))
           throw {
-            message: errorData.message || 'An error occurred',
+            message: response.status === 401 ? 'Your session has expired. Please login again.' : (errorData.message || 'An error occurred'),
             statusCode: response.status,
             errors: errorData.errors
           } as ApiError
@@ -90,7 +100,27 @@ export const useApi = () => {
     } catch (error: any) {
       // Handle different types of errors
       if (error.response) {
-        // Server responded with error status
+        // Check for 401 Unauthorized - token expired
+        if (error.response.status === 401) {
+          console.log('🔐 401 Unauthorized detected - clearing auth and redirecting to login')
+
+          // Clear authentication state
+          const authStore = useAuthStore()
+          await authStore.clearAuthState()
+
+          // Redirect to login page
+          await navigateTo('/auth/login')
+
+          // Still throw the error for the calling component to handle if needed
+          const apiError: ApiError = {
+            message: 'Your session has expired. Please login again.',
+            statusCode: 401,
+            errors: error.response._data?.errors
+          }
+          throw apiError
+        }
+
+        // Server responded with other error status
         const apiError: ApiError = {
           message: error.response._data?.message || 'An error occurred',
           statusCode: error.response.status,
@@ -164,7 +194,7 @@ export const useApi = () => {
     putForm,
     delete: del
   }
-} 
+}
 const ConvertObjectToFormData = (
   object: any,
   formData = new FormData(),

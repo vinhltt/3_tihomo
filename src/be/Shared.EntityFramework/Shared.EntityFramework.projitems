@@ -10,6 +10,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="$(MSBuildThisFileDirectory)BaseEfModels\BaseEntity.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)BaseEfModels\UserOwnedEntity.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)BaseEfModels\BaseResponse.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)BaseEfModels\BodyRequest.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)BaseEfModels\FilterBodyRequest.cs" />

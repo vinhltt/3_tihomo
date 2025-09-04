@@ -1,0 +1,10 @@
+apiVersion: 1
+
+apps:
+  # Enable Jaeger Plugin for better trace visualization
+  - name: 'jaeger'
+    enabled: true
+    
+  # Enable Node Graph for service topology
+  - name: 'nodegraph'
+    enabled: true

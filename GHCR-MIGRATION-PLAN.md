@@ -99,10 +99,10 @@ gh workflow run deploy-frontend-ghcr.yml -f environment=production
 ### ✅ Step 9: Cleanup
 ```bash
 # 1. Rename old workflow
-mv .github/workflows/deploy-frontend.yml .github/workflows/deploy-frontend.old.yml
+mv .github/workflows/deploy-frontend-ghcr.yml .github/workflows/deploy-frontend.old.yml
 
 # 2. Rename new workflow
-mv .github/workflows/deploy-frontend-ghcr.yml .github/workflows/deploy-frontend.yml
+mv .github/workflows/deploy-frontend-ghcr.yml .github/workflows/deploy-frontend-ghcr.yml
 
 # 3. Clean up old images and cache on TrueNAS
 ```

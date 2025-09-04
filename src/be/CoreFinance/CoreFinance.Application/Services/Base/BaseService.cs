@@ -27,7 +27,7 @@ public abstract class BaseService<TEntity, TCreateRequest, TUpdateRequest, TView
     ILogger logger
 )
     : IBaseService<TEntity, TCreateRequest, TUpdateRequest, TViewModel, TKey>
-    where TEntity : BaseEntity<TKey>, new()
+    where TEntity : UserOwnedEntity<TKey>, new()
     where TCreateRequest : BaseCreateRequest, new()
     where TUpdateRequest : BaseUpdateRequest<TKey>, new()
     where TViewModel : BaseViewModel<TKey>, new()
@@ -159,10 +159,28 @@ public abstract class BaseService<TEntity, TCreateRequest, TUpdateRequest, TView
     {
         await using var trans = await unitOfWork.BeginTransactionAsync();
         try
-        {
+        {            
+            logger.LogError("AUTOMAPPER DEBUG: Request data JSON: {RequestJson}", System.Text.Json.JsonSerializer.Serialize(request));
             logger.LogTrace("{CreateAsync} request: {request}", nameof(CreateAsync), request.TryParseToString());
+            
             var entityNew = new TEntity();
+            logger.LogError("AUTOMAPPER DEBUG: Before mapping - entity Name property: {NameValue}", 
+                entityNew.GetType().GetProperty("Name")?.GetValue(entityNew));
+            
             Mapper.Map(request, entityNew);
+            
+            logger.LogError("AUTOMAPPER DEBUG: After mapping - entity Name property: {NameValue}", 
+                entityNew.GetType().GetProperty("Name")?.GetValue(entityNew));
+            
+            logger.LogTrace("{CreateAsync} entitiesNew: {entityNew}", nameof(CreateAsync),
+                entityNew.TryParseToString());
+                
+            logger.LogWarning("AUTOMAPPER DEBUG: After mapping - entity Name: '{Name}', Type: {Type}, Currency: '{Currency}', UserId: {UserId}", 
+                entityNew.GetType().GetProperty("Name")?.GetValue(entityNew), 
+                entityNew.GetType().GetProperty("Type")?.GetValue(entityNew),
+                entityNew.GetType().GetProperty("Currency")?.GetValue(entityNew),
+                entityNew.GetType().GetProperty("UserId")?.GetValue(entityNew));
+            
             logger.LogTrace("{CreateAsync} entitiesNew: {entityNew}", nameof(CreateAsync),
                 entityNew.TryParseToString());
             var countAffect =

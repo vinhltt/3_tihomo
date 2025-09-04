@@ -81,18 +81,18 @@ public static class HealthCheckExtensions
         {
             options.AddPolicy(corsSettings.PolicyName, policy =>
             {
-                if (corsSettings.AllowedOrigins.Any())
-                    policy.WithOrigins(corsSettings.AllowedOrigins.ToArray());
+                if (corsSettings.AllowedOrigins.Count != 0)
+                    policy.WithOrigins([.. corsSettings.AllowedOrigins]);
                 else
                     policy.AllowAnyOrigin();
 
-                if (corsSettings.AllowedMethods.Any())
-                    policy.WithMethods(corsSettings.AllowedMethods.ToArray());
+                if (corsSettings.AllowedMethods.Count != 0)
+                    policy.WithMethods([.. corsSettings.AllowedMethods]);
                 else
                     policy.AllowAnyMethod();
 
-                if (corsSettings.AllowedHeaders.Any() && !corsSettings.AllowedHeaders.Contains("*"))
-                    policy.WithHeaders(corsSettings.AllowedHeaders.ToArray());
+                if (corsSettings.AllowedHeaders.Count != 0 && !corsSettings.AllowedHeaders.Contains("*"))
+                    policy.WithHeaders([.. corsSettings.AllowedHeaders]);
                 else
                     policy.AllowAnyHeader();
 

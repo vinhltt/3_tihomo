@@ -1,23 +1,21 @@
 # techContext.md
 
 ## Công nghệ sử dụng
-- Backend: .NET Core (C#), ASP.NET Core
-- API Gateway: Ocelot
-- Message Bus: RabbitMQ
-- Database: PostgreSQL (mỗi service một DB riêng)
-- Workflow engine: n8n
-- File Storage: MinIO
-- Containerization: Docker, docker-compose cho dev, Kubernetes cho production
-- Logging/Monitoring: ELK/EFK, Prometheus, Grafana
-- Authentication: OpenIddict, JWT, OAuth2
-- **Frontend: Nuxt 3 + Vue 3 + TypeScript + Tailwind CSS + Pinia**
-- FluentAssertions cho assert kết quả trong unit test
-- **Quartz.NET hoặc Hangfire cho xử lý recurring jobs và lịch trình giao dịch định kỳ**
-- **Entity Framework Core cho ORM với navigation properties và relationships**
-- **xUnit cho unit testing framework**
-- **Bogus cho fake data generation trong unit tests**
-- **AutoMapper cho object mapping giữa domain models và DTOs**
-- **FluentValidation cho validation request DTOs**
+- Backend: .NET 9 (C#), ASP.NET Core 9.0 với Clean Architecture
+- API Gateway: Ocelot Gateway cho request routing
+- Message Bus: RabbitMQ (planned/future)
+- Database: PostgreSQL với EFCore.NamingConventions (snake_case), mỗi service một DB riêng
+- Workflow engine: n8n (planned/future)
+- File Storage: MinIO (planned/future)
+- Containerization: Docker, docker-compose cho dev, TrueNAS cho production
+- Logging/Monitoring: Serilog structured logging, OpenTelemetry tracing, Prometheus metrics, Grafana dashboards
+- Authentication: JWT + OAuth 2.0/OIDC + API Keys với social login (Google/Facebook)
+- **Frontend: Nuxt 3 + Vue 3 + TypeScript + Tailwind CSS + Pinia + VRISTO admin template**
+- **Testing: xUnit + FluentAssertions + Bogus cho fake data generation**
+- **Resilience: Polly v8 với circuit breaker, retry, timeout patterns**
+- **ORM: Entity Framework Core với AutoMapper cho object mapping**
+- **Validation: FluentValidation cho request DTOs**
+- **CI/CD: GitHub Actions với TrueNAS deployment, health monitoring**
 
 ## Thiết lập phát triển
 - Sử dụng file .env cho cấu hình môi trường
@@ -27,11 +25,10 @@
 - Hạ tầng mô tả bằng code (IaC), ưu tiên cloud-native, auto-scaling
 - **Unit test organization: partial class pattern với thư mục con theo service name**
 - **Test coverage target: >80% cho tất cả services**
-- **✅ Identity Project Architecture (June 9, 2025): Consolidated từ 2 projects thành 1 project với dual authentication (Cookie + JWT)**
-- **✅ MoneyManagement Infrastructure (June 9, 2025): Complete Clean Architecture implementation với BaseRepository, UnitOfWork, DbContext**
-- **✅ Build Integration (June 9, 2025): All solutions build successfully với 100% build success rate**
-- **✅ Swagger API Documentation: Configured với JWT Bearer support và proper route filtering**
-- **✅ Production Ready Status (June 9, 2025): MoneyManagement và Identity projects achieve production ready status**
+- **✅ Production Ready Services (July 2025): Identity, CoreFinance, MoneyManagement, ExcelApi achieve production ready status**
+- **✅ GitHub Actions CI/CD (July 2025): Complete TrueNAS deployment pipeline với security scanning, rolling updates, health checks**
+- **✅ Enhanced Observability (July 2025): OpenTelemetry, Prometheus metrics, Serilog structured logging, circuit breaker monitoring**
+- **✅ Consolidated Architecture (July 2025): Identity project merged into single application với dual authentication (Cookie + JWT)**
 
 ## Ràng buộc kỹ thuật
 - Phải chạy ổn định trên Linux và Windows

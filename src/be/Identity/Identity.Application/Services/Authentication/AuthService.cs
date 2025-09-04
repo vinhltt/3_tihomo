@@ -48,7 +48,7 @@ public class AuthService(
 {
     public async Task<LoginResponse> LoginAsync(LoginRequest request, CancellationToken cancellationToken = default)
     {
-        var user = await userRepository.GetByUsernameOrEmailAsync(request.UsernameOrEmail, cancellationToken);
+        var user = await userRepository.GetByUsernameOrEmailAsync(request.Username, cancellationToken);
 
         if (user == null || !passwordHasher.VerifyPassword(request.Password, user.PasswordHash))
             throw new UnauthorizedAccessException("Invalid credentials");

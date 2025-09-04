@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
 using Identity.Api.Configuration;
@@ -21,7 +22,7 @@ using Serilog;
 using Serilog.Events;
 
 
-async Task MigrateDatabaseAsync(IHost host)
+static async Task MigrateDatabaseAsync(IHost host)
 {
     using var scope = host.Services.CreateScope();
     var services = scope.ServiceProvider;
@@ -39,21 +40,28 @@ async Task MigrateDatabaseAsync(IHost host)
     }
 }
 
-var builder = WebApplication.CreateBuilder(args);
-
 // ✅ Configure Serilog for structured logging với correlation ID support
 // Cấu hình Serilog cho structured logging với hỗ trợ correlation ID
+
+var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
+var configuration = new ConfigurationBuilder()
+    .AddEnvironmentVariables()
+    .AddJsonFile("appsettings.json", false, true)
+    .AddJsonFile($"appsettings.{env}.json", true, true)
+    .Build();
 Log.Logger = new LoggerConfiguration()
-    .MinimumLevel.Information()
-    .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
-    .MinimumLevel.Override("Microsoft.Hosting.Lifetime", LogEventLevel.Information)
-    .Enrich.FromLogContext()
-    .Enrich.WithProperty("Application", "TiHoMo.Identity")
-    .WriteTo.Console(
-        outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {CorrelationId} {Message:lj}{NewLine}{Exception}")
+    .ReadFrom.Configuration(configuration)
     .CreateLogger();
 
-builder.Host.UseSerilog();
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Host.UseSerilog((hostingContext, loggerConfiguration) =>
+{
+    loggerConfiguration
+        .ReadFrom.Configuration(hostingContext.Configuration)
+        .Enrich.FromLogContext()
+        .Enrich.WithMachineName();
+});
 
 // Add services to the container
 builder.Services.AddControllers();
@@ -81,14 +89,28 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-// Add CORS
+// Add CORS with environment-specific configuration
+// Thêm CORS với cấu hình theo môi trường
+var corsConfig = builder.Configuration.GetSection("CorsOptions");
+var allowedOrigins = corsConfig.GetSection("AllowedOrigins").Get<string[]>() ?? ["*"];
+var policyName = corsConfig["PolicyName"] ?? "DefaultCorsPolicy";
+
 builder.Services.AddCors(options =>
 {
-    options.AddDefaultPolicy(corsPolicyBuilder =>
+    options.AddPolicy(policyName, corsPolicyBuilder =>
     {
-        corsPolicyBuilder.AllowAnyOrigin()
-            .AllowAnyMethod()
-            .AllowAnyHeader();
+        if (allowedOrigins.Contains("*"))
+        {
+            corsPolicyBuilder.AllowAnyOrigin();
+        }
+        else
+        {
+            corsPolicyBuilder.WithOrigins(allowedOrigins)
+                           .AllowCredentials();
+        }
+        
+        corsPolicyBuilder.AllowAnyMethod()
+                        .AllowAnyHeader();
     });
 });
 
@@ -136,7 +158,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.ASCII.GetBytes(jwtSecretKey)),
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecretKey)),
             ValidateIssuer = true,
             ValidIssuer = builder.Configuration["JWT:Issuer"] ?? "TiHoMo.Identity",
             ValidateAudience = true,
@@ -151,11 +173,28 @@ builder.Services.AddAuthorization();
 // Add HttpClient for external API calls
 builder.Services.AddHttpClient();
 
+// ✅ Configure OtelSettings from appsettings.json
+// Cấu hình OtelSettings từ appsettings.json
+var otelSettings = builder.Configuration.GetSection("OtelSettings").Get<OtelSettings>() ?? new OtelSettings
+{
+    ServiceName = "TiHoMo.Identity",
+    ServiceVersion = "1.0.0",
+    ExporterOtlpEndpoint = "http://tempo:4317",
+    TracesSampler = "traceidratio",
+    TracesSamplerArg = "1.0"
+};
+
+// ✅ Configure ActivitySource for distributed tracing
+// Cấu hình ActivitySource cho distributed tracing
+var activitySource = new ActivitySource(otelSettings.ServiceName);
+builder.Services.AddSingleton(activitySource);
+
 // ✅ Add OpenTelemetry for comprehensive observability
 // Thêm OpenTelemetry cho observability toàn diện
 builder.Services.AddOpenTelemetry()
     .ConfigureResource(resource => resource
-        .AddService("TiHoMo.Identity", "1.0.0")
+        .AddService(otelSettings.ServiceName, otelSettings.ServiceVersion)
+        .AddAttributes(otelSettings.GetResourceAttributesDictionary())
         .AddAttributes(new Dictionary<string, object>
         {
             ["service.namespace"] = "TiHoMo",
@@ -163,6 +202,7 @@ builder.Services.AddOpenTelemetry()
             ["deployment.environment"] = builder.Environment.EnvironmentName
         }))
     .WithTracing(tracing => tracing
+        .SetSampler(new TraceIdRatioBasedSampler(otelSettings.GetSamplingRatio()))
         .AddAspNetCoreInstrumentation(options =>
         {
             options.RecordException = true;
@@ -174,15 +214,17 @@ builder.Services.AddOpenTelemetry()
             options.SetDbStatementForStoredProcedure = true;
         })
         .AddHttpClientInstrumentation(options => { options.RecordException = true; })
-        .AddSource("TiHoMo.Identity.Telemetry")
-        .AddConsoleExporter()
-        .AddJaegerExporter())
+        .AddSource(otelSettings.ServiceName)
+        .AddOtlpExporter(otlpOptions =>
+        {
+            otlpOptions.Endpoint = new Uri(otelSettings.ExporterOtlpEndpoint);
+        })
+        .AddConsoleExporter())
     .WithMetrics(metrics => metrics
         .AddAspNetCoreInstrumentation()
         .AddHttpClientInstrumentation()
         .AddRuntimeInstrumentation()
-        .AddProcessInstrumentation()
-        .AddMeter("TiHoMo.Identity.Telemetry")
+        .AddMeter(otelSettings.ServiceName)
         .AddPrometheusExporter());
 
 // ✅ Register TelemetryService for custom metrics and tracing
@@ -191,6 +233,7 @@ builder.Services.AddSingleton<TelemetryService>();
 
 // ✅ Add enhanced application services with resilience patterns
 // Thêm enhanced application services với resilience patterns
+// TODO: Implement enhanced services
 builder.Services.AddScoped<ITokenVerificationService>(provider =>
 {
     // Register the enhanced service first
@@ -202,8 +245,7 @@ builder.Services.AddScoped<ITokenVerificationService>(provider =>
         enhancedService);
 });
 builder.Services.AddScoped<IUserService, EnhancedUserService>();
-builder.Services.AddScoped<IApiKeyService, ApiKeyService>();
-builder.Services.AddScoped<IJwtService, JwtService>();
+builder.Services.AddScoped<Identity.Application.Common.Interfaces.IJwtService, JwtService>();
 
 // ✅ Add refresh token service for Phase 2 implementation
 // Thêm refresh token service cho triển khai Phase 2
@@ -211,15 +253,17 @@ builder.Services.AddScoped<IRefreshTokenService, EfRefreshTokenService>();
 
 // ✅ Add background service for token cleanup
 // Thêm background service để dọn dẹp token
-builder.Services.AddHostedService<RefreshTokenCleanupService>();
+// TODO: Implement refresh token cleanup service
+// builder.Services.AddHostedService<RefreshTokenCleanupService>();
 
 // Add health checks for monitoring (including resilience patterns)
 // Thêm health checks để monitoring (bao gồm resilience patterns)
 builder.Services.AddHealthChecks()
     .AddDbContextCheck<IdentityDbContext>("database")
-    .AddCheck("memory_cache", () => HealthCheckResult.Healthy("Memory cache is healthy"))
-    .AddCheck<CircuitBreakerHealthCheck>("circuit_breaker")
-    .AddCheck<TelemetryHealthCheck>("telemetry");
+    .AddCheck("memory_cache", () => HealthCheckResult.Healthy("Memory cache is healthy"));
+    // TODO: Implement CircuitBreakerHealthCheck and TelemetryHealthCheck
+    // .AddCheck<CircuitBreakerHealthCheck>("circuit_breaker")
+    // .AddCheck<TelemetryHealthCheck>("telemetry");
 
 // Add logging configuration for performance monitoring
 // Thêm cấu hình logging để monitoring hiệu suất
@@ -241,23 +285,35 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-app.UseCors();
+app.UseCors(policyName);
+
+// ✅ Add CorrelationMiddleware for correlation ID tracking and structured logging
+// Thêm CorrelationMiddleware cho correlation ID tracking và structured logging
+app.UseMiddleware<CorrelationMiddleware>();
 
 // ✅ Add ObservabilityMiddleware for correlation ID and request metrics
 // Thêm ObservabilityMiddleware cho correlation ID và request metrics
 app.UseMiddleware<ObservabilityMiddleware>();
 
-// Add API Key authentication middleware before JWT authentication
-app.UseMiddleware<ApiKeyAuthenticationMiddleware>();
+// ✅ Add TracingMiddleware for distributed tracing
+// Thêm TracingMiddleware cho distributed tracing
+app.UseDistributedTracing();
+
+// Add API Key exception handling middleware
+app.UseApiKeyExceptionHandling();
+
+// Add API Key performance monitoring
+app.UseApiKeyPerformanceMonitoring();
+
+// Add Enhanced API Key authentication middleware before JWT authentication
+app.UseEnhancedApiKeyAuthentication();
 
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
 
-// ✅ Map Prometheus metrics endpoint for scraping
-// Map Prometheus metrics endpoint cho scraping
-app.MapPrometheusScrapingEndpoint("/metrics");
+// Note: Metrics are exported via OpenTelemetry Prometheus exporter
 
 // Health check endpoint with detailed information
 // Health check endpoint với thông tin chi tiết

@@ -95,9 +95,7 @@ public class JarService(IUnitOfWork unitOfWork, IMapper mapper, ILogger<JarServi
     {
         try
         {
-            var jar = await unitOfWork.Repository<Jar, Guid>().GetByIdAsync(request.Id);
-            if (jar == null) throw new InvalidOperationException("Jar not found or access denied.");
-
+            var jar = await unitOfWork.Repository<Jar, Guid>().GetByIdAsync(request.Id) ?? throw new InvalidOperationException("Jar not found or access denied.");
             jar.Name = request.Name;
             jar.TargetAmount = request.TargetAmount;
             jar.AllocationPercentage = request.AllocationPercentage;
@@ -144,7 +142,7 @@ public class JarService(IUnitOfWork unitOfWork, IMapper mapper, ILogger<JarServi
         {
             var userJars = await unitOfWork.Repository<Jar, Guid>().GetAllAsync();
             var activeJars = userJars.Where(j => j.IsActive).ToList();
-            if (!activeJars.Any()) throw new InvalidOperationException("No active jars found for allocation.");
+            if (activeJars.Count == 0) throw new InvalidOperationException("No active jars found for allocation.");
 
             var result = new IncomeAllocationResult
             {
@@ -250,9 +248,7 @@ public class JarService(IUnitOfWork unitOfWork, IMapper mapper, ILogger<JarServi
     {
         try
         {
-            var jar = await unitOfWork.Repository<Jar, Guid>().GetByIdAsync(request.JarId);
-            if (jar == null)
-                throw new InvalidOperationException("Jar not found or access denied.");
+            var jar = await unitOfWork.Repository<Jar, Guid>().GetByIdAsync(request.JarId) ?? throw new InvalidOperationException("Jar not found or access denied.");
             if (jar.Balance < request.Amount)
                 throw new InvalidOperationException("Insufficient balance in jar.");
 
@@ -284,23 +280,22 @@ public class JarService(IUnitOfWork unitOfWork, IMapper mapper, ILogger<JarServi
                 UserId = userId,
                 GeneratedAt = DateTime.UtcNow,
                 TotalBalance = jarsList.Sum(j => j.Balance),
-                TotalTarget = jarsList.Where(j => j.TargetAmount.HasValue).Sum(j => j.TargetAmount!.Value)
+                TotalTarget = jarsList.Where(j => j.TargetAmount.HasValue).Sum(j => j.TargetAmount!.Value),
+                JarBalances = [.. jarsList.Select(jar => new JarBalanceDetail
+                {
+                    JarId = jar.Id,
+                    Name = jar.Name,
+                    JarType = jar.JarType.ToString(),
+                    CurrentBalance = jar.Balance, TargetAmount = jar.TargetAmount ?? 0,
+                    AllocationPercentage = jar.AllocationPercentage ?? 0,
+                    Progress = jar.TargetAmount.HasValue && jar.TargetAmount > 0
+                        ? Math.Min(jar.Balance / jar.TargetAmount.Value * 100, 100)
+                        : 0,
+                    Status = GetJarStatus(jar),
+                    LastUpdated = jar.UpdatedAt ?? DateTime.UtcNow,
+                    MonthlyContribution = 0 // This would be calculated based on historical data
+                })]
             };
-
-            summary.JarBalances = jarsList.Select(jar => new JarBalanceDetail
-            {
-                JarId = jar.Id,
-                Name = jar.Name,
-                JarType = jar.JarType.ToString(),
-                CurrentBalance = jar.Balance, TargetAmount = jar.TargetAmount ?? 0,
-                AllocationPercentage = jar.AllocationPercentage ?? 0,
-                Progress = jar.TargetAmount.HasValue && jar.TargetAmount > 0
-                    ? Math.Min(jar.Balance / jar.TargetAmount.Value * 100, 100)
-                    : 0,
-                Status = GetJarStatus(jar),
-                LastUpdated = jar.UpdatedAt ?? DateTime.UtcNow,
-                MonthlyContribution = 0 // This would be calculated based on historical data
-            }).ToList();
 
             // Calculate statistics
             summary.Statistics = CalculateStatistics(summary.JarBalances);
@@ -322,7 +317,7 @@ public class JarService(IUnitOfWork unitOfWork, IMapper mapper, ILogger<JarServi
         try
         {
             var existingJars = await unitOfWork.Repository<Jar, Guid>().GetAllAsync();
-            if (existingJars.Any())
+            if (existingJars.Count != 0)
             {
                 logger.LogWarning("User {UserId} already has jars, returning existing jars", userId);
                 return mapper.Map<IEnumerable<JarViewModel>>(existingJars);
@@ -364,9 +359,7 @@ public class JarService(IUnitOfWork unitOfWork, IMapper mapper, ILogger<JarServi
     {
         try
         {
-            var jar = await unitOfWork.Repository<Jar, Guid>().GetByIdAsync(jarId);
-            if (jar == null)
-                throw new InvalidOperationException("Jar not found or access denied.");
+            var jar = await unitOfWork.Repository<Jar, Guid>().GetByIdAsync(jarId) ?? throw new InvalidOperationException("Jar not found or access denied.");
             jar.IsActive = isActive;
             jar.UpdatedAt = DateTime.UtcNow;
 
@@ -419,7 +412,7 @@ public class JarService(IUnitOfWork unitOfWork, IMapper mapper, ILogger<JarServi
         };
     }
 
-    private JarBalanceStatistics CalculateStatistics(List<JarBalanceDetail> jarBalances)
+    private static JarBalanceStatistics CalculateStatistics(List<JarBalanceDetail> jarBalances)
     {
         var activeJars = jarBalances.Where(j => j.Status != "Inactive").ToList();
 
@@ -429,7 +422,7 @@ public class JarService(IUnitOfWork unitOfWork, IMapper mapper, ILogger<JarServi
             ActiveJars = activeJars.Count,
             JarsAtTarget = activeJars.Count(j => j.Status == "Target Reached"),
             JarsNearTarget = activeJars.Count(j => j.Status == "Near Target"),
-            AverageProgress = activeJars.Any() ? activeJars.Average(j => j.Progress) : 0,
+            AverageProgress = activeJars.Count != 0 ? activeJars.Average(j => j.Progress) : 0,
             TopPerformingJar = activeJars.OrderByDescending(j => j.Progress).FirstOrDefault()?.Name ?? "None",
             LeastProgressJar = activeJars.OrderBy(j => j.Progress).FirstOrDefault()?.Name ?? "None",
             TotalMonthlyAllocation = activeJars.Sum(j => j.MonthlyContribution)
@@ -539,9 +532,7 @@ public class JarService(IUnitOfWork unitOfWork, IMapper mapper, ILogger<JarServi
     {
         try
         {
-            var jar = await unitOfWork.Repository<Jar, Guid>().GetByIdAsync(jarId);
-            if (jar == null) throw new InvalidOperationException("Jar not found.");
-
+            var jar = await unitOfWork.Repository<Jar, Guid>().GetByIdAsync(jarId) ?? throw new InvalidOperationException("Jar not found.");
             jar.Name = request.Name;
             jar.TargetAmount = request.TargetAmount;
             jar.AllocationPercentage = request.AllocationPercentage;
@@ -588,7 +579,7 @@ public class JarService(IUnitOfWork unitOfWork, IMapper mapper, ILogger<JarServi
         try
         {
             var existingJars = await unitOfWork.Repository<Jar, Guid>().GetAllAsync();
-            if (existingJars.Any())
+            if (existingJars.Count != 0)
             {
                 logger.LogWarning("Jars already exist, returning existing jars");
                 return mapper.Map<IEnumerable<JarResponseDto>>(existingJars);
@@ -630,10 +621,7 @@ public class JarService(IUnitOfWork unitOfWork, IMapper mapper, ILogger<JarServi
     {
         try
         {
-            var jar = await unitOfWork.Repository<Jar, Guid>().GetByIdAsync(jarId);
-            if (jar == null)
-                throw new InvalidOperationException("Jar not found.");
-
+            Jar jar = await unitOfWork.Repository<Jar, Guid>().GetByIdAsync(jarId) ?? throw new InvalidOperationException("Jar not found.");
             jar.Balance += request.Amount;
             jar.UpdatedAt = DateTime.UtcNow;
 
@@ -654,10 +642,7 @@ public class JarService(IUnitOfWork unitOfWork, IMapper mapper, ILogger<JarServi
     {
         try
         {
-            var jar = await unitOfWork.Repository<Jar, Guid>().GetByIdAsync(jarId);
-            if (jar == null)
-                throw new InvalidOperationException("Jar not found.");
-
+            var jar = await unitOfWork.Repository<Jar, Guid>().GetByIdAsync(jarId) ?? throw new InvalidOperationException("Jar not found.");
             if (jar.Balance < request.Amount)
                 throw new InvalidOperationException("Insufficient balance in jar.");
 
@@ -729,15 +714,15 @@ public class JarService(IUnitOfWork unitOfWork, IMapper mapper, ILogger<JarServi
             var userJars = await unitOfWork.Repository<Jar, Guid>().GetAllAsync();
             var activeJars = userJars.Where(j => j.IsActive).ToList();
 
-            if (!activeJars.Any()) throw new InvalidOperationException("No active jars found for allocation.");
+            if (activeJars.Count == 0) throw new InvalidOperationException("No active jars found for allocation.");
             var jarsToUpdate = new List<Jar>();
             var jarDistributions = new List<JarDistributionItemDto>();
             decimal totalAllocated = 0;
             foreach (var jar in activeJars)
             {
                 decimal allocationPercentage = 0;
-                if (request.CustomRatios != null && request.CustomRatios.ContainsKey(jar.JarType))
-                    allocationPercentage = request.CustomRatios[jar.JarType];
+                if (request.CustomRatios != null && request.CustomRatios.TryGetValue(jar.JarType, out decimal value))
+                    allocationPercentage = value;
                 else
                     allocationPercentage = jar.AllocationPercentage ?? 0;
 
@@ -797,7 +782,7 @@ public class JarService(IUnitOfWork unitOfWork, IMapper mapper, ILogger<JarServi
                 AvailableAllocationPercentage = 100 - jarsList.Sum(j => j.AllocationPercentage ?? 0),
                 OverallProgressPercentage = jarsList.Where(j => j.TargetAmount.HasValue && j.TargetAmount > 0)
                     .Average(j => Math.Min(j.Balance / j.TargetAmount!.Value * 100, 100)),
-                JarAllocations = jarsList.Select(j => new JarAllocationItemDto
+                JarAllocations = [.. jarsList.Select(j => new JarAllocationItemDto
                 {
                     JarId = j.Id,
                     JarName = j.Name,
@@ -809,7 +794,7 @@ public class JarService(IUnitOfWork unitOfWork, IMapper mapper, ILogger<JarServi
                         ? Math.Min(j.Balance / j.TargetAmount.Value * 100, 100)
                         : 0,
                     IsActive = j.IsActive
-                }).ToList(),
+                })],
                 DefaultAllocations = _defaultAllocationPercentages
             };
         }

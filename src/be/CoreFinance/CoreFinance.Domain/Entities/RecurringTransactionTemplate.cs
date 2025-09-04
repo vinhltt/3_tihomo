@@ -5,13 +5,9 @@ using Shared.EntityFramework.BaseEfModels;
 
 namespace CoreFinance.Domain.Entities;
 
-public class RecurringTransactionTemplate : BaseEntity<Guid>
+public class RecurringTransactionTemplate : UserOwnedEntity<Guid>
 {
-    /// <summary>
-    ///     Foreign key linking to user (EN)
-    ///     Khóa ngoại liên kết với người dùng (VI)
-    /// </summary>
-    public Guid? UserId { get; set; }
+
 
     /// <summary>
     ///     Foreign key linking to account (EN)
@@ -126,20 +122,6 @@ public class RecurringTransactionTemplate : BaseEntity<Guid>
     /// </summary>
     [MaxLength(1000)]
     public string? Notes { get; set; }
-
-    /// <summary>
-    ///     Created date (EN)
-    ///     Ngày tạo (VI)
-    /// </summary>
-    [Required]
-    public DateTime CreatedAt { get; set; }
-
-    /// <summary>
-    ///     Last updated date (EN)
-    ///     Ngày cập nhật cuối cùng (VI)
-    /// </summary>
-    [Required]
-    public DateTime UpdatedAt { get; set; }
 
     /// <summary>
     ///     Navigation property: link to account (EN)

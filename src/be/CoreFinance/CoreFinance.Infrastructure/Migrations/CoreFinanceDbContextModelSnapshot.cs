@@ -128,7 +128,7 @@ namespace CoreFinance.Infrastructure.Migrations
                         .HasColumnType("text")
                         .HasColumnName("create_by");
 
-                    b.Property<DateTime>("CreatedAt")
+                    b.Property<DateTime?>("CreatedAt")
                         .HasColumnType("timestamp without time zone")
                         .HasColumnName("created_at");
 
@@ -186,7 +186,7 @@ namespace CoreFinance.Infrastructure.Migrations
                         .HasColumnType("text")
                         .HasColumnName("update_by");
 
-                    b.Property<DateTime>("UpdatedAt")
+                    b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp without time zone")
                         .HasColumnName("updated_at");
 
@@ -240,7 +240,7 @@ namespace CoreFinance.Infrastructure.Migrations
                         .HasColumnType("text")
                         .HasColumnName("create_by");
 
-                    b.Property<DateTime>("CreatedAt")
+                    b.Property<DateTime?>("CreatedAt")
                         .HasColumnType("timestamp without time zone")
                         .HasColumnName("created_at");
 
@@ -305,7 +305,7 @@ namespace CoreFinance.Infrastructure.Migrations
                         .HasColumnType("text")
                         .HasColumnName("update_by");
 
-                    b.Property<DateTime>("UpdatedAt")
+                    b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp without time zone")
                         .HasColumnName("updated_at");
 
@@ -365,7 +365,7 @@ namespace CoreFinance.Infrastructure.Migrations
                         .HasColumnType("text")
                         .HasColumnName("create_by");
 
-                    b.Property<DateTime>("CreatedAt")
+                    b.Property<DateTime?>("CreatedAt")
                         .HasColumnType("timestamp without time zone")
                         .HasColumnName("created_at");
 
@@ -426,7 +426,7 @@ namespace CoreFinance.Infrastructure.Migrations
                         .HasColumnType("text")
                         .HasColumnName("update_by");
 
-                    b.Property<DateTime>("UpdatedAt")
+                    b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp without time zone")
                         .HasColumnName("updated_at");
 

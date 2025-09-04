@@ -69,9 +69,11 @@
           "Port": 8080
         }
       ],
-      "UpstreamPathTemplate": "/identity/{everything}",
+      "UpstreamPathTemplate": "/api/identity/{everything}",
       "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE", "OPTIONS" ],
       "RouteClaimsRequirement": {},
+      "Priority": 1,
+      "RouteIsCaseSensitive": false,
       "RateLimitOptions": {
         "ClientWhitelist": [],
         "EnableRateLimiting": true,

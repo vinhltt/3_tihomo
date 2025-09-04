@@ -1,16 +1,23 @@
+using System.Diagnostics;
 using CoreFinance.Api.Consumers;
 using CoreFinance.Api.Infrastructures.Middlewares;
 using CoreFinance.Api.Infrastructures.Modules;
 using CoreFinance.Api.Infrastructures.ServicesExtensions;
+using CoreFinance.Api.Middleware;
 using CoreFinance.Infrastructure;
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
 using Serilog;
+using CoreFinance.Api.Configuration;
+using CoreFinance.Api.Extensions;
 using Shared.Contracts.ConfigurationOptions;
 using Shared.Contracts.Utilities;
 
-async Task CreateDbIfNotExistsAsync(IHost host)
+static async Task CreateDbIfNotExistsAsync(IHost host)
 {
     using var scope = host.Services.CreateScope();
     var services = scope.ServiceProvider;
@@ -18,7 +25,7 @@ async Task CreateDbIfNotExistsAsync(IHost host)
     try
     {
         var context = services.GetRequiredService<CoreFinanceDbContext>();
-        await context.Database.EnsureCreatedAsync();
+        //await context.Database.EnsureCreatedAsync();
         await context.Database.MigrateAsync();
         //var dbInitializer = services.GetService<DbInitializer>();
         //if (dbInitializer == null)
@@ -53,6 +60,12 @@ var policyName = corsOption!.PolicyName.Nullify("AppCorsPolicy");
 builder.AddConfigurationSettings();
 builder.AddGeneralConfigurations(policyName, corsOption);
 builder.Services.AddInjectedServices();
+
+// Configure JWT Authentication
+var jwtSettings = builder.Configuration.GetSection(JwtSettings.SectionName).Get<JwtSettings>() ?? new JwtSettings();
+builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection(JwtSettings.SectionName));
+builder.Services.AddJwtAuthentication(jwtSettings);
+builder.Services.AddJwtAuthorization();
 
 // Add MassTransit for message consumption
 builder.Services.AddMassTransit(x =>
@@ -92,6 +105,60 @@ builder.Services.AddMassTransit(x =>
     });
 });
 
+// ✅ Configure OtelSettings from appsettings.json
+// Cấu hình OtelSettings từ appsettings.json
+var otelSettings = builder.Configuration.GetSection("OtelSettings").Get<OtelSettings>() ?? new OtelSettings
+{
+    ServiceName = "TiHoMo.CoreFinance",
+    ServiceVersion = "1.0.0",
+    ExporterOtlpEndpoint = "http://tempo:4317",
+    TracesSampler = "traceidratio",
+    TracesSamplerArg = "1.0"
+};
+
+// ✅ Configure ActivitySource for distributed tracing
+// Cấu hình ActivitySource cho distributed tracing
+var activitySource = new ActivitySource(otelSettings.ServiceName);
+builder.Services.AddSingleton(activitySource);
+
+// ✅ Add OpenTelemetry for comprehensive observability
+// Thêm OpenTelemetry cho observability toàn diện
+builder.Services.AddOpenTelemetry()
+    .ConfigureResource(resource => resource
+        .AddService(otelSettings.ServiceName, otelSettings.ServiceVersion)
+        .AddAttributes(otelSettings.GetResourceAttributesDictionary())
+        .AddAttributes(new Dictionary<string, object>
+        {
+            ["service.namespace"] = "TiHoMo",
+            ["service.instance.id"] = Environment.MachineName,
+            ["deployment.environment"] = builder.Environment.EnvironmentName
+        }))
+    .WithTracing(tracing => tracing
+        .SetSampler(new TraceIdRatioBasedSampler(otelSettings.GetSamplingRatio()))
+        .AddAspNetCoreInstrumentation(options =>
+        {
+            options.RecordException = true;
+            options.Filter = httpContext => !httpContext.Request.Path.StartsWithSegments("/health");
+        })
+        .AddEntityFrameworkCoreInstrumentation(options =>
+        {
+            options.SetDbStatementForText = true;
+            options.SetDbStatementForStoredProcedure = true;
+        })
+        .AddHttpClientInstrumentation(options => { options.RecordException = true; })
+        .AddSource(otelSettings.ServiceName)
+        .AddOtlpExporter(otlpOptions =>
+        {
+            otlpOptions.Endpoint = new Uri(otelSettings.ExporterOtlpEndpoint);
+        })
+        .AddConsoleExporter())
+    .WithMetrics(metrics => metrics
+        .AddAspNetCoreInstrumentation()
+        .AddHttpClientInstrumentation()
+        .AddRuntimeInstrumentation()
+        .AddMeter(otelSettings.ServiceName)
+        .AddPrometheusExporter());
+
 // Add health checks
 builder.Services.AddHealthChecks()
     .AddDbContextCheck<CoreFinanceDbContext>()
@@ -106,8 +173,16 @@ builder.Host.UseSerilog((hostingContext, loggerConfiguration) =>
 
 var app = builder.Build();
 
+// ✅ Add CorrelationMiddleware for correlation ID tracking and structured logging
+// Thêm CorrelationMiddleware cho correlation ID tracking và structured logging
+app.UseMiddleware<CorrelationMiddleware>();
+
 // Add the performance logging middleware early in the pipeline
 app.UseMiddleware<PerformanceLoggingMiddleware>();
+
+// ✅ Add TracingMiddleware for distributed tracing
+// Thêm TracingMiddleware cho distributed tracing
+app.UseDistributedTracing();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
@@ -125,12 +200,15 @@ app.UseHttpsRedirection();
 
 app.UseCors(policyName);
 
-// Add the authorization middleware
-//app.UseAuthorization();
+// Add authentication and authorization middleware
+app.UseAuthentication();
+app.UseAuthorization();
 app.UseRouting();
 
 // Map health check endpoint
 app.MapHealthChecks("/health");
+
+// Note: Metrics are exported via OpenTelemetry Prometheus exporter
 
 app.MapControllers();
 

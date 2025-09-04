@@ -11,6 +11,13 @@ public interface IEnhancedApiKeyService
     #region Core CRUD Operations
 
     /// <summary>
+    /// Create simple API key (end users) (EN)<br/>
+    /// Tạo API key đơn giản cho end users (VI)
+    /// </summary>
+    Task<CreateApiKeyResponse> CreateSimpleApiKeyAsync(Guid userId, CreateSimpleApiKeyRequest request,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Create new API key with enhanced security features (EN)<br/>
     /// Tạo API key mới với tính năng bảo mật nâng cao (VI)
     /// </summary>
@@ -65,6 +72,13 @@ public interface IEnhancedApiKeyService
     /// Xoay API key (tạo key mới, giữ nguyên cài đặt) (VI)
     /// </summary>
     Task<RotateApiKeyResponse> RotateApiKeyAsync(Guid apiKeyId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Exchange API key for JWT token (EN)<br/>
+    /// Trao đổi API key lấy JWT token (VI)
+    /// </summary>
+    Task<ApiKeyExchangeResponse> ExchangeApiKeyForJwtAsync(string rawApiKey, string clientIpAddress,
         CancellationToken cancellationToken = default);
 
     #endregion

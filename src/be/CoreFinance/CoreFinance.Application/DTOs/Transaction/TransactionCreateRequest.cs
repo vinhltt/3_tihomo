@@ -1,5 +1,6 @@
 using CoreFinance.Domain.Enums;
 using Shared.EntityFramework.DTOs;
+using CoreFinance.Application.Interfaces;
 
 namespace CoreFinance.Application.DTOs.Transaction;
 
@@ -7,7 +8,7 @@ namespace CoreFinance.Application.DTOs.Transaction;
 ///     Represents a request to create a new transaction. (EN)<br />
 ///     Đại diện cho request tạo giao dịch mới. (VI)
 /// </summary>
-public class TransactionCreateRequest : BaseCreateRequest
+public class TransactionCreateRequest : BaseCreateRequest, IUserRequest
 {
     /// <summary>
     ///     The ID of the account associated with the transaction. (EN)<br />

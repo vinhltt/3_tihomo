@@ -29,7 +29,7 @@ public interface IUnitOfWork : IDisposable
     /// <typeparam name="TEntity">The type of the entity.</typeparam>
     /// <typeparam name="TKey">The type of the entity's key.</typeparam>
     /// <returns>An instance of IBaseRepository for the specified entity and key type.</returns>
-    IBaseRepository<TEntity, TKey> Repository<TEntity, TKey>() where TEntity : BaseEntity<TKey>;
+    IBaseRepository<TEntity, TKey> Repository<TEntity, TKey>() where TEntity : UserOwnedEntity<TKey>;
 
     /// <summary>
     ///     Begins a new database transaction asynchronously. (EN)<br />
