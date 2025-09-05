@@ -212,16 +212,16 @@ jobs:
             echo "[VALIDATION] Checking critical variables..."
             
             critical_vars=("POSTGRES_SUPER_PASSWORD" "REDIS_PASSWORD" "RABBITMQ_PASSWORD" "GRAFANA_ADMIN_PASSWORD")
-            missing_vars=()
+            missing_vars=""
             
             for var in "${critical_vars[@]}"; do
               if ! grep -q "^${var}=" .env || [ "$(grep "^${var}=" .env | cut -d'=' -f2 | tr -d "'")" = "" ]; then
-                missing_vars+=("$var")
+                missing_vars="$missing_vars $var"
               fi
             done
             
-            if [ ${#missing_vars[@]} -gt 0 ]; then
-              echo "[ERROR] Missing critical variables: ${missing_vars[*]}"
+            if [ -n "$missing_vars" ]; then
+              echo "[ERROR] Missing critical variables:$missing_vars"
               exit 1
             else
               echo "[OK] All critical variables are set"
@@ -246,28 +246,19 @@ jobs:
             echo "[INFO] Services: ${{ env.SERVICES_TO_DEPLOY }}"
             
             # Parse services to deploy
-            IFS=',' read -ra SERVICES <<< "${{ env.SERVICES_TO_DEPLOY }}"
-            DEPLOYED_SERVICES=()
-            FAILED_SERVICES=()
+            SERVICES_LIST="${{ env.SERVICES_TO_DEPLOY }}"
+            DEPLOYED_SERVICES=""
+            FAILED_SERVICES=""
             
             # Create network first
             echo "[NETWORK] Creating tihomo-network..."
             $USE_SUDO docker network create tihomo-network 2>/dev/null || echo "[INFO] Network already exists"
             
             # Deploy services in order of dependency
-            SERVICE_GROUPS=(
-              "postgres"
-              "redis rabbitmq"
-              "prometheus loki tempo"
-              "grafana"
-              "pgadmin mailhog nginx"
-            )
-            
-            for group in "${SERVICE_GROUPS[@]}"; do
-              group_services=($group)
-              for service in "${group_services[@]}"; do
+            for group in "postgres" "redis rabbitmq" "prometheus loki tempo" "grafana" "pgadmin mailhog nginx"; do
+              for service in $group; do
                 # Check if service is in the deploy list
-                if [[ " ${SERVICES[*]} " =~ " ${service} " ]]; then
+                if echo ",$SERVICES_LIST," | grep -q ",$service,"; then
                   echo "[DEPLOY] Deploying $service..."
                   
                   if $USE_SUDO docker compose -f docker-compose.infras.yml config --services | grep -q "^$service$"; then
@@ -324,29 +315,27 @@ jobs:
                       fi
                       
                       sleep 10
-                      ((attempt++))
+                      attempt=$((attempt + 1))
                     done
                     
                     if [ "$service_ready" = true ]; then
-                      DEPLOYED_SERVICES+=("$service")
+                      DEPLOYED_SERVICES="$DEPLOYED_SERVICES $service"
                     else
                       echo "[WARNING] $service deployment may need more time"
                       echo "[DEBUG] Recent logs for $service:"
                       $USE_SUDO docker compose -f docker-compose.infras.yml logs --tail=15 $service
-                      FAILED_SERVICES+=("$service")
+                      FAILED_SERVICES="$FAILED_SERVICES $service"
                     fi
                   else
                     echo "[ERROR] Service $service not found in compose file"
-                    FAILED_SERVICES+=("$service")
+                    FAILED_SERVICES="$FAILED_SERVICES $service"
                   fi
                 fi
               done
               
-              # Wait between groups for stability
-              if [ ${#group_services[@]} -gt 0 ]; then
-                echo "[INFO] Waiting for service group to stabilize..."
-                sleep 10
-              fi
+              # Wait between groups for stability  
+              echo "[INFO] Waiting for service group to stabilize..."
+              sleep 10
             done
             
             # Deployment summary
@@ -354,16 +343,16 @@ jobs:
             echo "[SUMMARY] Infrastructure Deployment Results:"
             echo "==========================================="
             
-            if [ ${#DEPLOYED_SERVICES[@]} -gt 0 ]; then
+            if [ -n "$DEPLOYED_SERVICES" ]; then
               echo "✅ Successfully deployed:"
-              for service in "${DEPLOYED_SERVICES[@]}"; do
+              for service in $DEPLOYED_SERVICES; do
                 echo "   • $service"
               done
             fi
             
-            if [ ${#FAILED_SERVICES[@]} -gt 0 ]; then
+            if [ -n "$FAILED_SERVICES" ]; then
               echo "❌ Failed or needs attention:"
-              for service in "${FAILED_SERVICES[@]}"; do
+              for service in $FAILED_SERVICES; do
                 echo "   • $service"
               done
             fi
@@ -374,7 +363,7 @@ jobs:
             $USE_SUDO docker compose -f docker-compose.infras.yml ps
             
             # Export status for next steps
-            if [ ${#FAILED_SERVICES[@]} -eq 0 ]; then
+            if [ -z "$FAILED_SERVICES" ]; then
               echo "status=success" >> $GITHUB_OUTPUT
             else
               echo "status=partial" >> $GITHUB_OUTPUT
@@ -404,46 +393,46 @@ jobs:
             fi
             
             # Check core services
-            CORE_SERVICES=("postgres" "redis" "rabbitmq")
-            HEALTHY_SERVICES=()
-            UNHEALTHY_SERVICES=()
+            CORE_SERVICES="postgres redis rabbitmq"
+            HEALTHY_SERVICES=""
+            UNHEALTHY_SERVICES=""
             
-            for service in "${CORE_SERVICES[@]}"; do
+            for service in $CORE_SERVICES; do
               if $USE_SUDO docker compose -f docker-compose.infras.yml ps $service | grep -q "Up"; then
                 case $service in
                   postgres)
                     if $USE_SUDO docker compose -f docker-compose.infras.yml exec -T postgres pg_isready -U postgres >/dev/null 2>&1; then
-                      HEALTHY_SERVICES+=("$service")
+                      HEALTHY_SERVICES="$HEALTHY_SERVICES $service"
                     else
-                      UNHEALTHY_SERVICES+=("$service")
+                      UNHEALTHY_SERVICES="$UNHEALTHY_SERVICES $service"
                     fi
                     ;;
                   redis)
                     if $USE_SUDO docker compose -f docker-compose.infras.yml exec -T redis redis-cli ping >/dev/null 2>&1; then
-                      HEALTHY_SERVICES+=("$service")
+                      HEALTHY_SERVICES="$HEALTHY_SERVICES $service"
                     else
-                      UNHEALTHY_SERVICES+=("$service")
+                      UNHEALTHY_SERVICES="$UNHEALTHY_SERVICES $service"
                     fi
                     ;;
                   rabbitmq)
                     if $USE_SUDO docker compose -f docker-compose.infras.yml exec -T rabbitmq rabbitmq-diagnostics ping >/dev/null 2>&1; then
-                      HEALTHY_SERVICES+=("$service")
+                      HEALTHY_SERVICES="$HEALTHY_SERVICES $service"
                     else
-                      UNHEALTHY_SERVICES+=("$service")
+                      UNHEALTHY_SERVICES="$UNHEALTHY_SERVICES $service"
                     fi
                     ;;
                 esac
               else
-                UNHEALTHY_SERVICES+=("$service (not running)")
+                UNHEALTHY_SERVICES="$UNHEALTHY_SERVICES $service(not-running)"
               fi
             done
             
             echo "[HEALTH] Health check results:"
-            if [ ${#HEALTHY_SERVICES[@]} -gt 0 ]; then
-              echo "✅ Healthy services: ${HEALTHY_SERVICES[*]}"
+            if [ -n "$HEALTHY_SERVICES" ]; then
+              echo "✅ Healthy services:$HEALTHY_SERVICES"
             fi
-            if [ ${#UNHEALTHY_SERVICES[@]} -gt 0 ]; then
-              echo "❌ Unhealthy services: ${UNHEALTHY_SERVICES[*]}"
+            if [ -n "$UNHEALTHY_SERVICES" ]; then
+              echo "❌ Unhealthy services:$UNHEALTHY_SERVICES"
             fi
             
             echo "[INFO] Infrastructure deployment completed"
