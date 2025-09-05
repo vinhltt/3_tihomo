@@ -249,7 +249,7 @@ services:
 # ================================
 networks:
   tihomo-network:
-    name: tihomo-network  # Đặt tên cố định, không để Docker tự thêm prefix
+    external: true  # Use existing network created manually
     driver: bridge
 
 # ================================

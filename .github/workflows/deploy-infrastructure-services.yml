@@ -277,11 +277,11 @@ jobs:
           ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << 'EOF'
             cd ${{ env.TRUENAS_DEPLOY_DIR }}
             
-            # Check Docker access
+            # Check Docker access and set command prefix
             if docker ps >/dev/null 2>&1; then
-              USE_SUDO=""
+              DOCKER_CMD="docker"
             else
-              USE_SUDO="sudo"
+              DOCKER_CMD="sudo docker"
             fi
             
             echo "[INFO] Deploying infrastructure services..."
@@ -293,9 +293,14 @@ jobs:
             DEPLOYED_SERVICES=""
             FAILED_SERVICES=""
             
-            # Create network first
+            # Create network first (remove old one if exists with wrong labels)
+            echo "[NETWORK] Ensuring tihomo-network is properly configured..."
+            \$DOCKER_CMD network inspect tihomo-network >/dev/null 2>&1 && {
+              echo "[INFO] Removing existing network to recreate with correct labels..."
+              \$DOCKER_CMD network rm tihomo-network 2>/dev/null || true
+            }
             echo "[NETWORK] Creating tihomo-network..."
-            $USE_SUDO docker network create tihomo-network 2>/dev/null || echo "[INFO] Network already exists"
+            \$DOCKER_CMD network create tihomo-network || echo "[INFO] Network already exists"
             
             # Deploy services in order of dependency
             for group in "postgres" "redis rabbitmq" "prometheus loki tempo" "grafana" "pgadmin mailhog nginx"; do
@@ -304,8 +309,16 @@ jobs:
                 if echo ",$SERVICES_LIST," | grep -q ",$service,"; then
                   echo "[DEPLOY] Deploying $service..."
                   
-                  if $USE_SUDO docker compose -f docker-compose.infras.yml config --services | grep -q "^$service$"; then
-                    $USE_SUDO docker compose -f docker-compose.infras.yml up -d --no-deps --force-recreate $service
+                  if \$DOCKER_CMD compose -f docker-compose.infras.yml config --services | grep -q "^$service\$"; then
+                    echo "[DEBUG] Starting $service container..."
+                    \$DOCKER_CMD compose -f docker-compose.infras.yml up -d --no-deps --force-recreate $service 2>&1 | tee /tmp/${service}_start.log
+                    
+                    if [ \${PIPESTATUS[0]} -ne 0 ]; then
+                      echo "[ERROR] Failed to start $service. Check logs:"
+                      cat /tmp/${service}_start.log
+                      FAILED_SERVICES="\$FAILED_SERVICES $service"
+                      continue
+                    fi
                     
                     # Wait for service to be ready
                     echo "[HEALTH] Waiting for $service to be ready..."
@@ -314,26 +327,26 @@ jobs:
                     service_ready=false
                     
                     while [ $attempt -le $max_attempts ]; do
-                      if $USE_SUDO docker compose -f docker-compose.infras.yml ps $service | grep -q "Up"; then
+                      if \$DOCKER_CMD compose -f docker-compose.infras.yml ps $service | grep -q "Up"; then
                         echo "[RUNNING] $service container is running"
                         
                         # Service-specific health checks
                         case $service in
                           postgres)
                             sleep 15
-                            if $USE_SUDO docker compose -f docker-compose.infras.yml exec -T postgres pg_isready -U postgres >/dev/null 2>&1; then
+                            if \$DOCKER_CMD compose -f docker-compose.infras.yml exec -T postgres pg_isready -U postgres >/dev/null 2>&1; then
                               service_ready=true
                             fi
                             ;;
                           redis)
                             sleep 5
-                            if $USE_SUDO docker compose -f docker-compose.infras.yml exec -T redis redis-cli -a "$REDIS_PASSWORD" ping 2>/dev/null | grep -q "PONG"; then
+                            if \$DOCKER_CMD compose -f docker-compose.infras.yml exec -T redis redis-cli -a "$REDIS_PASSWORD" ping 2>/dev/null | grep -q "PONG"; then
                               service_ready=true
                             fi
                             ;;
                           rabbitmq)
                             sleep 20
-                            if $USE_SUDO docker compose -f docker-compose.infras.yml exec -T rabbitmq rabbitmq-diagnostics ping >/dev/null 2>&1; then
+                            if \$DOCKER_CMD compose -f docker-compose.infras.yml exec -T rabbitmq rabbitmq-diagnostics ping >/dev/null 2>&1; then
                               service_ready=true
                             fi
                             ;;
@@ -366,7 +379,7 @@ jobs:
                     else
                       echo "[WARNING] $service deployment may need more time"
                       echo "[DEBUG] Recent logs for $service:"
-                      $USE_SUDO docker compose -f docker-compose.infras.yml logs --tail=15 $service
+                      \$DOCKER_CMD compose -f docker-compose.infras.yml logs --tail=15 $service
                       FAILED_SERVICES="$FAILED_SERVICES $service"
                     fi
                   else
@@ -403,7 +416,7 @@ jobs:
             # Final status check
             echo ""
             echo "[STATUS] Final infrastructure status:"
-            $USE_SUDO docker compose -f docker-compose.infras.yml ps
+            \$DOCKER_CMD compose -f docker-compose.infras.yml ps
             
             # Export status for next steps
             if [ -z "$FAILED_SERVICES" ]; then
@@ -419,17 +432,17 @@ jobs:
           ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << 'EOF'
             cd ${{ env.TRUENAS_DEPLOY_DIR }}
             
-            # Check Docker access
+            # Check Docker access and set command prefix
             if docker ps >/dev/null 2>&1; then
-              USE_SUDO=""
+              DOCKER_CMD="docker"
             else
-              USE_SUDO="sudo"
+              DOCKER_CMD="sudo docker"
             fi
             
             echo "[HEALTH] Comprehensive infrastructure health check..."
             
             # Check network
-            if $USE_SUDO docker network inspect tihomo-network >/dev/null 2>&1; then
+            if \$DOCKER_CMD network inspect tihomo-network >/dev/null 2>&1; then
               echo "[OK] Network tihomo-network exists"
             else
               echo "[WARNING] Network tihomo-network not found"
@@ -441,24 +454,24 @@ jobs:
             UNHEALTHY_SERVICES=""
             
             for service in $CORE_SERVICES; do
-              if $USE_SUDO docker compose -f docker-compose.infras.yml ps $service | grep -q "Up"; then
+              if \$DOCKER_CMD compose -f docker-compose.infras.yml ps $service | grep -q "Up"; then
                 case $service in
                   postgres)
-                    if $USE_SUDO docker compose -f docker-compose.infras.yml exec -T postgres pg_isready -U postgres >/dev/null 2>&1; then
+                    if \$DOCKER_CMD compose -f docker-compose.infras.yml exec -T postgres pg_isready -U postgres >/dev/null 2>&1; then
                       HEALTHY_SERVICES="$HEALTHY_SERVICES $service"
                     else
                       UNHEALTHY_SERVICES="$UNHEALTHY_SERVICES $service"
                     fi
                     ;;
                   redis)
-                    if $USE_SUDO docker compose -f docker-compose.infras.yml exec -T redis redis-cli ping >/dev/null 2>&1; then
+                    if \$DOCKER_CMD compose -f docker-compose.infras.yml exec -T redis redis-cli ping >/dev/null 2>&1; then
                       HEALTHY_SERVICES="$HEALTHY_SERVICES $service"
                     else
                       UNHEALTHY_SERVICES="$UNHEALTHY_SERVICES $service"
                     fi
                     ;;
                   rabbitmq)
-                    if $USE_SUDO docker compose -f docker-compose.infras.yml exec -T rabbitmq rabbitmq-diagnostics ping >/dev/null 2>&1; then
+                    if \$DOCKER_CMD compose -f docker-compose.infras.yml exec -T rabbitmq rabbitmq-diagnostics ping >/dev/null 2>&1; then
                       HEALTHY_SERVICES="$HEALTHY_SERVICES $service"
                     else
                       UNHEALTHY_SERVICES="$UNHEALTHY_SERVICES $service"
