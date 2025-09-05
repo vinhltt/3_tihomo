@@ -326,9 +326,11 @@ jobs:
                   
                   if run_docker compose -f docker-compose.infras.yml config --services | grep -q "^$service$"; then
                     echo "[DEBUG] Starting $service container..."
-                    run_docker compose -f docker-compose.infras.yml up -d --no-deps --force-recreate $service 2>&1 | tee /tmp/${service}_start.log
+                    run_docker compose -f docker-compose.infras.yml up -d --no-deps --force-recreate $service > /tmp/${service}_start.log 2>&1
+                    DEPLOY_STATUS=$?
+                    cat /tmp/${service}_start.log
                     
-                    if [ ${PIPESTATUS[0]} -ne 0 ]; then
+                    if [ $DEPLOY_STATUS -ne 0 ]; then
                       echo "[ERROR] Failed to start $service. Check logs:"
                       cat /tmp/${service}_start.log
                       FAILED_SERVICES="$FAILED_SERVICES $service"
@@ -444,6 +446,10 @@ jobs:
       - name: "[8/10] Infrastructure health check"
         if: always()
         run: |
+          # Pass services list to health check
+          echo "SERVICES_TO_DEPLOY=${{ env.SERVICES_TO_DEPLOY }}" > /tmp/services.txt
+          scp -F "$HOME/.ssh/config" /tmp/services.txt truenas-cf-tunnel:${{ env.TRUENAS_DEPLOY_DIR }}/
+          
           ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << 'EOF'
             cd ${{ env.TRUENAS_DEPLOY_DIR }}
             
@@ -478,12 +484,26 @@ jobs:
               echo "[WARNING] Network tihomo-network not found"
             fi
             
-            # Check core services
-            CORE_SERVICES="postgres redis rabbitmq"
+            # Check only deployed services
+            # Load from file since env vars are not available in SSH session
+            if [ -f services.txt ]; then
+              source services.txt
+              SERVICES_TO_CHECK="$SERVICES_TO_DEPLOY"
+            else
+              SERVICES_TO_CHECK="postgres,redis,rabbitmq"
+            fi
+            # Filter for core services only
+            CORE_SERVICES=""
+            for s in postgres redis rabbitmq; do
+              if echo ",$SERVICES_TO_CHECK," | grep -q ",$s,"; then
+                CORE_SERVICES="$CORE_SERVICES $s"
+              fi
+            done
             HEALTHY_SERVICES=""
             UNHEALTHY_SERVICES=""
             
             for service in $CORE_SERVICES; do
+              [ -z "$service" ] && continue
               if run_docker compose -f docker-compose.infras.yml ps $service | grep -q "Up"; then
                 case $service in
                   postgres)
