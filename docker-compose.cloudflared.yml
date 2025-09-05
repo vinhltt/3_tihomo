@@ -1,20 +1,9 @@
-# TiHoMo Cloudflare Tunnel Configuration
-# Expose services qua Cloudflare Zero Trust Network
-
 services:
-  # ================================
-  # CLOUDFLARE TUNNEL
-  # ================================
-  
   cloudflared:
     image: cloudflare/cloudflared:latest
     container_name: tihomo-cloudflared
     restart: unless-stopped
     environment:
-      # Tunnel token - Lấy từ Cloudflare Zero Trust Dashboard
-      # 1. Vào https://one.dash.cloudflare.com/
-      # 2. Access > Tunnels > Create a tunnel
-      # 3. Copy token và paste vào .env file
       TUNNEL_TOKEN: ${CLOUDFLARED_TUNNEL_TOKEN}
     command: tunnel --no-autoupdate run --token ${CLOUDFLARED_TUNNEL_TOKEN}
     networks:
@@ -26,10 +15,6 @@ services:
       timeout: 10s
       retries: 3
       start_period: 10s
-
-# ================================
-# NETWORKS
-# ================================
 networks:
   tihomo-network:
-    external: true  # Sử dụng network từ docker-compose.infras.yml
+    external: true
