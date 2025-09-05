@@ -187,12 +187,30 @@ jobs:
             StrictHostKeyChecking accept-new" > "$HOME/.ssh/config"
           chmod 600 "$HOME/.ssh/config"
 
-      - name: "[4/6] Add SSH key"
+      - name: "[4/7] Add SSH key"
         uses: webfactory/ssh-agent@v0.9.0
         with:
           ssh-private-key: ${{ secrets.TRUENAS_SSH_PRIVATE_KEY }}
 
-      - name: "[5/6] Deploy Backend APIs"
+      - name: "[5/7] Sync deployment files to server"
+        run: |
+          echo "[SYNC] Syncing deployment files to TrueNAS..."
+          
+          # Create remote directory
+          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel "mkdir -p ${{ env.TRUENAS_DEPLOY_DIR }}"
+          
+          # Copy docker-compose files
+          scp -F "$HOME/.ssh/config" docker-compose.services.yml truenas-cf-tunnel:${{ env.TRUENAS_DEPLOY_DIR }}/
+          scp -F "$HOME/.ssh/config" docker-compose.ghcr.yml truenas-cf-tunnel:${{ env.TRUENAS_DEPLOY_DIR }}/
+          
+          # Copy .env.template if exists
+          if [ -f ".env.template" ]; then
+            scp -F "$HOME/.ssh/config" .env.template truenas-cf-tunnel:${{ env.TRUENAS_DEPLOY_DIR }}/
+          fi
+          
+          echo "[SUCCESS] Files synced to TrueNAS"
+
+      - name: "[6/7] Deploy Backend APIs"
         run: |
           ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << 'EOF'
             cd ${{ env.TRUENAS_DEPLOY_DIR }}
@@ -317,7 +335,7 @@ jobs:
             $USE_SUDO docker compose -f $COMPOSE_FILE ps
           EOF
 
-      - name: "[6/6] Send notification"
+      - name: "[7/7] Send notification"
         if: always()
         uses: appleboy/discord-action@v1.2.0
         with:
