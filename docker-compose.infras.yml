@@ -21,8 +21,6 @@ services:
       MONEYMANAGEMENT_DB_PASSWORD: ${MONEYMANAGEMENT_DB_PASSWORD}
       PLANNINGINVESTMENT_DB_PASSWORD: ${PLANNINGINVESTMENT_DB_PASSWORD}
       REPORTING_DB_PASSWORD: ${REPORTING_DB_PASSWORD}
-    ports:
-      - "${POSTGRES_PORT:-5432}:5432"  # LOCAL DEVELOPMENT ONLY - disabled in production
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./scripts/init-unified-db.sql:/docker-entrypoint-initdb.d/init.sql.template

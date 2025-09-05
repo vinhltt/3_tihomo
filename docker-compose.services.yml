@@ -75,8 +75,8 @@ services:
   # Ocelot API Gateway
   ocelot-gateway:
     build:
-      context: ./src/be/Ocelot.Gateway
-      dockerfile: Dockerfile
+      context: ./src/be
+      dockerfile: Ocelot.Gateway/Dockerfile
     container_name: tihomo-ocelot-gateway
     restart: unless-stopped
     environment:
