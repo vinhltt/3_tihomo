@@ -8,15 +8,16 @@ FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 WORKDIR /src
 
 # Copy project file
-COPY ["Ocelot.Gateway.csproj", "./"]
+COPY ["Ocelot.Gateway/Ocelot.Gateway.csproj", "Ocelot.Gateway/"]
 
 # Restore dependencies
-RUN dotnet restore "Ocelot.Gateway.csproj"
+RUN dotnet restore "Ocelot.Gateway/Ocelot.Gateway.csproj"
 
 # Copy all source code
 COPY . .
 
 # Build và publish application
+WORKDIR "/src/Ocelot.Gateway"
 RUN dotnet build "Ocelot.Gateway.csproj" -c Release -o /app/build
 RUN dotnet publish "Ocelot.Gateway.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
