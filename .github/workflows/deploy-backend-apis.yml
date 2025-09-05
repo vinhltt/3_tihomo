@@ -39,21 +39,6 @@ on:
         required: false
         default: false
         type: boolean
-  push:
-    branches:
-      - master
-      - develop
-    paths:
-      - 'src/be/**'
-      - '.github/workflows/deploy-backend-apis.yml'
-      - 'docker-compose.services.yml'
-      - 'docker-compose.ghcr.yml'
-  pull_request:
-    branches:
-      - master
-      - develop
-    paths:
-      - 'src/be/**'
 
 concurrency:
   group: tihomo-backend-${{ github.ref_name }}
