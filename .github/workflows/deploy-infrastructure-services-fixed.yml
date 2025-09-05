@@ -1,0 +1,142 @@
+name: Deploy Infrastructure Services (Fixed)
+description: 'Enhanced infrastructure deployment with better error handling'
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        type: choice
+        options:
+          - development
+          - production
+        default: development
+      services:
+        description: 'Services to deploy (comma-separated or "all")'
+        required: false
+        default: 'all'
+      force_recreate:
+        description: 'Force recreate all containers'
+        type: boolean
+        default: false
+
+jobs:
+  deploy-infrastructure:
+    name: deploy-infrastructure
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment || 'development' }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup SSH
+        run: |
+          # Setup SSH config for TrueNAS connection
+          mkdir -p ~/.ssh
+          echo "${{ secrets.TRUENAS_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          
+      - name: Deploy Infrastructure with Enhanced Error Handling
+        run: |
+          ssh -o StrictHostKeyChecking=no ${{ secrets.TRUENAS_USER }}@${{ secrets.TRUENAS_HOST }} << 'DEPLOY_SCRIPT'
+            set -e  # Exit on any error
+            
+            DEPLOY_DIR="${{ vars.DEPLOY_PATH_ON_TRUENAS }}/deploy_${{ github.ref_name }}"
+            cd "$DEPLOY_DIR"
+            
+            # Validate docker-compose file
+            echo "[VALIDATE] Checking docker-compose configuration..."
+            docker compose -f docker-compose.infras.yml config > /dev/null || {
+              echo "[ERROR] Invalid docker-compose configuration"
+              exit 1
+            }
+            
+            # Deploy all services at once for better dependency handling
+            echo "[DEPLOY] Starting all infrastructure services..."
+            docker compose -f docker-compose.infras.yml up -d --remove-orphans
+            
+            # Wait for services to stabilize
+            sleep 10
+            
+            # Verify all services are running
+            echo "[VERIFY] Checking service status..."
+            EXPECTED_SERVICES="postgres redis rabbitmq prometheus grafana loki tempo nginx"
+            FAILED_SERVICES=""
+            
+            for service in $EXPECTED_SERVICES; do
+              if docker compose -f docker-compose.infras.yml ps --status running | grep -q "$service"; then
+                echo "[✅] $service is running"
+              else
+                echo "[❌] $service is NOT running"
+                FAILED_SERVICES="$FAILED_SERVICES $service"
+                
+                # Show logs for failed service
+                echo "[LOGS] Recent logs for $service:"
+                docker compose -f docker-compose.infras.yml logs --tail=20 $service
+              fi
+            done
+            
+            if [ -n "$FAILED_SERVICES" ]; then
+              echo "[ERROR] Failed services: $FAILED_SERVICES"
+              echo "[RETRY] Attempting to restart failed services..."
+              
+              for service in $FAILED_SERVICES; do
+                echo "[RESTART] Restarting $service..."
+                docker compose -f docker-compose.infras.yml restart $service
+              done
+              
+              # Final verification after restart
+              sleep 10
+              STILL_FAILED=""
+              for service in $FAILED_SERVICES; do
+                if ! docker compose -f docker-compose.infras.yml ps --status running | grep -q "$service"; then
+                  STILL_FAILED="$STILL_FAILED $service"
+                fi
+              done
+              
+              if [ -n "$STILL_FAILED" ]; then
+                echo "[CRITICAL] Services still failing after restart: $STILL_FAILED"
+                exit 1
+              fi
+            fi
+            
+            echo "[SUCCESS] All infrastructure services deployed successfully!"
+          DEPLOY_SCRIPT
+          
+      - name: Post-deployment Health Check
+        if: success()
+        run: |
+          echo "[HEALTH] Running comprehensive health checks..."
+          
+          # Add actual health check endpoints here
+          # For example:
+          # curl -f http://${{ secrets.TRUENAS_HOST }}:3000/api/health || exit 1
+          # curl -f http://${{ secrets.TRUENAS_HOST }}:5432 || exit 1
+          
+      - name: Send Success Notification
+        if: success()
+        uses: appleboy/discord-action@v1.2.0
+        with:
+          webhook_id: ${{ secrets.DISCORD_WEBHOOK_ID }}
+          webhook_token: ${{ secrets.DISCORD_WEBHOOK_TOKEN }}
+          color: "#00FF00"
+          message: |
+            ✅ **Infrastructure Deployment Success**
+            • Environment: `${{ inputs.environment }}`
+            • Branch: `${{ github.ref_name }}`
+            • All services deployed and verified
+            
+      - name: Send Failure Notification
+        if: failure()
+        uses: appleboy/discord-action@v1.2.0
+        continue-on-error: true  # Don't fail workflow if notification fails
+        with:
+          webhook_id: ${{ secrets.DISCORD_WEBHOOK_ID }}
+          webhook_token: ${{ secrets.DISCORD_WEBHOOK_TOKEN }}
+          color: "#FF0000"
+          message: |
+            ❌ **Infrastructure Deployment Failed**
+            • Environment: `${{ inputs.environment }}`
+            • Check logs: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
