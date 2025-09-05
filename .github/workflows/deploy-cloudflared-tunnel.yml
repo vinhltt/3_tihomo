@@ -104,31 +104,17 @@ jobs:
             USE_SUDO="sudo"
           fi
           
-          echo "[INFO] Managing Cloudflared tunnel..."
-          echo "[INFO] Environment: ${{ env.ENVIRONMENT }}"
-          echo "[INFO] Action: ${{ env.ACTION }}"
-          echo "[INFO] Tunnel: ${{ env.TUNNEL_NAME }}"
+          echo "Deploying Cloudflared tunnel..."
           
-          # Check if tunnel token is available
+          # Ensure tunnel token is available
           if [ ! -f .env ] || ! grep -q "CLOUDFLARED_TUNNEL_TOKEN=" .env; then
-            echo "[ERROR] CLOUDFLARED_TUNNEL_TOKEN not found in .env file"
-            echo "[INFO] Please ensure the tunnel token is properly configured"
-            echo "[DEBUG] Current .env file status:"
-            if [ -f .env ]; then
-              echo "[DEBUG] .env exists, tunnel token status:"
-              if grep -q "CLOUDFLARED_TUNNEL_TOKEN" .env; then
-                echo "  • CLOUDFLARED_TUNNEL_TOKEN variable exists"
-                if [ "$(grep CLOUDFLARED_TUNNEL_TOKEN .env | cut -d'=' -f2)" = "" ]; then
-                  echo "  • But token value is empty"
-                else
-                  echo "  • Token value is set"
-                fi
-              else
-                echo "  • CLOUDFLARED_TUNNEL_TOKEN variable missing"
-              fi
-            else
-              echo "  • .env file not found"
+            [ ! -f .env ] && touch .env
+            if ! grep -q "CLOUDFLARED_TUNNEL_TOKEN=" .env; then
+              echo "" >> .env
+              echo "CLOUDFLARED_TUNNEL_TOKEN=${{ secrets.CLOUDFLARED_TUNNEL_TOKEN }}" >> .env
             fi
+            echo "[INFO] Tunnel token configured"
+          fi
             
             echo "[ACTION] Adding placeholder tunnel token configuration to .env..."
             if [ -f .env ]; then
@@ -162,7 +148,7 @@ jobs:
               
               # Check if docker-compose.cloudflared.yml exists
               if [ ! -f docker-compose.cloudflared.yml ]; then
-                echo "[ERROR] docker-compose.cloudflared.yml not found"
+                echo "ERROR: docker-compose.cloudflared.yml not found"
                 echo "[CREATE] Creating basic Cloudflared compose file..."
                 
                 cat > docker-compose.cloudflared.yml << 'CLOUDFLARED_EOF'
@@ -218,12 +204,7 @@ jobs:
                 
                 if [ $attempt -gt $max_attempts ]; then
                   echo "[WARNING] Tunnel deployment may need manual verification"
-                  echo "[DEBUG] Recent tunnel logs:"
-                  $USE_SUDO docker compose -f docker-compose.cloudflared.yml logs --tail=30 cloudflared
-                fi
-              else
-                echo "[ERROR] Failed to start Cloudflared tunnel"
-                echo "[DEBUG] Docker compose output and logs:"
+                echo "ERROR: Failed to start Cloudflared tunnel"
                 $USE_SUDO docker compose -f docker-compose.cloudflared.yml logs cloudflared
               fi
               ;;
@@ -251,14 +232,14 @@ jobs:
               if $USE_SUDO docker compose -f docker-compose.cloudflared.yml ps cloudflared | grep -q "Up"; then
                 $USE_SUDO docker compose -f docker-compose.cloudflared.yml logs --tail=50 cloudflared
               else
-                echo "[INFO] Cloudflared tunnel is not running"
+
                 echo "[HISTORY] Recent logs from stopped container:"
                 $USE_SUDO docker compose -f docker-compose.cloudflared.yml logs --tail=20 cloudflared
               fi
               ;;
               
             *)
-              echo "[ERROR] Unknown action: ${{ env.ACTION }}"
+              echo "ERROR: Unknown action"
               echo "[HELP] Available actions: deploy, stop, restart, logs"
               exit 1
               ;;
@@ -386,14 +367,14 @@ jobs:
                 if $USE_SUDO docker compose -f docker-compose.cloudflared.yml ps cloudflared | grep -q "Up"; then
                   $USE_SUDO docker compose -f docker-compose.cloudflared.yml logs --tail=50 cloudflared
                 else
-                  echo "[INFO] Cloudflared tunnel is not running"
+  
                   echo "[HISTORY] Recent logs from stopped container:"
                   $USE_SUDO docker compose -f docker-compose.cloudflared.yml logs --tail=20 cloudflared
                 fi
                 ;;
                 
               *)
-                echo "[ERROR] Unknown action: ${{ env.ACTION }}"
+                echo "ERROR: Unknown action"
                 echo "[HELP] Available actions: deploy, stop, restart, logs"
                 exit 1
                 ;;

@@ -53,7 +53,6 @@ jobs:
       deploy-frontend: ${{ steps.plan.outputs.deploy-frontend }}
       deploy-cloudflared: ${{ steps.plan.outputs.deploy-cloudflared }}
       backend-services: ${{ steps.plan.outputs.backend-services }}
-      infrastructure-services: ${{ steps.plan.outputs.infrastructure-services }}
       deployment-strategy: ${{ steps.plan.outputs.deployment-strategy }}
       
     steps:
@@ -74,7 +73,6 @@ jobs:
               echo "deploy-frontend=true" >> $GITHUB_OUTPUT
               echo "deploy-cloudflared=$ENABLE_CLOUDFLARED" >> $GITHUB_OUTPUT
               echo "backend-services=all" >> $GITHUB_OUTPUT
-              echo "infrastructure-services=all" >> $GITHUB_OUTPUT
               echo "deployment-strategy=Full system deployment (Infrastructure → Backend → Frontend → Cloudflared)" >> $GITHUB_OUTPUT
               ;;
             infrastructure-only)
@@ -83,7 +81,6 @@ jobs:
               echo "deploy-frontend=false" >> $GITHUB_OUTPUT
               echo "deploy-cloudflared=false" >> $GITHUB_OUTPUT
               echo "backend-services=" >> $GITHUB_OUTPUT
-              echo "infrastructure-services=all" >> $GITHUB_OUTPUT
               echo "deployment-strategy=Infrastructure only (Database, Redis, RabbitMQ, Monitoring)" >> $GITHUB_OUTPUT
               ;;
             backend-only)
@@ -92,7 +89,6 @@ jobs:
               echo "deploy-frontend=false" >> $GITHUB_OUTPUT
               echo "deploy-cloudflared=false" >> $GITHUB_OUTPUT
               echo "backend-services=all" >> $GITHUB_OUTPUT
-              echo "infrastructure-services=" >> $GITHUB_OUTPUT
               echo "deployment-strategy=Backend services only (APIs, Gateway)" >> $GITHUB_OUTPUT
               ;;
             frontend-only)
@@ -101,7 +97,6 @@ jobs:
               echo "deploy-frontend=true" >> $GITHUB_OUTPUT
               echo "deploy-cloudflared=false" >> $GITHUB_OUTPUT
               echo "backend-services=" >> $GITHUB_OUTPUT
-              echo "infrastructure-services=" >> $GITHUB_OUTPUT
               echo "deployment-strategy=Frontend only (Nuxt application)" >> $GITHUB_OUTPUT
               ;;
             cloudflared-only)
@@ -110,21 +105,17 @@ jobs:
               echo "deploy-frontend=false" >> $GITHUB_OUTPUT
               echo "deploy-cloudflared=true" >> $GITHUB_OUTPUT
               echo "backend-services=" >> $GITHUB_OUTPUT
-              echo "infrastructure-services=" >> $GITHUB_OUTPUT
               echo "deployment-strategy=Cloudflared tunnel only (External access)" >> $GITHUB_OUTPUT
               ;;
             specific-services)
               # Parse specific services to determine what to deploy
-              INFRA_SERVICES=""
               BACKEND_SERVICES=""
               DEPLOY_FRONTEND=false
               DEPLOY_CLOUDFLARED=false
               
-              # Check for infrastructure services
+              # Check for infrastructure services (any infra service = deploy all)
               if [[ "$SPECIFIC_SERVICES" =~ (postgres|redis|rabbitmq|prometheus|grafana|loki|tempo|pgadmin|mailhog|nginx) ]]; then
                 echo "deploy-infrastructure=true" >> $GITHUB_OUTPUT
-                # Extract infrastructure services
-                INFRA_SERVICES=$(echo "$SPECIFIC_SERVICES" | tr ',' '\n' | grep -E "(postgres|redis|rabbitmq|prometheus|grafana|loki|tempo|pgadmin|mailhog|nginx)" | tr '\n' ',' | sed 's/,$//')
               else
                 echo "deploy-infrastructure=false" >> $GITHUB_OUTPUT
               fi
@@ -153,7 +144,6 @@ jobs:
               fi
               
               echo "backend-services=$BACKEND_SERVICES" >> $GITHUB_OUTPUT
-              echo "infrastructure-services=$INFRA_SERVICES" >> $GITHUB_OUTPUT
               echo "deployment-strategy=Specific services: $SPECIFIC_SERVICES" >> $GITHUB_OUTPUT
               ;;
             *)
@@ -171,8 +161,7 @@ jobs:
     uses: ./.github/workflows/deploy-infrastructure-services.yml
     with:
       environment: ${{ inputs.environment }}
-      services: ${{ needs.plan-deployment.outputs.infrastructure-services }}
-      force_rebuild: ${{ inputs.force_rebuild }}
+      force_recreate_env: false
     secrets: inherit
 
   deploy-backend:
