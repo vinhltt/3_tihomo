@@ -42,13 +42,6 @@ on:
         description: 'Cloudflare tunnel name (optional, uses default if not specified)'
         required: false
         type: string
-  push:
-    branches:
-      - master
-      - develop
-    paths:
-      - 'docker-compose.cloudflared.yml'
-      - '.github/workflows/deploy-cloudflared-tunnel.yml'
 
 concurrency:
   group: tihomo-cloudflared-${{ github.ref_name }}
