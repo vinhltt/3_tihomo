@@ -132,6 +132,20 @@ jobs:
 
       - name: "[6/10] Create and validate environment file"
         run: |
+          # Export variables for SSH session
+          export COMPOSE_PROJECT_NAME="${{ env.COMPOSE_PROJECT_NAME }}"
+          export ENVIRONMENT="${{ env.ENVIRONMENT }}"
+          export POSTGRES_SUPER_PASSWORD="${{ secrets.POSTGRES_SUPER_PASSWORD }}"
+          export IDENTITY_DB_PASSWORD="${{ secrets.IDENTITY_DB_PASSWORD || secrets.POSTGRES_SUPER_PASSWORD }}"
+          export COREFINANCE_DB_PASSWORD="${{ secrets.COREFINANCE_DB_PASSWORD || secrets.POSTGRES_SUPER_PASSWORD }}"
+          export MONEYMANAGEMENT_DB_PASSWORD="${{ secrets.MONEYMANAGEMENT_DB_PASSWORD || secrets.POSTGRES_SUPER_PASSWORD }}"
+          export PLANNINGINVESTMENT_DB_PASSWORD="${{ secrets.PLANNINGINVESTMENT_DB_PASSWORD || secrets.POSTGRES_SUPER_PASSWORD }}"
+          export REPORTING_DB_PASSWORD="${{ secrets.REPORTING_DB_PASSWORD || secrets.POSTGRES_SUPER_PASSWORD }}"
+          export REDIS_PASSWORD="${{ secrets.REDIS_PASSWORD }}"
+          export RABBITMQ_PASSWORD="${{ secrets.RABBITMQ_PASSWORD }}"
+          export GRAFANA_ADMIN_PASSWORD="${{ secrets.GRAFANA_ADMIN_PASSWORD }}"
+          export PGADMIN_PASSWORD="${{ secrets.PGADMIN_PASSWORD }}"
+          
           ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << 'EOF'
             # Create deployment directory if it doesn't exist
             mkdir -p ${{ env.TRUENAS_DEPLOY_DIR }}
@@ -175,7 +189,7 @@ jobs:
             echo "# Generated: $(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> .env
             echo "" >> .env
             echo "# Project Configuration" >> .env
-            echo "COMPOSE_PROJECT_NAME=${{ env.COMPOSE_PROJECT_NAME }}" >> .env
+            echo "COMPOSE_PROJECT_NAME=${COMPOSE_PROJECT_NAME}" >> .env
             echo "" >> .env
             echo "# Core Infrastructure Ports" >> .env
             echo "POSTGRES_PORT=${{ vars.POSTGRES_PORT || '5432' }}" >> .env
@@ -198,24 +212,29 @@ jobs:
             echo "" >> .env
             echo "# Database Configuration" >> .env
             echo "POSTGRES_SUPER_USER=${{ vars.POSTGRES_SUPER_USER || 'postgres' }}" >> .env
-            echo "POSTGRES_SUPER_PASSWORD='${{ secrets.POSTGRES_SUPER_PASSWORD }}'" >> .env
+            echo "POSTGRES_SUPER_PASSWORD='${POSTGRES_SUPER_PASSWORD}'" >> .env
+            echo "IDENTITY_DB_PASSWORD='${IDENTITY_DB_PASSWORD}'" >> .env
+            echo "COREFINANCE_DB_PASSWORD='${COREFINANCE_DB_PASSWORD}'" >> .env
+            echo "MONEYMANAGEMENT_DB_PASSWORD='${MONEYMANAGEMENT_DB_PASSWORD}'" >> .env
+            echo "PLANNINGINVESTMENT_DB_PASSWORD='${PLANNINGINVESTMENT_DB_PASSWORD}'" >> .env
+            echo "REPORTING_DB_PASSWORD='${REPORTING_DB_PASSWORD}'" >> .env
             echo "" >> .env
             echo "# Redis Configuration" >> .env
-            echo "REDIS_PASSWORD='${{ secrets.REDIS_PASSWORD }}'" >> .env
-            echo "REDIS_PERSISTENCE_CONFIG=${{ env.ENVIRONMENT == 'production' && '--save 900 1 --save 300 10 --save 60 10000' || '' }}" >> .env
+            echo "REDIS_PASSWORD='${REDIS_PASSWORD}'" >> .env
+            echo "REDIS_PERSISTENCE_CONFIG=$([ "${ENVIRONMENT}" = "production" ] && echo '--save 900 1 --save 300 10 --save 60 10000' || echo '')" >> .env
             echo "" >> .env
             echo "# RabbitMQ Configuration" >> .env
-            echo "RABBITMQ_PASSWORD='${{ secrets.RABBITMQ_PASSWORD }}'" >> .env
+            echo "RABBITMQ_PASSWORD='${RABBITMQ_PASSWORD}'" >> .env
             echo "" >> .env
             echo "# Monitoring Configuration" >> .env
-            echo "PROMETHEUS_RETENTION=${{ env.ENVIRONMENT == 'production' && '30d' || '200h' }}" >> .env
-            echo "GRAFANA_ADMIN_PASSWORD='${{ secrets.GRAFANA_ADMIN_PASSWORD }}'" >> .env
-            echo "GRAFANA_ANALYTICS_ENABLED=${{ env.ENVIRONMENT == 'production' && 'false' || 'true' }}" >> .env
-            echo "GRAFANA_CHECK_UPDATES=${{ env.ENVIRONMENT == 'production' && 'false' || 'true' }}" >> .env
+            echo "PROMETHEUS_RETENTION=$([ "${ENVIRONMENT}" = "production" ] && echo '30d' || echo '200h')" >> .env
+            echo "GRAFANA_ADMIN_PASSWORD='${GRAFANA_ADMIN_PASSWORD}'" >> .env
+            echo "GRAFANA_ANALYTICS_ENABLED=$([ "${ENVIRONMENT}" = "production" ] && echo 'false' || echo 'true')" >> .env
+            echo "GRAFANA_CHECK_UPDATES=$([ "${ENVIRONMENT}" = "production" ] && echo 'false' || echo 'true')" >> .env
             echo "" >> .env
             echo "# Development Tools Configuration" >> .env
-            echo "PGADMIN_PASSWORD='${{ secrets.PGADMIN_PASSWORD }}'" >> .env
-            echo "ENABLE_DEV_TOOLS=${{ env.ENVIRONMENT == 'production' && 'none' || 'development' }}" >> .env
+            echo "PGADMIN_PASSWORD='${PGADMIN_PASSWORD}'" >> .env
+            echo "ENABLE_DEV_TOOLS=$([ "${ENVIRONMENT}" = "production" ] && echo 'none' || echo 'development')" >> .env
             echo "" >> .env
             echo "# OpenTelemetry Configuration" >> .env
             echo "OTEL_EXPORTER_OTLP_ENDPOINT=http://tempo:4317" >> .env
@@ -224,7 +243,7 @@ jobs:
             echo "DEPLOY_BRANCH=${{ github.ref_name }}" >> .env
             echo "DEPLOY_COMMIT=${{ github.sha }}" >> .env
             echo "DEPLOY_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> .env
-            echo "ENVIRONMENT=${{ env.ENVIRONMENT }}" >> .env
+            echo "ENVIRONMENT=${ENVIRONMENT}" >> .env
             
             echo "[SUCCESS] .env file created successfully"
             echo "[VALIDATION] Checking critical variables..."
