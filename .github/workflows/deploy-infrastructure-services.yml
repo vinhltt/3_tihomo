@@ -132,7 +132,7 @@ jobs:
 
       - name: "[6/10] Create and validate environment file"
         run: |
-          # Export variables for SSH session
+          cat > /tmp/env_vars.sh << 'SCRIPT_EOF'
           export COMPOSE_PROJECT_NAME="${{ env.COMPOSE_PROJECT_NAME }}"
           export ENVIRONMENT="${{ env.ENVIRONMENT }}"
           export POSTGRES_SUPER_PASSWORD="${{ secrets.POSTGRES_SUPER_PASSWORD }}"
@@ -145,11 +145,17 @@ jobs:
           export RABBITMQ_PASSWORD="${{ secrets.RABBITMQ_PASSWORD }}"
           export GRAFANA_ADMIN_PASSWORD="${{ secrets.GRAFANA_ADMIN_PASSWORD }}"
           export PGADMIN_PASSWORD="${{ secrets.PGADMIN_PASSWORD }}"
+          SCRIPT_EOF
+          
+          scp -F "$HOME/.ssh/config" /tmp/env_vars.sh truenas-cf-tunnel:${{ env.TRUENAS_DEPLOY_DIR }}/
           
           ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << 'EOF'
             # Create deployment directory if it doesn't exist
             mkdir -p ${{ env.TRUENAS_DEPLOY_DIR }}
             cd ${{ env.TRUENAS_DEPLOY_DIR }}
+            
+            # Load environment variables
+            source ./env_vars.sh
             
             echo "[INFO] Working in directory: $(pwd)"
             
