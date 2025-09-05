@@ -49,15 +49,6 @@ on:
         required: false
         default: false
         type: boolean
-  push:
-    branches:
-      - master
-      - develop
-    paths:
-      - 'config/**'
-      - 'scripts/**'
-      - 'docker-compose.infras.yml'
-      - '.github/workflows/deploy-infrastructure-services.yml'
 
 concurrency:
   group: tihomo-infrastructure-${{ github.ref_name }}
