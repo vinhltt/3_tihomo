@@ -327,10 +327,10 @@ jobs:
                   if run_docker compose -f docker-compose.infras.yml config --services | grep -q "^$service$"; then
                     echo "[DEBUG] Starting $service container..."
                     run_docker compose -f docker-compose.infras.yml up -d --no-deps --force-recreate $service > /tmp/${service}_start.log 2>&1
-                    DEPLOY_STATUS=$?
+                    DEPLOY_RESULT=$?
                     cat /tmp/${service}_start.log
                     
-                    if [ $DEPLOY_STATUS -ne 0 ]; then
+                    if test $DEPLOY_RESULT != 0; then
                       echo "[ERROR] Failed to start $service. Check logs:"
                       cat /tmp/${service}_start.log
                       FAILED_SERVICES="$FAILED_SERVICES $service"
