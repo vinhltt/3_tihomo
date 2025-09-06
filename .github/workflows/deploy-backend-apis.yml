@@ -177,113 +177,74 @@ jobs:
           # Create remote directory
           ssh -o ServerAliveInterval=60 -o ServerAliveCountMax=10 -F "$HOME/.ssh/config" truenas-cf-tunnel "mkdir -p ${{ env.TRUENAS_DEPLOY_DIR }}"
           
-          # Copy docker-compose files
+          # Copy essential files
+          echo "[SYNC] Copying docker-compose.services.yml..."
           scp -F "$HOME/.ssh/config" docker-compose.services.yml truenas-cf-tunnel:${{ env.TRUENAS_DEPLOY_DIR }}/
           
-          # Copy .env.template if exists and create basic .env file
-          if [ -f ".env.template" ]; then
-            scp -F "$HOME/.ssh/config" .env.template truenas-cf-tunnel:${{ env.TRUENAS_DEPLOY_DIR }}/
-          fi
+          # Create comprehensive .env file directly (more efficient approach)
+          echo "[ENV] Creating comprehensive .env file using GitHub secrets..."
           
-          # Create comprehensive .env file using GitHub secrets and variables (following deploy-infrastructure-services pattern)
-          echo "[ENV] Creating comprehensive .env file on server using GitHub secrets..."
-          
-          # Create environment variables script with secrets
-          cat > /tmp/backend_env_vars.sh << 'SCRIPT_EOF'
-          export COMPOSE_PROJECT_NAME="${{ env.COMPOSE_PROJECT_NAME }}"
-          export ENVIRONMENT="${{ env.ENVIRONMENT }}"
-          
-          # Database passwords
-          export POSTGRES_SUPER_PASSWORD="${{ secrets.POSTGRES_SUPER_PASSWORD }}"
-          export IDENTITY_DB_PASSWORD="${{ secrets.IDENTITY_DB_PASSWORD || secrets.POSTGRES_SUPER_PASSWORD }}"
-          export COREFINANCE_DB_PASSWORD="${{ secrets.COREFINANCE_DB_PASSWORD || secrets.POSTGRES_SUPER_PASSWORD }}"
-          
+          # Create .env file locally with all configurations
+          cat > /tmp/backend.env << EOF
+          # TiHoMo Backend Environment Configuration
+          # Generated: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+          # Project Configuration
+          COMPOSE_PROJECT_NAME=${{ env.COMPOSE_PROJECT_NAME }}
+          ENVIRONMENT=${{ env.ENVIRONMENT }}
+
+          # Application Ports
+          FRONTEND_PORT=${{ vars.FRONTEND_PORT || '3500' }}
+          GATEWAY_PORT=${{ vars.GATEWAY_PORT || '5800' }}
+
           # Authentication & Security
-          export JWT_SECRET_KEY="${{ secrets.JWT_SECRET_KEY }}"
-          export JWT_ISSUER="${{ secrets.JWT_ISSUER || 'tihomo' }}"
-          export JWT_AUDIENCE_IDENTITY_API="${{ secrets.JWT_AUDIENCE_IDENTITY_API || 'identity-api' }}"
-          export JWT_AUDIENCE_COREFINANCE_API="${{ secrets.JWT_AUDIENCE_COREFINANCE_API || 'corefinance-api' }}"
-          export JWT_AUDIENCE_OCELOT_GATEWAY="${{ secrets.JWT_AUDIENCE_OCELOT_GATEWAY || 'ocelot-gateway' }}"
-          
+          JWT_SECRET_KEY='${{ secrets.JWT_SECRET_KEY }}'
+          JWT_ISSUER='${{ secrets.JWT_ISSUER || 'tihomo' }}'
+          JWT_AUDIENCE_IDENTITY_API='${{ secrets.JWT_AUDIENCE_IDENTITY_API || 'identity-api' }}'
+          JWT_AUDIENCE_COREFINANCE_API='${{ secrets.JWT_AUDIENCE_COREFINANCE_API || 'corefinance-api' }}'
+          JWT_AUDIENCE_OCELOT_GATEWAY='${{ secrets.JWT_AUDIENCE_OCELOT_GATEWAY || 'ocelot-gateway' }}'
+
           # OAuth Configuration
-          export APP_PUBLIC_GOOGLE_CLIENT_ID="${{ secrets.APP_PUBLIC_GOOGLE_CLIENT_ID }}"
-          export FACEBOOK_APP_ID="${{ secrets.FACEBOOK_APP_ID }}"
-          export FACEBOOK_APP_SECRET="${{ secrets.FACEBOOK_APP_SECRET }}"
-          
-          # Infrastructure
-          export REDIS_PASSWORD="${{ secrets.REDIS_PASSWORD }}"
-          export RABBITMQ_PASSWORD="${{ secrets.RABBITMQ_PASSWORD }}"
-          
+          APP_PUBLIC_GOOGLE_CLIENT_ID='${{ secrets.APP_PUBLIC_GOOGLE_CLIENT_ID }}'
+          FACEBOOK_APP_ID='${{ secrets.FACEBOOK_APP_ID }}'
+          FACEBOOK_APP_SECRET='${{ secrets.FACEBOOK_APP_SECRET }}'
+          NUXT_PUBLIC_FACEBOOK_APP_ID='${{ secrets.FACEBOOK_APP_ID }}'
+
           # Frontend Configuration
-          export FRONTEND_BASE_URL="${{ vars.FRONTEND_BASE_URL || 'http://localhost:3500' }}"
-          export PUBLIC_API_BASE_URL="${{ vars.PUBLIC_API_BASE_URL || 'http://localhost:5800' }}"
+          FRONTEND_BASE_URL='${{ vars.FRONTEND_BASE_URL || 'http://localhost:3500' }}'
+          PUBLIC_API_BASE_URL='${{ vars.PUBLIC_API_BASE_URL || 'http://localhost:5800' }}'
+
+          # Infrastructure
+          REDIS_PASSWORD='${{ secrets.REDIS_PASSWORD }}'
+          RABBITMQ_PASSWORD='${{ secrets.RABBITMQ_PASSWORD }}'
+
+          # Database Configuration
+          POSTGRES_SUPER_PASSWORD='${{ secrets.POSTGRES_SUPER_PASSWORD }}'
+          IDENTITY_DB_PASSWORD='${{ secrets.IDENTITY_DB_PASSWORD || secrets.POSTGRES_SUPER_PASSWORD }}'
+          COREFINANCE_DB_PASSWORD='${{ secrets.COREFINANCE_DB_PASSWORD || secrets.POSTGRES_SUPER_PASSWORD }}'
+
+          # Deployment Information
+          DEPLOY_BRANCH=${{ github.ref_name }}
+          DEPLOY_COMMIT=${{ github.sha }}
+          DEPLOY_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          EOF
           
-          # Ports from variables
-          export FRONTEND_PORT="${{ vars.FRONTEND_PORT || '3500' }}"
-          export GATEWAY_PORT="${{ vars.GATEWAY_PORT || '5800' }}"
-          SCRIPT_EOF
+          # Copy .env file to server
+          echo "[UPLOAD] Uploading .env file to server..."
+          scp -F "$HOME/.ssh/config" /tmp/backend.env truenas-cf-tunnel:${{ env.TRUENAS_DEPLOY_DIR }}/.env
           
-          scp -F "$HOME/.ssh/config" /tmp/backend_env_vars.sh truenas-cf-tunnel:${{ env.TRUENAS_DEPLOY_DIR }}/
-          
+          # Validate critical variables on server
+          echo "[VALIDATION] Validating critical environment variables..."
           ssh -o ServerAliveInterval=60 -o ServerAliveCountMax=10 -F "$HOME/.ssh/config" truenas-cf-tunnel << 'EOF'
           cd ${{ env.TRUENAS_DEPLOY_DIR }}
           
-          # Load environment variables from secrets
-          source ./backend_env_vars.sh
-          
-          echo "[CREATE] Creating comprehensive backend .env file..."
-          
-          # Create .env using echo statements to avoid YAML/HEREDOC conflicts (following infrastructure pattern)
-          echo "# TiHoMo Backend Environment Configuration" > .env
-          echo "# Generated: $(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> .env
-          echo "" >> .env
-          echo "# Project Configuration" >> .env
-          echo "COMPOSE_PROJECT_NAME=${COMPOSE_PROJECT_NAME}" >> .env
-          echo "ENVIRONMENT=${ENVIRONMENT}" >> .env
-          echo "" >> .env
-          echo "# Application Ports" >> .env
-          echo "FRONTEND_PORT=${FRONTEND_PORT}" >> .env
-          echo "GATEWAY_PORT=${GATEWAY_PORT}" >> .env
-          echo "" >> .env
-          echo "# Authentication & Security" >> .env
-          echo "JWT_SECRET_KEY='${JWT_SECRET_KEY}'" >> .env
-          echo "JWT_ISSUER='${JWT_ISSUER}'" >> .env
-          echo "JWT_AUDIENCE_IDENTITY_API='${JWT_AUDIENCE_IDENTITY_API}'" >> .env
-          echo "JWT_AUDIENCE_COREFINANCE_API='${JWT_AUDIENCE_COREFINANCE_API}'" >> .env
-          echo "JWT_AUDIENCE_OCELOT_GATEWAY='${JWT_AUDIENCE_OCELOT_GATEWAY}'" >> .env
-          echo "" >> .env
-          echo "# OAuth Configuration" >> .env
-          echo "APP_PUBLIC_GOOGLE_CLIENT_ID='${APP_PUBLIC_GOOGLE_CLIENT_ID}'" >> .env
-          echo "FACEBOOK_APP_ID='${FACEBOOK_APP_ID}'" >> .env
-          echo "FACEBOOK_APP_SECRET='${FACEBOOK_APP_SECRET}'" >> .env
-          echo "NUXT_PUBLIC_FACEBOOK_APP_ID='${FACEBOOK_APP_ID}'" >> .env
-          echo "" >> .env
-          echo "# Frontend Configuration" >> .env
-          echo "FRONTEND_BASE_URL='${FRONTEND_BASE_URL}'" >> .env
-          echo "PUBLIC_API_BASE_URL='${PUBLIC_API_BASE_URL}'" >> .env
-          echo "" >> .env
-          echo "# Infrastructure" >> .env
-          echo "REDIS_PASSWORD='${REDIS_PASSWORD}'" >> .env
-          echo "RABBITMQ_PASSWORD='${RABBITMQ_PASSWORD}'" >> .env
-          echo "" >> .env
-          echo "# Database Configuration" >> .env
-          echo "POSTGRES_SUPER_PASSWORD='${POSTGRES_SUPER_PASSWORD}'" >> .env
-          echo "IDENTITY_DB_PASSWORD='${IDENTITY_DB_PASSWORD}'" >> .env
-          echo "COREFINANCE_DB_PASSWORD='${COREFINANCE_DB_PASSWORD}'" >> .env
-          echo "" >> .env
-          echo "# Deployment Information" >> .env
-          echo "DEPLOY_BRANCH=${{ github.ref_name }}" >> .env
-          echo "DEPLOY_COMMIT=${{ github.sha }}" >> .env
-          echo "DEPLOY_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> .env
-          
-          echo "[SUCCESS] Comprehensive .env file created with GitHub secrets"
           echo "[VALIDATION] Checking critical backend variables..."
           
           # Validate critical variables
-          critical_vars=("JWT_SECRET_KEY" "REDIS_PASSWORD" "RABBITMQ_PASSWORD")
+          critical_vars="JWT_SECRET_KEY REDIS_PASSWORD RABBITMQ_PASSWORD"
           missing_vars=""
           
-          for var in "${critical_vars[@]}"; do
+          for var in $critical_vars; do
             if ! grep -q "^${var}=" .env || [ "$(grep "^${var}=" .env | cut -d'=' -f2 | tr -d "'")" = "" ]; then
               missing_vars="$missing_vars $var"
             fi
@@ -293,15 +254,28 @@ jobs:
             echo "[ERROR] Missing critical backend variables:$missing_vars"
             exit 1
           else
-            echo "[OK] All critical backend variables are set"
+            echo "[SUCCESS] All critical backend variables are set"
+            echo "[INFO] .env file ready with $(wc -l < .env) configuration lines"
           fi
           EOF
           
-          # Sync entire backend source code (required for docker-compose.services.yml build)
-          echo "[SYNC] Syncing backend source code..."
-          scp -F "$HOME/.ssh/config" -r src/be truenas-cf-tunnel:${{ env.TRUENAS_DEPLOY_DIR }}/src/
+          # Clean up temporary file
+          rm -f /tmp/backend.env
           
-          # Copy logs directory structure if needed
+          # Sync backend source code with optimizations and progress reporting
+          echo "[SYNC] Syncing backend source code with optimizations..."
+          echo "[INFO] Excluding build artifacts (bin/, obj/) and IDE files for faster transfer..."
+          
+          # Use rsync for faster sync with compression, delta transfer, and progress
+          rsync -avz --compress-level=1 --progress \
+                --exclude='bin/' --exclude='obj/' --exclude='*.log' --exclude='*.tmp' \
+                --exclude='.vs/' --exclude='.vscode/' --exclude='node_modules/' \
+                --exclude='TestResults/' --exclude='*.user' --exclude='*.suo' \
+                -e "ssh -F $HOME/.ssh/config" \
+                src/be/ truenas-cf-tunnel:${{ env.TRUENAS_DEPLOY_DIR }}/src/be/
+          
+          # Create logs directory structure in parallel with source sync completion
+          echo "[SETUP] Creating logs directory structure..."
           ssh -o ServerAliveInterval=60 -o ServerAliveCountMax=10 -F "$HOME/.ssh/config" truenas-cf-tunnel "mkdir -p ${{ env.TRUENAS_DEPLOY_DIR }}/logs/{identity,corefinance,excel,ocelot}"
           
           echo "[SUCCESS] Files and source code synced to TrueNAS"
