@@ -145,7 +145,7 @@ services:
       - JWT__AccessTokenExpirationMinutes=${JWT_ACCESS_TOKEN_EXPIRATION_MINUTES:-60}
       - JWT__RefreshTokenExpirationDays=${JWT_REFRESH_TOKEN_EXPIRATION_DAYS:-30}
       # Updated connection string for unified database
-      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=identity;Username=identity_user;Password=identity_pass123
+      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=identity;Username=identity_user;Password=${IDENTITY_DB_PASSWORD}
       - Redis__ConnectionString=redis:6379
       - Redis__Password=${REDIS_PASSWORD}
       - RabbitMQ__Host=rabbitmq
@@ -176,7 +176,7 @@ services:
       - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Development}
       - ASPNETCORE_URLS=http://+:8080
       # Updated connection string for unified database
-      - ConnectionStrings__CoreFinanceDb=Host=postgres;Port=5432;Database=corefinance;Username=corefinance_user;Password=corefinance_pass123
+      - ConnectionStrings__CoreFinanceDb=Host=postgres;Port=5432;Database=corefinance;Username=corefinance_user;Password=${COREFINANCE_DB_PASSWORD}
       - ConnectionStrings__Redis=redis:6379
       - Redis__Password=${REDIS_PASSWORD}
       - JWT__SecretKey=${JWT_SECRET_KEY}
