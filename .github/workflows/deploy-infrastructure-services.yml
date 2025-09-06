@@ -286,10 +286,146 @@ jobs:
             echo "[WAIT] Waiting for services to stabilize..."
             sleep 30
             
+            # Check if PostgreSQL is ready and create database users
+            echo "[DATABASE] Checking PostgreSQL availability and creating database users..."
+            
+            # Wait for PostgreSQL to be ready
+            max_attempts=10
+            attempt=1
+            while [ $attempt -le $max_attempts ]; do
+              if run_docker exec tihomo-postgres psql -U postgres -c "SELECT 1" >/dev/null 2>&1; then
+                echo "[OK] PostgreSQL is ready"
+                break
+              else
+                echo "[WAIT] PostgreSQL not ready yet (attempt $attempt/$max_attempts)"
+                sleep 10
+                ((attempt++))
+              fi
+            done
+            
+            if [ $attempt -gt $max_attempts ]; then
+              echo "[ERROR] PostgreSQL failed to become ready within timeout"
+              exit 1
+            fi
+            
+            # Create database users and databases
+            echo "[DATABASE] Creating database users and databases..."
+            
+            # Read passwords from .env file
+            if [ -f ".env" ]; then
+              IDENTITY_PWD=$(grep "^IDENTITY_DB_PASSWORD=" .env | cut -d'=' -f2 | tr -d "'\"" | xargs)
+              COREFINANCE_PWD=$(grep "^COREFINANCE_DB_PASSWORD=" .env | cut -d'=' -f2 | tr -d "'\"" | xargs)
+              MONEY_PWD=$(grep "^MONEYMANAGEMENT_DB_PASSWORD=" .env | cut -d'=' -f2 | tr -d "'\"" | xargs)
+              PLANNING_PWD=$(grep "^PLANNINGINVESTMENT_DB_PASSWORD=" .env | cut -d'=' -f2 | tr -d "'\"" | xargs)
+              REPORTING_PWD=$(grep "^REPORTING_DB_PASSWORD=" .env | cut -d'=' -f2 | tr -d "'\"" | xargs)
+              
+              echo "[CREATE] Creating database users..."
+              run_docker exec tihomo-postgres psql -U postgres -c "
+                DO \$\$ 
+                BEGIN
+                  IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'identity_user') THEN
+                    CREATE USER identity_user WITH PASSWORD '$IDENTITY_PWD';
+                    RAISE NOTICE 'Created user identity_user';
+                  ELSE
+                    ALTER USER identity_user PASSWORD '$IDENTITY_PWD';
+                    RAISE NOTICE 'Updated password for identity_user';
+                  END IF;
+                  
+                  IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'corefinance_user') THEN
+                    CREATE USER corefinance_user WITH PASSWORD '$COREFINANCE_PWD';
+                    RAISE NOTICE 'Created user corefinance_user';
+                  ELSE
+                    ALTER USER corefinance_user PASSWORD '$COREFINANCE_PWD';
+                    RAISE NOTICE 'Updated password for corefinance_user';
+                  END IF;
+                  
+                  IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'moneymanagement_user') THEN
+                    CREATE USER moneymanagement_user WITH PASSWORD '$MONEY_PWD';
+                    RAISE NOTICE 'Created user moneymanagement_user';
+                  ELSE
+                    ALTER USER moneymanagement_user PASSWORD '$MONEY_PWD';
+                    RAISE NOTICE 'Updated password for moneymanagement_user';
+                  END IF;
+                  
+                  IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'planninginvestment_user') THEN
+                    CREATE USER planninginvestment_user WITH PASSWORD '$PLANNING_PWD';
+                    RAISE NOTICE 'Created user planninginvestment_user';
+                  ELSE
+                    ALTER USER planninginvestment_user PASSWORD '$PLANNING_PWD';
+                    RAISE NOTICE 'Updated password for planninginvestment_user';
+                  END IF;
+                  
+                  IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'reporting_user') THEN
+                    CREATE USER reporting_user WITH PASSWORD '$REPORTING_PWD';
+                    RAISE NOTICE 'Created user reporting_user';
+                  ELSE
+                    ALTER USER reporting_user PASSWORD '$REPORTING_PWD';
+                    RAISE NOTICE 'Updated password for reporting_user';
+                  END IF;
+                END
+                \$\$;" && echo "[OK] Database users created/updated successfully" || echo "[ERROR] Failed to create database users"
+              
+              echo "[CREATE] Creating databases..."
+              run_docker exec tihomo-postgres psql -U postgres << 'DBSQL'
+                DO $$
+                BEGIN
+                  IF NOT EXISTS (SELECT FROM pg_database WHERE datname = 'identity') THEN
+                    CREATE DATABASE identity;
+                    RAISE NOTICE 'Created database identity';
+                  END IF;
+                  
+                  IF NOT EXISTS (SELECT FROM pg_database WHERE datname = 'corefinance') THEN
+                    CREATE DATABASE corefinance;
+                    RAISE NOTICE 'Created database corefinance';
+                  END IF;
+                  
+                  IF NOT EXISTS (SELECT FROM pg_database WHERE datname = 'db_money') THEN
+                    CREATE DATABASE db_money;
+                    RAISE NOTICE 'Created database db_money';
+                  END IF;
+                  
+                  IF NOT EXISTS (SELECT FROM pg_database WHERE datname = 'db_planning') THEN
+                    CREATE DATABASE db_planning;
+                    RAISE NOTICE 'Created database db_planning';
+                  END IF;
+                  
+                  IF NOT EXISTS (SELECT FROM pg_database WHERE datname = 'db_reporting') THEN
+                    CREATE DATABASE db_reporting;
+                    RAISE NOTICE 'Created database db_reporting';
+                  END IF;
+                END
+                $$;
+              DBSQL 
+              if [ $? -eq 0 ]; then
+                echo "[OK] Databases created successfully"
+              else
+                echo "[ERROR] Failed to create databases"
+                exit 1
+              fi
+              
+              echo "[GRANT] Granting database permissions..."
+              run_docker exec tihomo-postgres psql -U postgres -c "
+                GRANT ALL PRIVILEGES ON DATABASE identity TO identity_user;
+                GRANT ALL PRIVILEGES ON DATABASE corefinance TO corefinance_user;
+                GRANT ALL PRIVILEGES ON DATABASE db_money TO moneymanagement_user;
+                GRANT ALL PRIVILEGES ON DATABASE db_planning TO planninginvestment_user;
+                GRANT ALL PRIVILEGES ON DATABASE db_reporting TO reporting_user;
+              " && echo "[OK] Database permissions granted" || echo "[ERROR] Failed to grant permissions"
+              
+              # Test database connections
+              echo "[TEST] Testing database connections..."
+              run_docker exec tihomo-postgres psql -U identity_user -d identity -c "SELECT current_database(), current_user;" && echo "[OK] identity_user connection successful" || echo "[WARNING] identity_user connection failed"
+              run_docker exec tihomo-postgres psql -U corefinance_user -d corefinance -c "SELECT current_database(), current_user;" && echo "[OK] corefinance_user connection successful" || echo "[WARNING] corefinance_user connection failed"
+              
+            else
+              echo "[ERROR] .env file not found - cannot create database users"
+              exit 1
+            fi
+            
             echo "[STATUS] Final infrastructure status:"
             run_docker compose -f docker-compose.infras.yml ps
             
-            echo "[SUCCESS] All infrastructure services deployed!"
+            echo "[SUCCESS] All infrastructure services deployed and configured!"
           EOF
 
       - name: "[8/10] Infrastructure health check"
@@ -340,6 +476,55 @@ jobs:
             TOTAL_COUNT=$(run_docker compose -f docker-compose.infras.yml config --services | wc -l)
             
             echo "[HEALTH] Running services: $RUNNING_COUNT/$TOTAL_COUNT"
+            
+            # Database user validation
+            echo "[VALIDATION] Validating database users..."
+            if run_docker exec tihomo-postgres psql -U postgres -c "SELECT 1" >/dev/null 2>&1; then
+              echo "[OK] PostgreSQL is accessible"
+              
+              # Check if all required users exist
+              echo "[CHECK] Verifying database users..."
+              required_users="identity_user corefinance_user moneymanagement_user planninginvestment_user reporting_user"
+              missing_users=""
+              
+              for user in $required_users; do
+                if run_docker exec tihomo-postgres psql -U postgres -c "SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = '$user';" | grep -q "1"; then
+                  echo "✅ User $user exists"
+                else
+                  echo "❌ User $user missing"
+                  missing_users="$missing_users $user"
+                fi
+              done
+              
+              # Check if all required databases exist
+              echo "[CHECK] Verifying databases..."
+              required_dbs="identity corefinance db_money db_planning db_reporting"
+              missing_dbs=""
+              
+              for db in $required_dbs; do
+                if run_docker exec tihomo-postgres psql -U postgres -c "SELECT 1 FROM pg_database WHERE datname = '$db';" | grep -q "1"; then
+                  echo "✅ Database $db exists"
+                else
+                  echo "❌ Database $db missing"
+                  missing_dbs="$missing_dbs $db"
+                fi
+              done
+              
+              if [ -z "$missing_users" ] && [ -z "$missing_dbs" ]; then
+                echo "✅ All database users and databases are properly configured"
+              else
+                echo "⚠️  Database configuration incomplete:"
+                if [ -n "$missing_users" ]; then
+                  echo "   Missing users: $missing_users"
+                fi
+                if [ -n "$missing_dbs" ]; then
+                  echo "   Missing databases: $missing_dbs"
+                fi
+              fi
+              
+            else
+              echo "❌ PostgreSQL not accessible for validation"
+            fi
             
             if [ "$RUNNING_COUNT" -eq "$TOTAL_COUNT" ]; then
               echo "✅ All infrastructure services are running"
