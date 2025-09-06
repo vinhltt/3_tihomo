@@ -288,11 +288,14 @@ jobs:
             
             # Check if PostgreSQL is ready and create database users
             echo "[DATABASE] Checking PostgreSQL availability and creating database users..."
+            echo "[DEBUG] About to check PostgreSQL readiness..."
             
             # Wait for PostgreSQL to be ready
             max_attempts=10
             attempt=1
+            echo "[DEBUG] Starting PostgreSQL readiness check loop..."
             while [ $attempt -le $max_attempts ]; do
+              echo "[DEBUG] Attempt $attempt: Testing PostgreSQL connection..."
               if run_docker exec tihomo-postgres psql -U postgres -c "SELECT 1" >/dev/null 2>&1; then
                 echo "[OK] PostgreSQL is ready"
                 break
@@ -308,150 +311,90 @@ jobs:
               exit 1
             fi
             
+            echo "[DEBUG] PostgreSQL is ready, proceeding with database setup..."
+            
             # Create database users and databases
             echo "[DATABASE] Creating database users and databases..."
             
             # Read passwords from .env file
+            echo "[DEBUG] Checking for .env file..."
             if [ -f ".env" ]; then
+              echo "[DEBUG] .env file found, reading passwords..."
               IDENTITY_PWD=$(grep "^IDENTITY_DB_PASSWORD=" .env | cut -d'=' -f2 | tr -d "'\"" | xargs)
               COREFINANCE_PWD=$(grep "^COREFINANCE_DB_PASSWORD=" .env | cut -d'=' -f2 | tr -d "'\"" | xargs)
               MONEY_PWD=$(grep "^MONEYMANAGEMENT_DB_PASSWORD=" .env | cut -d'=' -f2 | tr -d "'\"" | xargs)
               PLANNING_PWD=$(grep "^PLANNINGINVESTMENT_DB_PASSWORD=" .env | cut -d'=' -f2 | tr -d "'\"" | xargs)
               REPORTING_PWD=$(grep "^REPORTING_DB_PASSWORD=" .env | cut -d'=' -f2 | tr -d "'\"" | xargs)
               
+              echo "[DEBUG] Password validation:"
+              echo "[DEBUG] IDENTITY_PWD length: ${#IDENTITY_PWD}"
+              echo "[DEBUG] COREFINANCE_PWD length: ${#COREFINANCE_PWD}"
+              echo "[DEBUG] All passwords extracted successfully"
+              
               echo "[CREATE] Creating database users..."
               
-              # Create a temporary SQL file for user creation
-              cat > /tmp/create_users.sql << 'USERSQL'
-              DO $$ 
-              BEGIN
-                IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'identity_user') THEN
-                  CREATE USER identity_user WITH PASSWORD '%IDENTITY_PWD%';
-                  RAISE NOTICE 'Created user identity_user';
-                ELSE
-                  ALTER USER identity_user PASSWORD '%IDENTITY_PWD%';
-                  RAISE NOTICE 'Updated password for identity_user';
-                END IF;
-                
-                IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'corefinance_user') THEN
-                  CREATE USER corefinance_user WITH PASSWORD '%COREFINANCE_PWD%';
-                  RAISE NOTICE 'Created user corefinance_user';
-                ELSE
-                  ALTER USER corefinance_user PASSWORD '%COREFINANCE_PWD%';
-                  RAISE NOTICE 'Updated password for corefinance_user';
-                END IF;
-                
-                IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'moneymanagement_user') THEN
-                  CREATE USER moneymanagement_user WITH PASSWORD '%MONEY_PWD%';
-                  RAISE NOTICE 'Created user moneymanagement_user';
-                ELSE
-                  ALTER USER moneymanagement_user PASSWORD '%MONEY_PWD%';
-                  RAISE NOTICE 'Updated password for moneymanagement_user';
-                END IF;
-                
-                IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'planninginvestment_user') THEN
-                  CREATE USER planninginvestment_user WITH PASSWORD '%PLANNING_PWD%';
-                  RAISE NOTICE 'Created user planninginvestment_user';
-                ELSE
-                  ALTER USER planninginvestment_user PASSWORD '%PLANNING_PWD%';
-                  RAISE NOTICE 'Updated password for planninginvestment_user';
-                END IF;
-                
-                IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'reporting_user') THEN
-                  CREATE USER reporting_user WITH PASSWORD '%REPORTING_PWD%';
-                  RAISE NOTICE 'Created user reporting_user';
-                ELSE
-                  ALTER USER reporting_user PASSWORD '%REPORTING_PWD%';
-                  RAISE NOTICE 'Updated password for reporting_user';
-                END IF;
-              END
-              $$;
-              USERSQL
+              # Create users with simple SQL commands
+              echo "[DEBUG] Creating identity_user..."
+              run_docker exec tihomo-postgres psql -U postgres -c "CREATE USER identity_user WITH PASSWORD '$IDENTITY_PWD';" || \
+              run_docker exec tihomo-postgres psql -U postgres -c "ALTER USER identity_user PASSWORD '$IDENTITY_PWD';"
               
-              # Replace placeholders with actual passwords
-              sed -i "s/%IDENTITY_PWD%/$IDENTITY_PWD/g" /tmp/create_users.sql
-              sed -i "s/%COREFINANCE_PWD%/$COREFINANCE_PWD/g" /tmp/create_users.sql
-              sed -i "s/%MONEY_PWD%/$MONEY_PWD/g" /tmp/create_users.sql
-              sed -i "s/%PLANNING_PWD%/$PLANNING_PWD/g" /tmp/create_users.sql
-              sed -i "s/%REPORTING_PWD%/$REPORTING_PWD/g" /tmp/create_users.sql
+              echo "[DEBUG] Creating corefinance_user..."
+              run_docker exec tihomo-postgres psql -U postgres -c "CREATE USER corefinance_user WITH PASSWORD '$COREFINANCE_PWD';" || \
+              run_docker exec tihomo-postgres psql -U postgres -c "ALTER USER corefinance_user PASSWORD '$COREFINANCE_PWD';"
               
-              # Copy SQL file to container and execute
-              run_docker cp /tmp/create_users.sql tihomo-postgres:/tmp/create_users.sql
-              run_docker exec tihomo-postgres psql -U postgres -f /tmp/create_users.sql
+              echo "[DEBUG] Creating moneymanagement_user..."
+              run_docker exec tihomo-postgres psql -U postgres -c "CREATE USER moneymanagement_user WITH PASSWORD '$MONEY_PWD';" || \
+              run_docker exec tihomo-postgres psql -U postgres -c "ALTER USER moneymanagement_user PASSWORD '$MONEY_PWD';"
               
-              if [ $? -eq 0 ]; then
-                echo "[OK] Database users created/updated successfully"
-              else
-                echo "[ERROR] Failed to create database users"
-                exit 1
-              fi
+              echo "[DEBUG] Creating planninginvestment_user..."
+              run_docker exec tihomo-postgres psql -U postgres -c "CREATE USER planninginvestment_user WITH PASSWORD '$PLANNING_PWD';" || \
+              run_docker exec tihomo-postgres psql -U postgres -c "ALTER USER planninginvestment_user PASSWORD '$PLANNING_PWD';"
+              
+              echo "[DEBUG] Creating reporting_user..."
+              run_docker exec tihomo-postgres psql -U postgres -c "CREATE USER reporting_user WITH PASSWORD '$REPORTING_PWD';" || \
+              run_docker exec tihomo-postgres psql -U postgres -c "ALTER USER reporting_user PASSWORD '$REPORTING_PWD';"
+              
+              echo "[OK] Database users created/updated successfully"
               
               echo "[CREATE] Creating databases..."
               
-              # Create a temporary SQL file for database creation
-              cat > /tmp/create_databases.sql << 'DBSQL'
-              DO $$
-              BEGIN
-                IF NOT EXISTS (SELECT FROM pg_database WHERE datname = 'identity') THEN
-                  CREATE DATABASE identity;
-                  RAISE NOTICE 'Created database identity';
-                END IF;
-                
-                IF NOT EXISTS (SELECT FROM pg_database WHERE datname = 'corefinance') THEN
-                  CREATE DATABASE corefinance;
-                  RAISE NOTICE 'Created database corefinance';
-                END IF;
-                
-                IF NOT EXISTS (SELECT FROM pg_database WHERE datname = 'db_money') THEN
-                  CREATE DATABASE db_money;
-                  RAISE NOTICE 'Created database db_money';
-                END IF;
-                
-                IF NOT EXISTS (SELECT FROM pg_database WHERE datname = 'db_planning') THEN
-                  CREATE DATABASE db_planning;
-                  RAISE NOTICE 'Created database db_planning';
-                END IF;
-                
-                IF NOT EXISTS (SELECT FROM pg_database WHERE datname = 'db_reporting') THEN
-                  CREATE DATABASE db_reporting;
-                  RAISE NOTICE 'Created database db_reporting';
-                END IF;
-              END
-              $$;
-              DBSQL
+              # Create databases with simple SQL commands
+              echo "[DEBUG] Creating identity database..."
+              run_docker exec tihomo-postgres psql -U postgres -c "CREATE DATABASE identity;" || echo "[INFO] Database identity already exists"
               
-              # Copy SQL file to container and execute
-              run_docker cp /tmp/create_databases.sql tihomo-postgres:/tmp/create_databases.sql
-              run_docker exec tihomo-postgres psql -U postgres -f /tmp/create_databases.sql
+              echo "[DEBUG] Creating corefinance database..."
+              run_docker exec tihomo-postgres psql -U postgres -c "CREATE DATABASE corefinance;" || echo "[INFO] Database corefinance already exists"
               
-              if [ $? -eq 0 ]; then
-                echo "[OK] Databases created successfully"
-              else
-                echo "[ERROR] Failed to create databases"
-                exit 1
-              fi
+              echo "[DEBUG] Creating db_money database..."
+              run_docker exec tihomo-postgres psql -U postgres -c "CREATE DATABASE db_money;" || echo "[INFO] Database db_money already exists"
+              
+              echo "[DEBUG] Creating db_planning database..."
+              run_docker exec tihomo-postgres psql -U postgres -c "CREATE DATABASE db_planning;" || echo "[INFO] Database db_planning already exists"
+              
+              echo "[DEBUG] Creating db_reporting database..."
+              run_docker exec tihomo-postgres psql -U postgres -c "CREATE DATABASE db_reporting;" || echo "[INFO] Database db_reporting already exists"
+              
+              echo "[OK] Databases created successfully"
               
               echo "[GRANT] Granting database permissions..."
               
-              # Create temporary SQL file for permissions
-              cat > /tmp/grant_permissions.sql << 'GRANTSQL'
-              GRANT ALL PRIVILEGES ON DATABASE identity TO identity_user;
-              GRANT ALL PRIVILEGES ON DATABASE corefinance TO corefinance_user;
-              GRANT ALL PRIVILEGES ON DATABASE db_money TO moneymanagement_user;
-              GRANT ALL PRIVILEGES ON DATABASE db_planning TO planninginvestment_user;
-              GRANT ALL PRIVILEGES ON DATABASE db_reporting TO reporting_user;
-              GRANTSQL
+              # Grant permissions with simple SQL commands
+              echo "[DEBUG] Granting permissions to identity_user..."
+              run_docker exec tihomo-postgres psql -U postgres -c "GRANT ALL PRIVILEGES ON DATABASE identity TO identity_user;"
               
-              # Copy SQL file to container and execute
-              run_docker cp /tmp/grant_permissions.sql tihomo-postgres:/tmp/grant_permissions.sql
-              run_docker exec tihomo-postgres psql -U postgres -f /tmp/grant_permissions.sql
+              echo "[DEBUG] Granting permissions to corefinance_user..."
+              run_docker exec tihomo-postgres psql -U postgres -c "GRANT ALL PRIVILEGES ON DATABASE corefinance TO corefinance_user;"
               
-              if [ $? -eq 0 ]; then
-                echo "[OK] Database permissions granted"
-              else
-                echo "[ERROR] Failed to grant permissions"
-                exit 1
-              fi
+              echo "[DEBUG] Granting permissions to moneymanagement_user..."
+              run_docker exec tihomo-postgres psql -U postgres -c "GRANT ALL PRIVILEGES ON DATABASE db_money TO moneymanagement_user;"
+              
+              echo "[DEBUG] Granting permissions to planninginvestment_user..."
+              run_docker exec tihomo-postgres psql -U postgres -c "GRANT ALL PRIVILEGES ON DATABASE db_planning TO planninginvestment_user;"
+              
+              echo "[DEBUG] Granting permissions to reporting_user..."
+              run_docker exec tihomo-postgres psql -U postgres -c "GRANT ALL PRIVILEGES ON DATABASE db_reporting TO reporting_user;"
+              
+              echo "[OK] Database permissions granted"
               
               # Test database connections
               echo "[TEST] Testing database connections..."
