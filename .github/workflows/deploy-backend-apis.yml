@@ -135,6 +135,7 @@ jobs:
         run: |
           CLEAN_ENV=$(echo "${{ inputs.environment || (github.ref == 'refs/heads/master' && 'production' || 'development') }}" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]//g')
           echo "TRUENAS_DEPLOY_DIR=${{ vars.DEPLOY_PATH_ON_TRUENAS }}/deploy_${GITHUB_REF_NAME}" >> $GITHUB_ENV
+          echo "COMPOSE_PROJECT_NAME=tihomo_${CLEAN_ENV}" >> $GITHUB_ENV
           echo "ENVIRONMENT=${CLEAN_ENV}" >> $GITHUB_ENV
           
           # Parse services to deploy
@@ -143,6 +144,10 @@ jobs:
             SERVICES="identity-api,corefinance-api,excel-api,ocelot-gateway"
           fi
           echo "SERVICES_TO_DEPLOY=${SERVICES}" >> $GITHUB_ENV
+          
+          echo "[INFO] Deploy directory: ${{ vars.DEPLOY_PATH_ON_TRUENAS }}/deploy_${GITHUB_REF_NAME}"
+          echo "[INFO] Project name: tihomo_${CLEAN_ENV}"
+          echo "[INFO] Deploying Backend APIs: ${SERVICES}"
 
       - name: "[3/6] Setup SSH and Cloudflared"
         run: |
@@ -172,10 +177,122 @@ jobs:
           # Copy docker-compose files
           scp -F "$HOME/.ssh/config" docker-compose.services.yml truenas-cf-tunnel:${{ env.TRUENAS_DEPLOY_DIR }}/
           
-          # Copy .env.template if exists
+          # Copy .env.template if exists and create basic .env file
           if [ -f ".env.template" ]; then
             scp -F "$HOME/.ssh/config" .env.template truenas-cf-tunnel:${{ env.TRUENAS_DEPLOY_DIR }}/
           fi
+          
+          # Create comprehensive .env file using GitHub secrets and variables (following deploy-infrastructure-services pattern)
+          echo "[ENV] Creating comprehensive .env file on server using GitHub secrets..."
+          
+          # Create environment variables script with secrets
+          cat > /tmp/backend_env_vars.sh << 'SCRIPT_EOF'
+          export COMPOSE_PROJECT_NAME="${{ env.COMPOSE_PROJECT_NAME }}"
+          export ENVIRONMENT="${{ env.ENVIRONMENT }}"
+          
+          # Database passwords
+          export POSTGRES_SUPER_PASSWORD="${{ secrets.POSTGRES_SUPER_PASSWORD }}"
+          export IDENTITY_DB_PASSWORD="${{ secrets.IDENTITY_DB_PASSWORD || secrets.POSTGRES_SUPER_PASSWORD }}"
+          export COREFINANCE_DB_PASSWORD="${{ secrets.COREFINANCE_DB_PASSWORD || secrets.POSTGRES_SUPER_PASSWORD }}"
+          
+          # Authentication & Security
+          export JWT_SECRET_KEY="${{ secrets.JWT_SECRET_KEY }}"
+          export JWT_ISSUER="${{ secrets.JWT_ISSUER || 'tihomo' }}"
+          export JWT_AUDIENCE_IDENTITY_API="${{ secrets.JWT_AUDIENCE_IDENTITY_API || 'identity-api' }}"
+          export JWT_AUDIENCE_COREFINANCE_API="${{ secrets.JWT_AUDIENCE_COREFINANCE_API || 'corefinance-api' }}"
+          export JWT_AUDIENCE_OCELOT_GATEWAY="${{ secrets.JWT_AUDIENCE_OCELOT_GATEWAY || 'ocelot-gateway' }}"
+          
+          # OAuth Configuration
+          export APP_PUBLIC_GOOGLE_CLIENT_ID="${{ secrets.APP_PUBLIC_GOOGLE_CLIENT_ID }}"
+          export FACEBOOK_APP_ID="${{ secrets.FACEBOOK_APP_ID }}"
+          export FACEBOOK_APP_SECRET="${{ secrets.FACEBOOK_APP_SECRET }}"
+          
+          # Infrastructure
+          export REDIS_PASSWORD="${{ secrets.REDIS_PASSWORD }}"
+          export RABBITMQ_PASSWORD="${{ secrets.RABBITMQ_PASSWORD }}"
+          
+          # Frontend Configuration
+          export FRONTEND_BASE_URL="${{ vars.FRONTEND_BASE_URL || 'http://localhost:3500' }}"
+          export PUBLIC_API_BASE_URL="${{ vars.PUBLIC_API_BASE_URL || 'http://localhost:5800' }}"
+          
+          # Ports from variables
+          export FRONTEND_PORT="${{ vars.FRONTEND_PORT || '3500' }}"
+          export GATEWAY_PORT="${{ vars.GATEWAY_PORT || '5800' }}"
+          SCRIPT_EOF
+          
+          scp -F "$HOME/.ssh/config" /tmp/backend_env_vars.sh truenas-cf-tunnel:${{ env.TRUENAS_DEPLOY_DIR }}/
+          
+          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << 'EOF'
+          cd ${{ env.TRUENAS_DEPLOY_DIR }}
+          
+          # Load environment variables from secrets
+          source ./backend_env_vars.sh
+          
+          echo "[CREATE] Creating comprehensive backend .env file..."
+          
+          # Create .env using echo statements to avoid YAML/HEREDOC conflicts (following infrastructure pattern)
+          echo "# TiHoMo Backend Environment Configuration" > .env
+          echo "# Generated: $(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> .env
+          echo "" >> .env
+          echo "# Project Configuration" >> .env
+          echo "COMPOSE_PROJECT_NAME=${COMPOSE_PROJECT_NAME}" >> .env
+          echo "ENVIRONMENT=${ENVIRONMENT}" >> .env
+          echo "" >> .env
+          echo "# Application Ports" >> .env
+          echo "FRONTEND_PORT=${FRONTEND_PORT}" >> .env
+          echo "GATEWAY_PORT=${GATEWAY_PORT}" >> .env
+          echo "" >> .env
+          echo "# Authentication & Security" >> .env
+          echo "JWT_SECRET_KEY='${JWT_SECRET_KEY}'" >> .env
+          echo "JWT_ISSUER='${JWT_ISSUER}'" >> .env
+          echo "JWT_AUDIENCE_IDENTITY_API='${JWT_AUDIENCE_IDENTITY_API}'" >> .env
+          echo "JWT_AUDIENCE_COREFINANCE_API='${JWT_AUDIENCE_COREFINANCE_API}'" >> .env
+          echo "JWT_AUDIENCE_OCELOT_GATEWAY='${JWT_AUDIENCE_OCELOT_GATEWAY}'" >> .env
+          echo "" >> .env
+          echo "# OAuth Configuration" >> .env
+          echo "APP_PUBLIC_GOOGLE_CLIENT_ID='${APP_PUBLIC_GOOGLE_CLIENT_ID}'" >> .env
+          echo "FACEBOOK_APP_ID='${FACEBOOK_APP_ID}'" >> .env
+          echo "FACEBOOK_APP_SECRET='${FACEBOOK_APP_SECRET}'" >> .env
+          echo "NUXT_PUBLIC_FACEBOOK_APP_ID='${FACEBOOK_APP_ID}'" >> .env
+          echo "" >> .env
+          echo "# Frontend Configuration" >> .env
+          echo "FRONTEND_BASE_URL='${FRONTEND_BASE_URL}'" >> .env
+          echo "PUBLIC_API_BASE_URL='${PUBLIC_API_BASE_URL}'" >> .env
+          echo "" >> .env
+          echo "# Infrastructure" >> .env
+          echo "REDIS_PASSWORD='${REDIS_PASSWORD}'" >> .env
+          echo "RABBITMQ_PASSWORD='${RABBITMQ_PASSWORD}'" >> .env
+          echo "" >> .env
+          echo "# Database Configuration" >> .env
+          echo "POSTGRES_SUPER_PASSWORD='${POSTGRES_SUPER_PASSWORD}'" >> .env
+          echo "IDENTITY_DB_PASSWORD='${IDENTITY_DB_PASSWORD}'" >> .env
+          echo "COREFINANCE_DB_PASSWORD='${COREFINANCE_DB_PASSWORD}'" >> .env
+          echo "" >> .env
+          echo "# Deployment Information" >> .env
+          echo "DEPLOY_BRANCH=${{ github.ref_name }}" >> .env
+          echo "DEPLOY_COMMIT=${{ github.sha }}" >> .env
+          echo "DEPLOY_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> .env
+          
+          echo "[SUCCESS] Comprehensive .env file created with GitHub secrets"
+          echo "[VALIDATION] Checking critical backend variables..."
+          
+          # Validate critical variables
+          critical_vars=("JWT_SECRET_KEY" "REDIS_PASSWORD" "RABBITMQ_PASSWORD")
+          missing_vars=""
+          
+          for var in "${critical_vars[@]}"; do
+            if ! grep -q "^${var}=" .env || [ "$(grep "^${var}=" .env | cut -d'=' -f2 | tr -d "'")" = "" ]; then
+              missing_vars="$missing_vars $var"
+            fi
+          done
+          
+          if [ -n "$missing_vars" ]; then
+            echo "[ERROR] Missing critical backend variables:$missing_vars"
+            exit 1
+          else
+            echo "[OK] All critical backend variables are set"
+          fi
+          EOF
           
           # Sync entire backend source code (required for docker-compose.services.yml build)
           echo "[SYNC] Syncing backend source code..."
@@ -209,18 +326,30 @@ jobs:
             echo "[INFO] GHCR images temporarily disabled due to network timeout"
             
             # Parse and deploy services
-            IFS=',' read -ra SERVICES <<< "${{ env.SERVICES_TO_DEPLOY }}"
+            SERVICES_TO_DEPLOY="${{ env.SERVICES_TO_DEPLOY }}"
+            echo "[DEBUG] Raw services string: '$SERVICES_TO_DEPLOY'"
+            
+            # Convert comma-separated string to array
+            IFS=',' read -ra SERVICES <<< "$SERVICES_TO_DEPLOY"
             DEPLOYED_SERVICES=()
             FAILED_SERVICES=()
+            
+            echo "[DEBUG] Parsed services array: ${SERVICES[@]}"
             
             # TEMPORARILY DISABLED: Skip GHCR image pulls due to network timeout
             # Will build directly from source code via docker-compose.services.yml
             echo "[BUILD] Building services from source code instead of pulling GHCR images..."
             
+            # Debug: List available services in compose file
+            echo "[DEBUG] Available services in compose file:"
+            $USE_SUDO docker compose -f $COMPOSE_FILE config --services
+            
             # Deploy services one by one
             for service in "${SERVICES[@]}"; do
               service=$(echo "$service" | xargs) # trim whitespace
-              echo "[DEPLOY] Deploying $service..."
+              echo "[DEPLOY] Deploying '$service'..."
+              echo "[DEBUG] Service name length: ${#service}"
+              echo "[DEBUG] Service name hex: $(echo -n "$service" | xxd)"
               
               if $USE_SUDO docker compose -f $COMPOSE_FILE config --services | grep -q "^$service$"; then
                 $USE_SUDO docker compose -f $COMPOSE_FILE up -d --no-deps --force-recreate $service
