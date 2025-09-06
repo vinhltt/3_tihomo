@@ -238,11 +238,19 @@ jobs:
           echo "[UPLOAD] Uploading .env file to server..."
           scp -F "$HOME/.ssh/config" /tmp/backend.env truenas-cf-tunnel:${{ env.TRUENAS_DEPLOY_DIR }}/.env
           
-          # Validate critical variables on server
+          # Validate critical variables on server with enhanced debugging
           echo "[VALIDATION] Validating critical environment variables..."
           ssh -o ServerAliveInterval=60 -o ServerAliveCountMax=10 -F "$HOME/.ssh/config" truenas-cf-tunnel << 'EOF'
           cd ${{ env.TRUENAS_DEPLOY_DIR }}
           
+          echo "[DEBUG] Server-side .env file content (first 15 lines):"
+          head -15 .env
+          
+          echo ""
+          echo "[DEBUG] Server-side critical variables check:"
+          grep -E "^(JWT_SECRET_KEY|REDIS_PASSWORD|RABBITMQ_PASSWORD)=" .env || echo "[ERROR] No critical variables found in server .env file"
+          
+          echo ""
           echo "[VALIDATION] Checking critical backend variables..."
           
           # Validate critical variables
@@ -250,13 +258,19 @@ jobs:
           missing_vars=""
           
           for var in $critical_vars; do
-            if ! grep -q "^${var}=" .env || [ "$(grep "^${var}=" .env | cut -d'=' -f2 | tr -d "'")" = "" ]; then
+            var_value=$(grep "^${var}=" .env | cut -d'=' -f2 | tr -d "'" | xargs)
+            if [ -z "$var_value" ] || [ "$var_value" = "" ]; then
               missing_vars="$missing_vars $var"
+              echo "[DEBUG] Variable $var is empty or missing"
+            else
+              echo "[DEBUG] Variable $var is set (length: ${#var_value})"
             fi
           done
           
           if [ -n "$missing_vars" ]; then
             echo "[ERROR] Missing critical backend variables:$missing_vars"
+            echo "[DEBUG] Full .env file content:"
+            cat .env
             exit 1
           else
             echo "[SUCCESS] All critical backend variables are set"
