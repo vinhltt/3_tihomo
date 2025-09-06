@@ -221,6 +221,9 @@ jobs:
           echo "POSTGRES_SUPER_PASSWORD='${{ secrets.POSTGRES_SUPER_PASSWORD }}'" >> /tmp/backend.env
           echo "IDENTITY_DB_PASSWORD='${{ secrets.IDENTITY_DB_PASSWORD || secrets.POSTGRES_SUPER_PASSWORD }}'" >> /tmp/backend.env  
           echo "COREFINANCE_DB_PASSWORD='${{ secrets.COREFINANCE_DB_PASSWORD || secrets.POSTGRES_SUPER_PASSWORD }}'" >> /tmp/backend.env
+          echo "MONEYMANAGEMENT_DB_PASSWORD='${{ secrets.MONEYMANAGEMENT_DB_PASSWORD || secrets.POSTGRES_SUPER_PASSWORD }}'" >> /tmp/backend.env
+          echo "PLANNINGINVESTMENT_DB_PASSWORD='${{ secrets.PLANNINGINVESTMENT_DB_PASSWORD || secrets.POSTGRES_SUPER_PASSWORD }}'" >> /tmp/backend.env
+          echo "REPORTING_DB_PASSWORD='${{ secrets.REPORTING_DB_PASSWORD || secrets.POSTGRES_SUPER_PASSWORD }}'" >> /tmp/backend.env
           echo "" >> /tmp/backend.env
           echo "# Deployment Information" >> /tmp/backend.env
           echo "DEPLOY_BRANCH=${{ github.ref_name }}" >> /tmp/backend.env
@@ -299,6 +302,33 @@ jobs:
             echo "[DEBUG] COREFINANCE_DB_PASSWORD is empty or missing"
           else
             echo "[DEBUG] COREFINANCE_DB_PASSWORD is set (length: ${#corefinance_db_value})"
+          fi
+          
+          # Check MONEYMANAGEMENT_DB_PASSWORD
+          moneymanagement_db_value=$(grep "^MONEYMANAGEMENT_DB_PASSWORD=" .env | cut -d'=' -f2 | tr -d "'" | xargs)
+          if [ -z "$moneymanagement_db_value" ] || [ "$moneymanagement_db_value" = "" ]; then
+            missing_vars="$missing_vars MONEYMANAGEMENT_DB_PASSWORD"
+            echo "[DEBUG] MONEYMANAGEMENT_DB_PASSWORD is empty or missing"
+          else
+            echo "[DEBUG] MONEYMANAGEMENT_DB_PASSWORD is set (length: ${#moneymanagement_db_value})"
+          fi
+          
+          # Check PLANNINGINVESTMENT_DB_PASSWORD
+          planninginvestment_db_value=$(grep "^PLANNINGINVESTMENT_DB_PASSWORD=" .env | cut -d'=' -f2 | tr -d "'" | xargs)
+          if [ -z "$planninginvestment_db_value" ] || [ "$planninginvestment_db_value" = "" ]; then
+            missing_vars="$missing_vars PLANNINGINVESTMENT_DB_PASSWORD"
+            echo "[DEBUG] PLANNINGINVESTMENT_DB_PASSWORD is empty or missing"
+          else
+            echo "[DEBUG] PLANNINGINVESTMENT_DB_PASSWORD is set (length: ${#planninginvestment_db_value})"
+          fi
+          
+          # Check REPORTING_DB_PASSWORD
+          reporting_db_value=$(grep "^REPORTING_DB_PASSWORD=" .env | cut -d'=' -f2 | tr -d "'" | xargs)
+          if [ -z "$reporting_db_value" ] || [ "$reporting_db_value" = "" ]; then
+            missing_vars="$missing_vars REPORTING_DB_PASSWORD"
+            echo "[DEBUG] REPORTING_DB_PASSWORD is empty or missing"
+          else
+            echo "[DEBUG] REPORTING_DB_PASSWORD is set (length: ${#reporting_db_value})"
           fi
           
           if [ -n "$missing_vars" ]; then
