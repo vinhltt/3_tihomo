@@ -489,7 +489,7 @@ jobs:
                 # Phase 2: Wait for Docker healthcheck to pass
                 echo "[PHASE 2/3] Waiting for Docker healthcheck to pass..."
                 attempt=1
-                while [ $attempt -le 15 ]; do
+                while [ $attempt -le 5 ]; do
                   health_status=$($USE_SUDO docker compose -f $COMPOSE_FILE ps $service --format "table {{.Name}}\t{{.Status}}" | grep -v "NAME" | awk '{print $NF}' | sed 's/.*(\(.*\)).*/\1/' 2>/dev/null || echo "unknown")
                   echo "[HEALTH] $service healthcheck status: $health_status"
                   
@@ -502,7 +502,7 @@ jobs:
                     $USE_SUDO docker compose -f $COMPOSE_FILE logs --tail=20 $service
                     break
                   else
-                    echo "[WAIT] Healthcheck still in progress (attempt $attempt/15)"
+                    echo "[WAIT] Healthcheck still in progress (attempt $attempt/5)"
                     sleep 20
                     ((attempt++))
                   fi
