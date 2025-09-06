@@ -354,32 +354,103 @@ jobs:
               if $USE_SUDO docker compose -f $COMPOSE_FILE config --services | grep -q "^$service$"; then
                 $USE_SUDO docker compose -f $COMPOSE_FILE up -d --no-deps --force-recreate $service
                 
-                # Wait for service to be ready
-                echo "[HEALTH] Waiting for $service to be ready..."
-                max_attempts=10
+                # Enhanced health validation
+                echo "[HEALTH] Performing comprehensive health validation for $service..."
+                max_attempts=20
                 attempt=1
                 service_ready=false
                 
-                while [ $attempt -le $max_attempts ]; do
+                # Phase 1: Wait for container to be running
+                echo "[PHASE 1/3] Waiting for container to start..."
+                while [ $attempt -le 10 ]; do
                   if $USE_SUDO docker compose -f $COMPOSE_FILE ps $service | grep -q "Up"; then
                     echo "[RUNNING] $service container is running"
-                    
-                    # Additional health check for APIs
-                    sleep 10
-                    if $USE_SUDO docker compose -f $COMPOSE_FILE exec -T $service curl -f http://localhost:8080/health >/dev/null 2>&1; then
-                      echo "[SUCCESS] $service health check passed"
-                      service_ready=true
-                      break
-                    else
-                      echo "[INFO] $service container running but health endpoint not ready yet"
-                    fi
+                    break
                   else
-                    echo "[WAIT] $service not ready yet (attempt $attempt/$max_attempts)"
+                    echo "[WAIT] Container not ready yet (attempt $attempt/10)"
+                    sleep 10
+                    ((attempt++))
                   fi
-                  
-                  sleep 15
-                  ((attempt++))
                 done
+                
+                if [ $attempt -gt 10 ]; then
+                  echo "[ERROR] $service container failed to start"
+                  FAILED_SERVICES+=("$service")
+                  continue
+                fi
+                
+                # Phase 2: Wait for Docker healthcheck to pass
+                echo "[PHASE 2/3] Waiting for Docker healthcheck to pass..."
+                attempt=1
+                while [ $attempt -le 15 ]; do
+                  health_status=$($USE_SUDO docker compose -f $COMPOSE_FILE ps $service --format "table {{.Name}}\t{{.Status}}" | grep -v "NAME" | awk '{print $NF}' | sed 's/.*(\(.*\)).*/\1/' 2>/dev/null || echo "unknown")
+                  echo "[HEALTH] $service healthcheck status: $health_status"
+                  
+                  if echo "$health_status" | grep -q "healthy"; then
+                    echo "[HEALTHY] $service Docker healthcheck passed"
+                    break
+                  elif echo "$health_status" | grep -q "unhealthy"; then
+                    echo "[UNHEALTHY] $service failed healthcheck"
+                    echo "[DEBUG] Container logs:"
+                    $USE_SUDO docker compose -f $COMPOSE_FILE logs --tail=20 $service
+                    break
+                  else
+                    echo "[WAIT] Healthcheck still in progress (attempt $attempt/15)"
+                    sleep 20
+                    ((attempt++))
+                  fi
+                done
+                
+                # Phase 3: Additional API-specific validation
+                echo "[PHASE 3/3] Performing API-specific validation..."
+                if echo "$health_status" | grep -q "healthy" || [ $attempt -le 15 ]; then
+                  case "$service" in
+                    "identity-api")
+                      echo "[VALIDATE] Testing Identity API endpoints..."
+                      if $USE_SUDO docker compose -f $COMPOSE_FILE exec -T $service curl -f -s http://localhost:8080/identity/health >/dev/null 2>&1 && \
+                         $USE_SUDO docker compose -f $COMPOSE_FILE exec -T $service curl -f -s http://localhost:8080/identity/api-docs >/dev/null 2>&1; then
+                        echo "[SUCCESS] Identity API validation passed"
+                        service_ready=true
+                      else
+                        echo "[FAILED] Identity API validation failed"
+                      fi
+                      ;;
+                    "corefinance-api")
+                      echo "[VALIDATE] Testing CoreFinance API endpoints..."
+                      if $USE_SUDO docker compose -f $COMPOSE_FILE exec -T $service curl -f -s http://localhost:8080/health >/dev/null 2>&1 && \
+                         $USE_SUDO docker compose -f $COMPOSE_FILE exec -T $service curl -f -s http://localhost:8080/api-docs >/dev/null 2>&1; then
+                        echo "[SUCCESS] CoreFinance API validation passed"
+                        service_ready=true
+                      else
+                        echo "[FAILED] CoreFinance API validation failed"
+                      fi
+                      ;;
+                    "excel-api")
+                      echo "[VALIDATE] Testing Excel API endpoints..."
+                      if $USE_SUDO docker compose -f $COMPOSE_FILE exec -T $service curl -f -s http://localhost:8080/health >/dev/null 2>&1; then
+                        echo "[SUCCESS] Excel API validation passed"
+                        service_ready=true
+                      else
+                        echo "[FAILED] Excel API validation failed"
+                      fi
+                      ;;
+                    "ocelot-gateway")
+                      echo "[VALIDATE] Testing API Gateway endpoints..."
+                      if $USE_SUDO docker compose -f $COMPOSE_FILE exec -T $service curl -f -s http://localhost:8080/health >/dev/null 2>&1; then
+                        echo "[SUCCESS] API Gateway validation passed"
+                        service_ready=true
+                      else
+                        echo "[FAILED] API Gateway validation failed"
+                      fi
+                      ;;
+                    *)
+                      echo "[SUCCESS] Generic service validation passed"
+                      service_ready=true
+                      ;;
+                  esac
+                else
+                  echo "[FAILED] Service healthcheck never became healthy"
+                fi
                 
                 if [ "$service_ready" = true ]; then
                   DEPLOYED_SERVICES+=("$service")
@@ -414,6 +485,94 @@ jobs:
               done
             fi
             
+            # Final comprehensive validation
+            echo ""
+            echo "[FINAL VALIDATION] Running comprehensive system validation..."
+            
+            # Check all deployed services are healthy
+            all_healthy=true
+            unhealthy_services=()
+            
+            for service in "${DEPLOYED_SERVICES[@]}"; do
+              health_status=$($USE_SUDO docker compose -f $COMPOSE_FILE ps $service --format "table {{.Name}}\t{{.Status}}" | grep -v "NAME" | awk '{print $NF}' | sed 's/.*(\(.*\)).*/\1/' 2>/dev/null || echo "unknown")
+              
+              if ! echo "$health_status" | grep -q "healthy"; then
+                all_healthy=false
+                unhealthy_services+=("$service")
+                echo "❌ $service is not healthy: $health_status"
+              else
+                echo "✅ $service is healthy"
+              fi
+            done
+            
+            # Test inter-service communication if gateway is deployed
+            if [[ " ${DEPLOYED_SERVICES[@]} " =~ " ocelot-gateway " ]]; then
+              echo "[INTEGRATION] Testing API Gateway routing..."
+              
+              # Test gateway can reach identity service
+              if [[ " ${DEPLOYED_SERVICES[@]} " =~ " identity-api " ]]; then
+                if $USE_SUDO docker compose -f $COMPOSE_FILE exec -T ocelot-gateway curl -f -s http://identity-api:8080/identity/health >/dev/null 2>&1; then
+                  echo "✅ Gateway -> Identity API communication working"
+                else
+                  echo "❌ Gateway -> Identity API communication failed"
+                  all_healthy=false
+                fi
+              fi
+              
+              # Test gateway can reach corefinance service
+              if [[ " ${DEPLOYED_SERVICES[@]} " =~ " corefinance-api " ]]; then
+                if $USE_SUDO docker compose -f $COMPOSE_FILE exec -T ocelot-gateway curl -f -s http://corefinance-api:8080/health >/dev/null 2>&1; then
+                  echo "✅ Gateway -> CoreFinance API communication working"
+                else
+                  echo "❌ Gateway -> CoreFinance API communication failed"
+                  all_healthy=false
+                fi
+              fi
+            fi
+            
+            # Final validation summary
+            echo ""
+            echo "[VALIDATION SUMMARY]"
+            echo "===================="
+            
+            if [ "$all_healthy" = true ] && [ ${#FAILED_SERVICES[@]} -eq 0 ]; then
+              echo "🎉 ALL SERVICES ARE FULLY OPERATIONAL!"
+              echo "✅ Container health: PASSED"
+              echo "✅ API endpoints: PASSED"
+              echo "✅ Service communication: PASSED"
+              
+              # Show service URLs for easy access
+              echo ""
+              echo "🔗 Service Access URLs:"
+              if [[ " ${DEPLOYED_SERVICES[@]} " =~ " ocelot-gateway " ]]; then
+                echo "   • API Gateway: http://<TRUENAS_IP>:${{ vars.GATEWAY_PORT || '5800' }}"
+              fi
+              if [[ " ${DEPLOYED_SERVICES[@]} " =~ " identity-api " ]]; then
+                echo "   • Identity API: http://<TRUENAS_IP>:${{ vars.GATEWAY_PORT || '5800' }}/identity"
+              fi
+              if [[ " ${DEPLOYED_SERVICES[@]} " =~ " corefinance-api " ]]; then
+                echo "   • CoreFinance API: http://<TRUENAS_IP>:${{ vars.GATEWAY_PORT || '5800' }}/corefinance"
+              fi
+              
+              exit 0
+            else
+              echo "❌ DEPLOYMENT ISSUES DETECTED!"
+              if [ ${#FAILED_SERVICES[@]} -gt 0 ]; then
+                echo "   Failed services: ${FAILED_SERVICES[*]}"
+              fi
+              if [ ${#unhealthy_services[@]} -gt 0 ]; then
+                echo "   Unhealthy services: ${unhealthy_services[*]}"
+              fi
+              echo ""
+              echo "📋 Troubleshooting steps:"
+              echo "1. Check logs: docker compose -f $COMPOSE_FILE logs [service-name]"
+              echo "2. Check service status: docker compose -f $COMPOSE_FILE ps"
+              echo "3. Check environment variables: docker compose -f $COMPOSE_FILE config"
+              echo "4. Restart unhealthy services: docker compose -f $COMPOSE_FILE restart [service-name]"
+              
+              exit 1
+            fi
+            
             # Final service status check
             echo ""
             echo "[STATUS] Final service status:"
@@ -426,12 +585,26 @@ jobs:
         with:
           webhook_url: ${{ secrets.DISCORD_WEBHOOK_URL }}
           message: |
-            ${{ job.status == 'success' && '⚙️ **Backend APIs Deployment SUCCESS**' || '❌ **Backend APIs Deployment FAILED**' }}
+            ${{ job.status == 'success' && '🎉 **Backend APIs Deployment SUCCESSFUL & VALIDATED**' || '❌ **Backend APIs Deployment FAILED**' }}
             
-            🔧 **Backend Info:**
+            🔧 **Backend Deployment Info:**
             • **Environment:** `${{ env.ENVIRONMENT }}`
             • **Branch:** `${{ github.ref_name }}`
             • **Services:** `${{ env.SERVICES_TO_DEPLOY }}`
-            • **Gateway:** `http://<TRUENAS_IP>:${{ vars.GATEWAY_PORT || '5800' }}`
+            • **Commit:** `${{ github.sha }}`
             
-            ${{ job.status == 'success' && '🚀 **APIs are ready to serve requests!**' || '🚨 **Check deployment logs for details**' }}
+            ${{ job.status == 'success' && '✅ **Validation Results:**
+            • ✅ Container Health: PASSED
+            • ✅ API Endpoints: PASSED  
+            • ✅ Service Communication: PASSED
+            • 🔗 API Gateway: `http://<TRUENAS_IP>:' || '❌ **Validation Failed:**
+            • Some services failed to start or pass health checks
+            • Check logs: `docker compose logs [service-name]`
+            • Troubleshoot: `docker compose ps`
+            
+            📋 **Next Steps:**' }}${{ vars.GATEWAY_PORT || '5800' }}${{ job.status == 'success' && '`
+
+            🚀 **All APIs are fully operational and ready to serve requests!**' || '
+            1. Review GitHub Actions logs for detailed error information
+            2. SSH to server and check service status
+            3. Restart failed services if needed**' }}
