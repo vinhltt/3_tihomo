@@ -253,19 +253,35 @@ jobs:
           echo ""
           echo "[VALIDATION] Checking critical backend variables..."
           
-          # Validate critical variables
-          critical_vars="JWT_SECRET_KEY REDIS_PASSWORD RABBITMQ_PASSWORD"
+          # Validate critical variables (fixed loop)
           missing_vars=""
           
-          for var in $critical_vars; do
-            var_value=$(grep "^${var}=" .env | cut -d'=' -f2 | tr -d "'" | xargs)
-            if [ -z "$var_value" ] || [ "$var_value" = "" ]; then
-              missing_vars="$missing_vars $var"
-              echo "[DEBUG] Variable $var is empty or missing"
-            else
-              echo "[DEBUG] Variable $var is set (length: ${#var_value})"
-            fi
-          done
+          # Check JWT_SECRET_KEY
+          jwt_value=$(grep "^JWT_SECRET_KEY=" .env | cut -d'=' -f2 | tr -d "'" | xargs)
+          if [ -z "$jwt_value" ] || [ "$jwt_value" = "" ]; then
+            missing_vars="$missing_vars JWT_SECRET_KEY"
+            echo "[DEBUG] JWT_SECRET_KEY is empty or missing"
+          else
+            echo "[DEBUG] JWT_SECRET_KEY is set (length: ${#jwt_value})"
+          fi
+          
+          # Check REDIS_PASSWORD
+          redis_value=$(grep "^REDIS_PASSWORD=" .env | cut -d'=' -f2 | tr -d "'" | xargs)
+          if [ -z "$redis_value" ] || [ "$redis_value" = "" ]; then
+            missing_vars="$missing_vars REDIS_PASSWORD"
+            echo "[DEBUG] REDIS_PASSWORD is empty or missing"
+          else
+            echo "[DEBUG] REDIS_PASSWORD is set (length: ${#redis_value})"
+          fi
+          
+          # Check RABBITMQ_PASSWORD
+          rabbitmq_value=$(grep "^RABBITMQ_PASSWORD=" .env | cut -d'=' -f2 | tr -d "'" | xargs)
+          if [ -z "$rabbitmq_value" ] || [ "$rabbitmq_value" = "" ]; then
+            missing_vars="$missing_vars RABBITMQ_PASSWORD"
+            echo "[DEBUG] RABBITMQ_PASSWORD is empty or missing"
+          else
+            echo "[DEBUG] RABBITMQ_PASSWORD is set (length: ${#rabbitmq_value})"
+          fi
           
           if [ -n "$missing_vars" ]; then
             echo "[ERROR] Missing critical backend variables:$missing_vars"
