@@ -181,53 +181,58 @@ jobs:
           echo "[SYNC] Copying docker-compose.services.yml..."
           scp -F "$HOME/.ssh/config" docker-compose.services.yml truenas-cf-tunnel:${{ env.TRUENAS_DEPLOY_DIR }}/
           
-          # Create comprehensive .env file directly (more efficient approach)
+          # Create comprehensive .env file directly using echo statements (GitHub Actions compatible)
           echo "[ENV] Creating comprehensive .env file using GitHub secrets..."
           
-          # Create .env file locally with all configurations
-          cat > /tmp/backend.env << EOF
-          # TiHoMo Backend Environment Configuration
-          # Generated: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
-
-          # Project Configuration
-          COMPOSE_PROJECT_NAME=${{ env.COMPOSE_PROJECT_NAME }}
-          ENVIRONMENT=${{ env.ENVIRONMENT }}
-
-          # Application Ports
-          FRONTEND_PORT=${{ vars.FRONTEND_PORT || '3500' }}
-          GATEWAY_PORT=${{ vars.GATEWAY_PORT || '5800' }}
-
-          # Authentication & Security
-          JWT_SECRET_KEY='${{ secrets.JWT_SECRET_KEY }}'
-          JWT_ISSUER='${{ secrets.JWT_ISSUER || 'tihomo' }}'
-          JWT_AUDIENCE_IDENTITY_API='${{ secrets.JWT_AUDIENCE_IDENTITY_API || 'identity-api' }}'
-          JWT_AUDIENCE_COREFINANCE_API='${{ secrets.JWT_AUDIENCE_COREFINANCE_API || 'corefinance-api' }}'
-          JWT_AUDIENCE_OCELOT_GATEWAY='${{ secrets.JWT_AUDIENCE_OCELOT_GATEWAY || 'ocelot-gateway' }}'
-
-          # OAuth Configuration
-          APP_PUBLIC_GOOGLE_CLIENT_ID='${{ secrets.APP_PUBLIC_GOOGLE_CLIENT_ID }}'
-          FACEBOOK_APP_ID='${{ secrets.FACEBOOK_APP_ID }}'
-          FACEBOOK_APP_SECRET='${{ secrets.FACEBOOK_APP_SECRET }}'
-          NUXT_PUBLIC_FACEBOOK_APP_ID='${{ secrets.FACEBOOK_APP_ID }}'
-
-          # Frontend Configuration
-          FRONTEND_BASE_URL='${{ vars.FRONTEND_BASE_URL || 'http://localhost:3500' }}'
-          PUBLIC_API_BASE_URL='${{ vars.PUBLIC_API_BASE_URL || 'http://localhost:5800' }}'
-
-          # Infrastructure
-          REDIS_PASSWORD='${{ secrets.REDIS_PASSWORD }}'
-          RABBITMQ_PASSWORD='${{ secrets.RABBITMQ_PASSWORD }}'
-
-          # Database Configuration
-          POSTGRES_SUPER_PASSWORD='${{ secrets.POSTGRES_SUPER_PASSWORD }}'
-          IDENTITY_DB_PASSWORD='${{ secrets.IDENTITY_DB_PASSWORD || secrets.POSTGRES_SUPER_PASSWORD }}'
-          COREFINANCE_DB_PASSWORD='${{ secrets.COREFINANCE_DB_PASSWORD || secrets.POSTGRES_SUPER_PASSWORD }}'
-
-          # Deployment Information
-          DEPLOY_BRANCH=${{ github.ref_name }}
-          DEPLOY_COMMIT=${{ github.sha }}
-          DEPLOY_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-          EOF
+          # Create .env file using echo statements to ensure proper GitHub Actions interpolation
+          echo "# TiHoMo Backend Environment Configuration" > /tmp/backend.env
+          echo "# Generated: $(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> /tmp/backend.env
+          echo "" >> /tmp/backend.env
+          echo "# Project Configuration" >> /tmp/backend.env
+          echo "COMPOSE_PROJECT_NAME=${{ env.COMPOSE_PROJECT_NAME }}" >> /tmp/backend.env
+          echo "ENVIRONMENT=${{ env.ENVIRONMENT }}" >> /tmp/backend.env
+          echo "" >> /tmp/backend.env
+          echo "# Application Ports" >> /tmp/backend.env
+          echo "FRONTEND_PORT=${{ vars.FRONTEND_PORT || '3500' }}" >> /tmp/backend.env
+          echo "GATEWAY_PORT=${{ vars.GATEWAY_PORT || '5800' }}" >> /tmp/backend.env
+          echo "" >> /tmp/backend.env
+          echo "# Authentication & Security" >> /tmp/backend.env
+          echo "JWT_SECRET_KEY='${{ secrets.JWT_SECRET_KEY }}'" >> /tmp/backend.env
+          echo "JWT_ISSUER='${{ secrets.JWT_ISSUER || 'tihomo' }}'" >> /tmp/backend.env
+          echo "JWT_AUDIENCE_IDENTITY_API='${{ secrets.JWT_AUDIENCE_IDENTITY_API || 'identity-api' }}'" >> /tmp/backend.env
+          echo "JWT_AUDIENCE_COREFINANCE_API='${{ secrets.JWT_AUDIENCE_COREFINANCE_API || 'corefinance-api' }}'" >> /tmp/backend.env
+          echo "JWT_AUDIENCE_OCELOT_GATEWAY='${{ secrets.JWT_AUDIENCE_OCELOT_GATEWAY || 'ocelot-gateway' }}'" >> /tmp/backend.env
+          echo "" >> /tmp/backend.env
+          echo "# OAuth Configuration" >> /tmp/backend.env
+          echo "APP_PUBLIC_GOOGLE_CLIENT_ID='${{ secrets.APP_PUBLIC_GOOGLE_CLIENT_ID }}'" >> /tmp/backend.env
+          echo "FACEBOOK_APP_ID='${{ secrets.FACEBOOK_APP_ID }}'" >> /tmp/backend.env
+          echo "FACEBOOK_APP_SECRET='${{ secrets.FACEBOOK_APP_SECRET }}'" >> /tmp/backend.env
+          echo "NUXT_PUBLIC_FACEBOOK_APP_ID='${{ secrets.FACEBOOK_APP_ID }}'" >> /tmp/backend.env
+          echo "" >> /tmp/backend.env
+          echo "# Frontend Configuration" >> /tmp/backend.env
+          echo "FRONTEND_BASE_URL='${{ vars.FRONTEND_BASE_URL || 'http://localhost:3500' }}'" >> /tmp/backend.env
+          echo "PUBLIC_API_BASE_URL='${{ vars.PUBLIC_API_BASE_URL || 'http://localhost:5800' }}'" >> /tmp/backend.env
+          echo "" >> /tmp/backend.env
+          echo "# Infrastructure" >> /tmp/backend.env
+          echo "REDIS_PASSWORD='${{ secrets.REDIS_PASSWORD }}'" >> /tmp/backend.env
+          echo "RABBITMQ_PASSWORD='${{ secrets.RABBITMQ_PASSWORD }}'" >> /tmp/backend.env
+          echo "" >> /tmp/backend.env
+          echo "# Database Configuration" >> /tmp/backend.env
+          echo "POSTGRES_SUPER_PASSWORD='${{ secrets.POSTGRES_SUPER_PASSWORD }}'" >> /tmp/backend.env
+          echo "IDENTITY_DB_PASSWORD='${{ secrets.IDENTITY_DB_PASSWORD || secrets.POSTGRES_SUPER_PASSWORD }}'" >> /tmp/backend.env  
+          echo "COREFINANCE_DB_PASSWORD='${{ secrets.COREFINANCE_DB_PASSWORD || secrets.POSTGRES_SUPER_PASSWORD }}'" >> /tmp/backend.env
+          echo "" >> /tmp/backend.env
+          echo "# Deployment Information" >> /tmp/backend.env
+          echo "DEPLOY_BRANCH=${{ github.ref_name }}" >> /tmp/backend.env
+          echo "DEPLOY_COMMIT=${{ github.sha }}" >> /tmp/backend.env
+          echo "DEPLOY_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> /tmp/backend.env
+          
+          # Debug: Show first few lines of created .env file
+          echo "[DEBUG] First 10 lines of created .env file:"
+          head -10 /tmp/backend.env
+          
+          echo "[DEBUG] Critical variables check in local .env:"
+          grep -E "^(JWT_SECRET_KEY|REDIS_PASSWORD|RABBITMQ_PASSWORD)=" /tmp/backend.env || echo "[WARNING] Some critical variables missing in local file"
           
           # Copy .env file to server
           echo "[UPLOAD] Uploading .env file to server..."
