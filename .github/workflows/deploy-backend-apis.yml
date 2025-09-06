@@ -159,7 +159,10 @@ jobs:
             HostName ${{ secrets.TRUENAS_SSH_HOSTNAME_THROUGH_CLOUDFLARED }}
             ProxyCommand cloudflared access ssh --hostname %h
             User ${{ secrets.TRUENAS_USER }}
-            StrictHostKeyChecking accept-new" > "$HOME/.ssh/config"
+            StrictHostKeyChecking accept-new
+            ServerAliveInterval 60
+            ServerAliveCountMax 10
+            TCPKeepAlive yes" > "$HOME/.ssh/config"
           chmod 600 "$HOME/.ssh/config"
 
       - name: "[4/7] Add SSH key"
@@ -172,7 +175,7 @@ jobs:
           echo "[SYNC] Syncing deployment files and backend source code to TrueNAS..."
           
           # Create remote directory
-          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel "mkdir -p ${{ env.TRUENAS_DEPLOY_DIR }}"
+          ssh -o ServerAliveInterval=60 -o ServerAliveCountMax=10 -F "$HOME/.ssh/config" truenas-cf-tunnel "mkdir -p ${{ env.TRUENAS_DEPLOY_DIR }}"
           
           # Copy docker-compose files
           scp -F "$HOME/.ssh/config" docker-compose.services.yml truenas-cf-tunnel:${{ env.TRUENAS_DEPLOY_DIR }}/
@@ -222,7 +225,7 @@ jobs:
           
           scp -F "$HOME/.ssh/config" /tmp/backend_env_vars.sh truenas-cf-tunnel:${{ env.TRUENAS_DEPLOY_DIR }}/
           
-          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << 'EOF'
+          ssh -o ServerAliveInterval=60 -o ServerAliveCountMax=10 -F "$HOME/.ssh/config" truenas-cf-tunnel << 'EOF'
           cd ${{ env.TRUENAS_DEPLOY_DIR }}
           
           # Load environment variables from secrets
@@ -299,13 +302,14 @@ jobs:
           scp -F "$HOME/.ssh/config" -r src/be truenas-cf-tunnel:${{ env.TRUENAS_DEPLOY_DIR }}/src/
           
           # Copy logs directory structure if needed
-          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel "mkdir -p ${{ env.TRUENAS_DEPLOY_DIR }}/logs/{identity,corefinance,excel,ocelot}"
+          ssh -o ServerAliveInterval=60 -o ServerAliveCountMax=10 -F "$HOME/.ssh/config" truenas-cf-tunnel "mkdir -p ${{ env.TRUENAS_DEPLOY_DIR }}/logs/{identity,corefinance,excel,ocelot}"
           
           echo "[SUCCESS] Files and source code synced to TrueNAS"
 
       - name: "[6/7] Deploy Backend APIs"
+        timeout-minutes: 30
         run: |
-          ssh -F "$HOME/.ssh/config" truenas-cf-tunnel << 'EOF'
+          ssh -o ServerAliveInterval=60 -o ServerAliveCountMax=10 -F "$HOME/.ssh/config" truenas-cf-tunnel << 'EOF'
             cd ${{ env.TRUENAS_DEPLOY_DIR }}
             
             # Check Docker access
@@ -358,6 +362,14 @@ jobs:
               echo "[DEBUG] Service name length: ${#service}"
               
               if $USE_SUDO docker compose -f $COMPOSE_FILE config --services | grep -q "^$service$"; then
+                # Build with optimized settings to prevent timeout
+                echo "[BUILD] Building $service with optimized settings..."
+                DOCKER_BUILDKIT=1 $USE_SUDO docker compose -f $COMPOSE_FILE build --no-cache --parallel $service || {
+                  echo "[ERROR] Build failed for $service, trying without --no-cache..."
+                  DOCKER_BUILDKIT=1 $USE_SUDO docker compose -f $COMPOSE_FILE build $service
+                }
+                
+                # Start the service
                 $USE_SUDO docker compose -f $COMPOSE_FILE up -d --no-deps --force-recreate $service
                 
                 # Enhanced health validation
