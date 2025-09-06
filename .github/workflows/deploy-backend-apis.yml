@@ -329,12 +329,13 @@ jobs:
             SERVICES_TO_DEPLOY="${{ env.SERVICES_TO_DEPLOY }}"
             echo "[DEBUG] Raw services string: '$SERVICES_TO_DEPLOY'"
             
-            # Convert comma-separated string to array
-            IFS=',' read -ra SERVICES <<< "$SERVICES_TO_DEPLOY"
-            DEPLOYED_SERVICES=()
-            FAILED_SERVICES=()
+            # Convert comma-separated string to space-separated (shell-compatible way)
+            # Replace commas with spaces and create array
+            SERVICES_LIST=$(echo "$SERVICES_TO_DEPLOY" | tr ',' ' ')
+            DEPLOYED_SERVICES=""
+            FAILED_SERVICES=""
             
-            echo "[DEBUG] Parsed services array: ${SERVICES[@]}"
+            echo "[DEBUG] Parsed services list: '$SERVICES_LIST'"
             
             # TEMPORARILY DISABLED: Skip GHCR image pulls due to network timeout
             # Will build directly from source code via docker-compose.services.yml
@@ -345,11 +346,10 @@ jobs:
             $USE_SUDO docker compose -f $COMPOSE_FILE config --services
             
             # Deploy services one by one
-            for service in "${SERVICES[@]}"; do
+            for service in $SERVICES_LIST; do
               service=$(echo "$service" | xargs) # trim whitespace
               echo "[DEPLOY] Deploying '$service'..."
               echo "[DEBUG] Service name length: ${#service}"
-              echo "[DEBUG] Service name hex: $(echo -n "$service" | xxd)"
               
               if $USE_SUDO docker compose -f $COMPOSE_FILE config --services | grep -q "^$service$"; then
                 $USE_SUDO docker compose -f $COMPOSE_FILE up -d --no-deps --force-recreate $service
@@ -453,16 +453,16 @@ jobs:
                 fi
                 
                 if [ "$service_ready" = true ]; then
-                  DEPLOYED_SERVICES+=("$service")
+                  DEPLOYED_SERVICES="$DEPLOYED_SERVICES $service"
                 else
                   echo "[WARNING] $service deployment may need more time"
                   echo "[DEBUG] Recent logs for $service:"
                   $USE_SUDO docker compose -f $COMPOSE_FILE logs --tail=10 $service
-                  FAILED_SERVICES+=("$service")
+                  FAILED_SERVICES="$FAILED_SERVICES $service"
                 fi
               else
                 echo "[ERROR] Service $service not found in compose file"
-                FAILED_SERVICES+=("$service")
+                FAILED_SERVICES="$FAILED_SERVICES $service"
               fi
             done
             
@@ -471,16 +471,20 @@ jobs:
             echo "[SUMMARY] Backend API Deployment Results:"
             echo "========================================="
             
-            if [ ${#DEPLOYED_SERVICES[@]} -gt 0 ]; then
+            # Trim leading/trailing spaces
+            DEPLOYED_SERVICES=$(echo "$DEPLOYED_SERVICES" | xargs)
+            FAILED_SERVICES=$(echo "$FAILED_SERVICES" | xargs)
+            
+            if [ -n "$DEPLOYED_SERVICES" ]; then
               echo "✅ Successfully deployed:"
-              for service in "${DEPLOYED_SERVICES[@]}"; do
+              for service in $DEPLOYED_SERVICES; do
                 echo "   • $service"
               done
             fi
             
-            if [ ${#FAILED_SERVICES[@]} -gt 0 ]; then
+            if [ -n "$FAILED_SERVICES" ]; then
               echo "❌ Failed or needs attention:"
-              for service in "${FAILED_SERVICES[@]}"; do
+              for service in $FAILED_SERVICES; do
                 echo "   • $service"
               done
             fi
@@ -491,14 +495,14 @@ jobs:
             
             # Check all deployed services are healthy
             all_healthy=true
-            unhealthy_services=()
+            unhealthy_services=""
             
-            for service in "${DEPLOYED_SERVICES[@]}"; do
+            for service in $DEPLOYED_SERVICES; do
               health_status=$($USE_SUDO docker compose -f $COMPOSE_FILE ps $service --format "table {{.Name}}\t{{.Status}}" | grep -v "NAME" | awk '{print $NF}' | sed 's/.*(\(.*\)).*/\1/' 2>/dev/null || echo "unknown")
               
               if ! echo "$health_status" | grep -q "healthy"; then
                 all_healthy=false
-                unhealthy_services+=("$service")
+                unhealthy_services="$unhealthy_services $service"
                 echo "❌ $service is not healthy: $health_status"
               else
                 echo "✅ $service is healthy"
@@ -506,11 +510,11 @@ jobs:
             done
             
             # Test inter-service communication if gateway is deployed
-            if [[ " ${DEPLOYED_SERVICES[@]} " =~ " ocelot-gateway " ]]; then
+            if echo " $DEPLOYED_SERVICES " | grep -q " ocelot-gateway "; then
               echo "[INTEGRATION] Testing API Gateway routing..."
               
               # Test gateway can reach identity service
-              if [[ " ${DEPLOYED_SERVICES[@]} " =~ " identity-api " ]]; then
+              if echo " $DEPLOYED_SERVICES " | grep -q " identity-api "; then
                 if $USE_SUDO docker compose -f $COMPOSE_FILE exec -T ocelot-gateway curl -f -s http://identity-api:8080/identity/health >/dev/null 2>&1; then
                   echo "✅ Gateway -> Identity API communication working"
                 else
@@ -520,7 +524,7 @@ jobs:
               fi
               
               # Test gateway can reach corefinance service
-              if [[ " ${DEPLOYED_SERVICES[@]} " =~ " corefinance-api " ]]; then
+              if echo " $DEPLOYED_SERVICES " | grep -q " corefinance-api "; then
                 if $USE_SUDO docker compose -f $COMPOSE_FILE exec -T ocelot-gateway curl -f -s http://corefinance-api:8080/health >/dev/null 2>&1; then
                   echo "✅ Gateway -> CoreFinance API communication working"
                 else
@@ -535,7 +539,10 @@ jobs:
             echo "[VALIDATION SUMMARY]"
             echo "===================="
             
-            if [ "$all_healthy" = true ] && [ ${#FAILED_SERVICES[@]} -eq 0 ]; then
+            # Trim spaces
+            unhealthy_services=$(echo "$unhealthy_services" | xargs)
+            
+            if [ "$all_healthy" = true ] && [ -z "$FAILED_SERVICES" ]; then
               echo "🎉 ALL SERVICES ARE FULLY OPERATIONAL!"
               echo "✅ Container health: PASSED"
               echo "✅ API endpoints: PASSED"
@@ -544,24 +551,24 @@ jobs:
               # Show service URLs for easy access
               echo ""
               echo "🔗 Service Access URLs:"
-              if [[ " ${DEPLOYED_SERVICES[@]} " =~ " ocelot-gateway " ]]; then
+              if echo " $DEPLOYED_SERVICES " | grep -q " ocelot-gateway "; then
                 echo "   • API Gateway: http://<TRUENAS_IP>:${{ vars.GATEWAY_PORT || '5800' }}"
               fi
-              if [[ " ${DEPLOYED_SERVICES[@]} " =~ " identity-api " ]]; then
+              if echo " $DEPLOYED_SERVICES " | grep -q " identity-api "; then
                 echo "   • Identity API: http://<TRUENAS_IP>:${{ vars.GATEWAY_PORT || '5800' }}/identity"
               fi
-              if [[ " ${DEPLOYED_SERVICES[@]} " =~ " corefinance-api " ]]; then
+              if echo " $DEPLOYED_SERVICES " | grep -q " corefinance-api "; then
                 echo "   • CoreFinance API: http://<TRUENAS_IP>:${{ vars.GATEWAY_PORT || '5800' }}/corefinance"
               fi
               
               exit 0
             else
               echo "❌ DEPLOYMENT ISSUES DETECTED!"
-              if [ ${#FAILED_SERVICES[@]} -gt 0 ]; then
-                echo "   Failed services: ${FAILED_SERVICES[*]}"
+              if [ -n "$FAILED_SERVICES" ]; then
+                echo "   Failed services: $FAILED_SERVICES"
               fi
-              if [ ${#unhealthy_services[@]} -gt 0 ]; then
-                echo "   Unhealthy services: ${unhealthy_services[*]}"
+              if [ -n "$unhealthy_services" ]; then
+                echo "   Unhealthy services: $unhealthy_services"
               fi
               echo ""
               echo "📋 Troubleshooting steps:"
